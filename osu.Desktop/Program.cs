@@ -4,6 +4,7 @@
 using System;
 using System.IO;
 using System.Runtime.Versioning;
+using Oily.Identity;
 using osu.Desktop.LegacyIpc;
 using osu.Desktop.Windows;
 using osu.Framework;
@@ -20,11 +21,8 @@ namespace osu.Desktop
 {
     public static class Program
     {
-#if DEBUG
-        private const string base_game_name = @"osu-development";
-#else
-        private const string base_game_name = @"osu";
-#endif
+        // oily: separate data folder from official lazer.
+        private const string base_game_name = OilyIdentity.DATA_FOLDER_NAME;
 
         private static LegacyTcpIpcProvider? legacyIpc;
 
@@ -123,7 +121,8 @@ namespace osu.Desktop
                     }
                 }
 
-                if (host.IsPrimaryInstance)
+                // oily: leave the legacy IPC port to official lazer unless explicitly enabled.
+                if (host.IsPrimaryInstance && OilyIdentity.LegacyIpcEnabled)
                 {
                     try
                     {

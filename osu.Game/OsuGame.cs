@@ -1,10 +1,11 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 #nullable disable
 
 using System;
 using System.Collections.Generic;
+using Oily.Identity;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -98,12 +99,8 @@ namespace osu.Game
     [Cached(typeof(OsuGame))]
     public partial class OsuGame : OsuGameBase, IKeyBindingHandler<GlobalAction>, ILocalUserPlayInfo, IPerformFromScreenRunner, IOverlayManager, ILinkHandler
     {
-#if DEBUG
-        // Different port allows running release and debug builds alongside each other.
-        public const string IPC_PIPE_NAME = "osu-lazer-debug";
-#else
-        public const string IPC_PIPE_NAME = "osu-lazer";
-#endif
+        // oily: separate pipe from official lazer. Release and debug builds still differ so they can run alongside each other.
+        public const string IPC_PIPE_NAME = OilyIdentity.IPC_PIPE_NAME;
 
         /// <summary>
         /// The amount of global offset to apply when a left/right anchored overlay is displayed (ie. settings or notifications).

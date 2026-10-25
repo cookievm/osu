@@ -1,10 +1,11 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 #nullable disable
 
 using System;
 using System.Collections.Generic;
+using Oily.Identity;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -77,11 +78,8 @@ namespace osu.Game
     [Cached(typeof(OsuGameBase))]
     public partial class OsuGameBase : Framework.Game, ICanAcceptFiles, IBeatSyncProvider
     {
-#if DEBUG
-        public const string GAME_NAME = "osu! (development)";
-#else
-        public const string GAME_NAME = "osu!";
-#endif
+        // oily: own name instead of osu! branding.
+        public const string GAME_NAME = OilyIdentity.GAME_NAME;
 
         public const string OSU_PROTOCOL = "osu://";
 
