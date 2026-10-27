@@ -11,6 +11,7 @@ using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Tests.Visual;
+using osuTK.Input;
 
 namespace Oily.Rendering.Tests
 {
@@ -37,10 +38,22 @@ namespace Oily.Rendering.Tests
         [Test]
         public void TestDoubleTimeAdvancesFaster()
         {
-            render(new RenderSettings { FramesPerSecond = 60, Duration = TimeSpan.FromSeconds(1) }, new OsuModDoubleTime());
+            render(new RenderSettings { FramesPerSecond = 60, Duration = TimeSpan.FromSeconds(3) }, new OsuModDoubleTime());
 
-            AddAssert("all frames captured", () => capturer.Frames, () => Has.Count.EqualTo(60));
+            AddAssert("all frames captured", () => capturer.Frames, () => Has.Count.EqualTo(180));
             assertGameplayAdvancesBy(60, 1.5);
+            AddAssert("replay hit objects", () => renderScreen.Player.GameplayState.ScoreProcessor.TotalScore.Value, () => Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void TestEscapeCancelsRender()
+        {
+            startRender(new RenderSettings { FramesPerSecond = 60, Duration = null });
+
+            AddUntilStep("wait for frames", () => renderScreen.FramesCaptured, () => Is.GreaterThan(10));
+            AddStep("press escape", () => InputManager.Key(Key.Escape));
+            AddUntilStep("render screen exited", () => !renderScreen.IsCurrentScreen() && Stack.CurrentScreen is not ReplayRenderScreen);
+            AddAssert("not completed", () => renderScreen.Completed, () => Is.False);
         }
 
         [Test]
@@ -56,6 +69,12 @@ namespace Oily.Rendering.Tests
         }
 
         private void render(RenderSettings settings, params Mod[] extraMods)
+        {
+            startRender(settings, extraMods);
+            AddUntilStep("wait for render to finish", () => renderScreen.Completed);
+        }
+
+        private void startRender(RenderSettings settings, params Mod[] extraMods)
         {
             AddStep("exit previous render", () =>
             {
@@ -81,8 +100,6 @@ namespace Oily.Rendering.Tests
 
                 LoadScreen(renderScreen = new ReplayRenderScreen(score, settings, (_, _) => capturer = new RecordingCapturer()));
             });
-
-            AddUntilStep("wait for render to finish", () => renderScreen.Completed);
         }
 
         private void assertGameplayAdvancesBy(int fps, double rate)

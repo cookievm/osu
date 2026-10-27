@@ -7,10 +7,13 @@ using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Input.Bindings;
+using osu.Framework.Input.Events;
 using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osu.Framework.Timing;
+using osu.Game.Input.Bindings;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Notifications;
 using osu.Game.Scoring;
@@ -28,12 +31,15 @@ namespace Oily.Rendering
     /// hands it to the <see cref="IFrameCapturer"/>, and only then steps again.
     /// Because time is frozen between steps, how fast the computer runs never changes what ends up in the video.
     /// </remarks>
-    public partial class ReplayRenderScreen : OsuScreen
+    public partial class ReplayRenderScreen : OsuScreen, IKeyBindingHandler<GlobalAction>
     {
         public override bool DisallowExternalBeatmapRulesetChanges => true;
         public override bool HideOverlaysOnEnter => true;
         public override bool CursorVisible => false;
-        public override bool AllowUserExit => true;
+
+        // Hides the on-screen back button, which would otherwise end up in every frame.
+        // Escape still cancels the render, see OnPressed.
+        public override bool AllowUserExit => false;
 
         protected override OverlayActivation InitialOverlayActivationMode => OverlayActivation.Disabled;
 
@@ -102,7 +108,7 @@ namespace Oily.Rendering
             capturer = createCapturer?.Invoke(host, storage.GetStorageForDirectory(@"renders"))
                        ?? new PngSequenceCapturer(host, storage.GetStorageForDirectory(@"renders"));
 
-            InternalChild = new Container
+            InternalChild = new NoInputContainer
             {
                 RelativeSizeAxes = Axes.Both,
                 // Everything inside, including the player's transitions, HUD and background, runs on video time.
@@ -242,6 +248,20 @@ namespace Oily.Rendering
             this.Exit();
         }
 
+        public bool OnPressed(KeyBindingPressEvent<GlobalAction> e)
+        {
+            if (e.Action != GlobalAction.Back || e.Repeat)
+                return false;
+
+            Logger.Log($"Replay render cancelled after {FramesCaptured} frames");
+            this.Exit();
+            return true;
+        }
+
+        public void OnReleased(KeyBindingReleaseEvent<GlobalAction> e)
+        {
+        }
+
         public override bool OnExiting(ScreenExitEvent e)
         {
             // Make sure the nested player cleans up (samples, leases) before this screen goes.
@@ -255,6 +275,16 @@ namespace Oily.Rendering
         {
             base.Dispose(isDisposing);
             capturer?.Dispose();
+        }
+
+        /// <summary>
+        /// Keeps keyboard and mouse input away from the player, so nothing the user does can change the render.
+        /// The replay drives gameplay through its own input handler, which doesn't depend on this.
+        /// </summary>
+        private partial class NoInputContainer : Container
+        {
+            public override bool PropagatePositionalInputSubTree => false;
+            public override bool PropagateNonPositionalInputSubTree => false;
         }
 
         private enum RenderState
