@@ -1,5 +1,7 @@
 # o!ily
 
+> **Archived (27 October 2026).** Work on o!ily is paused. See [ARCHIVE.md](ARCHIVE.md) for its state, how to build it, and the open decisions.
+
 o!ily is a custom client forked from [osu!lazer](https://github.com/ppy/osu). It is not affiliated with or endorsed by ppy.
 
 The display name is **o!ily**. Wherever a name ends up in a path, file name or code identifier, it is written **oily** instead, since `!` is awkward there.

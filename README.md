@@ -1,3 +1,5 @@
+> **This is o!ily, an archived fork of osu!lazer (paused 27 October 2026).** It is not affiliated with ppy. See [oily/ARCHIVE.md](oily/ARCHIVE.md). The original osu! README follows.
+
 <p align="center">
   <img width="500" alt="osu! logo" src="assets/lazer.png">
 </p>
