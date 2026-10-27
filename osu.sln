@@ -100,6 +100,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CodeAnalysis", "CodeAnalysi
 		CodeAnalysis\osu.globalconfig = CodeAnalysis\osu.globalconfig
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "oily", "oily", "{3C8A1C5E-7B1F-4D0E-9A2B-6E1D4C7F0A11}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Oily.Identity", "oily\Oily.Identity\Oily.Identity.csproj", "{8E2B6D44-1A5C-4F3B-B9D7-2C0E5A9F3B22}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Oily.Identity.Tests", "oily\Oily.Identity.Tests\Oily.Identity.Tests.csproj", "{5D9F0E72-3B6A-4C8D-A1E4-7F2B8C6D4E33}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -254,6 +260,14 @@ Global
 		{1743BF7C-E6AE-4A06-BAD9-166D62894303}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1743BF7C-E6AE-4A06-BAD9-166D62894303}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1743BF7C-E6AE-4A06-BAD9-166D62894303}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8E2B6D44-1A5C-4F3B-B9D7-2C0E5A9F3B22}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8E2B6D44-1A5C-4F3B-B9D7-2C0E5A9F3B22}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8E2B6D44-1A5C-4F3B-B9D7-2C0E5A9F3B22}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8E2B6D44-1A5C-4F3B-B9D7-2C0E5A9F3B22}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5D9F0E72-3B6A-4C8D-A1E4-7F2B8C6D4E33}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5D9F0E72-3B6A-4C8D-A1E4-7F2B8C6D4E33}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5D9F0E72-3B6A-4C8D-A1E4-7F2B8C6D4E33}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5D9F0E72-3B6A-4C8D-A1E4-7F2B8C6D4E33}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -304,5 +318,7 @@ Global
 		{B9B92246-02EB-4118-9C6F-85A0D726AA70} = {5CB72FDE-BA77-47D1-A556-FEB15AAD4523}
 		{B9022390-8184-4548-9DB1-50EB8878D20A} = {0E0EDD4C-1E45-4E03-BC08-0102C98D34B3}
 		{1743BF7C-E6AE-4A06-BAD9-166D62894303} = {0E0EDD4C-1E45-4E03-BC08-0102C98D34B3}
+		{8E2B6D44-1A5C-4F3B-B9D7-2C0E5A9F3B22} = {3C8A1C5E-7B1F-4D0E-9A2B-6E1D4C7F0A11}
+		{5D9F0E72-3B6A-4C8D-A1E4-7F2B8C6D4E33} = {3C8A1C5E-7B1F-4D0E-9A2B-6E1D4C7F0A11}
 	EndGlobalSection
 EndGlobal

@@ -1,10 +1,11 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
 using System.IO;
 using System.Reflection;
 using System.Runtime.Versioning;
+using Oily.Identity;
 using Microsoft.Win32;
 using osu.Desktop.IPC;
 using osu.Desktop.Security;
@@ -116,19 +117,15 @@ namespace osu.Desktop
             if (IsFirstRun)
                 LocalConfig.SetValue(OsuSetting.ReleaseStream, Version.Contains("-tachyon") ? ReleaseStream.Tachyon : ReleaseStream.Lazer);
 
-            if (IsPackageManaged)
-                return new NoActionUpdateManager();
-
-            return new VelopackUpdateManager();
+            // oily: the Velopack updater pulls official releases from ppy/osu and would replace o!ily with official lazer.
+            // Disabled until o!ily publishes its own releases.
+            return new NoActionUpdateManager();
         }
 
         public override bool RestartAppWhenExited()
         {
-            if (IsPackageManaged || !IsDeployedBuild)
-                return false;
-
-            RestartOnExitAction = () => Velopack.UpdateExe.Start(waitPid: (uint)Environment.ProcessId);
-            return true;
+            // oily: restarting goes through Velopack, which is not set up for o!ily yet.
+            return false;
         }
 
         protected override void LoadComplete()
@@ -143,7 +140,9 @@ namespace osu.Desktop
 
             base.LoadComplete();
 
-            LoadComponentAsync(new DiscordRichPresence(), Add);
+            // oily: Discord Rich Presence uses ppy's Discord application.
+            if (OilyIdentity.DiscordRichPresenceEnabled)
+                LoadComponentAsync(new DiscordRichPresence(), Add);
 
             switch (RuntimeInfo.OS)
             {
