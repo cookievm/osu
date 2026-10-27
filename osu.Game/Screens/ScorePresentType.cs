@@ -6,6 +6,9 @@ namespace osu.Game.Screens
     public enum ScorePresentType
     {
         Results,
-        Gameplay
+        Gameplay,
+
+        // oily: render the replay to video.
+        Render
     }
 }

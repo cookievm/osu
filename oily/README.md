@@ -12,6 +12,8 @@ All o!ily-specific code lives in this folder, one project per feature:
 | --- | --- |
 | `Oily.Identity` | Client name, data folder, IPC pipe and other values that keep o!ily separate from official osu!lazer |
 | `Oily.Identity.Tests` | Checks that those values never collide with official osu!lazer |
+| `Oily.Rendering` | Renders replays to video by stepping the game one frame at a time (experimental) |
+| `Oily.Rendering.Tests` | Checks that rendered frames land on exact, repeatable gameplay times |
 
 Changes to upstream files are kept as small as possible and marked with a `// oily:` comment (`<!-- oily: -->` in project files), so they are easy to find when merging a new osu!lazer release.
 

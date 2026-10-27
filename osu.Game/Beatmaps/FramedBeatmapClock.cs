@@ -67,7 +67,8 @@ namespace osu.Game.Beatmaps
 
         public bool IsRewinding { get; private set; }
 
-        public FramedBeatmapClock(bool applyOffsets, bool requireDecoupling, IClock? source = null)
+        // oily: interpolate = false gives exact source times for the replay renderer (interpolation follows the wall clock).
+        public FramedBeatmapClock(bool applyOffsets, bool requireDecoupling, IClock? source = null, bool interpolate = true)
         {
             this.applyOffsets = applyOffsets;
 
@@ -80,9 +81,11 @@ namespace osu.Game.Beatmaps
                 DriftRecoveryHalfLife = 80,
             };
 
+            IFrameBasedClock trackClock = interpolate ? interpolatedTrack : decoupledTrack; // oily
+
             if (applyOffsets)
             {
-                platformOffsetClock = new OffsetCorrectionClock(interpolatedTrack);
+                platformOffsetClock = new OffsetCorrectionClock(trackClock); // oily
 
                 // User global offset (set in settings) should also be applied.
                 userGlobalOffsetClock = new OffsetCorrectionClock(platformOffsetClock);
@@ -92,7 +95,7 @@ namespace osu.Game.Beatmaps
             }
             else
             {
-                finalClockSource = interpolatedTrack;
+                finalClockSource = trackClock; // oily
             }
         }
 

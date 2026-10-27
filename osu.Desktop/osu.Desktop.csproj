@@ -30,6 +30,8 @@
     <ProjectReference Include="..\osu.Game.Rulesets.Catch\osu.Game.Rulesets.Catch.csproj"/>
     <ProjectReference Include="..\osu.Game.Rulesets.Mania\osu.Game.Rulesets.Mania.csproj"/>
     <ProjectReference Include="..\osu.Game.Rulesets.Taiko\osu.Game.Rulesets.Taiko.csproj"/>
+    <!-- oily: replay renderer. -->
+    <ProjectReference Include="..\oily\Oily.Rendering\Oily.Rendering.csproj"/>
   </ItemGroup>
   <ItemGroup Label="Package References">
     <PackageReference Include="System.IO.Packaging" Version="10.0.12"/>

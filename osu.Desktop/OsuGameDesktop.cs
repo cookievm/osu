@@ -6,12 +6,13 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.Versioning;
 using Oily.Identity;
+using Oily.Rendering;
 using Microsoft.Win32;
 using osu.Desktop.IPC;
 using osu.Desktop.Security;
 using osu.Framework.Platform;
+using osu.Framework.Screens;
 using osu.Game;
-using osu.Desktop.Updater;
 using osu.Framework;
 using osu.Framework.Logging;
 using osu.Game.Updater;
@@ -21,6 +22,7 @@ using osu.Framework.Allocation;
 using osu.Game.Configuration;
 using osu.Game.IO;
 using osu.Game.IPC;
+using osu.Game.Scoring;
 using osu.Game.Performance;
 using osu.Game.Utils;
 
@@ -127,6 +129,11 @@ namespace osu.Desktop
             // oily: restarting goes through Velopack, which is not set up for o!ily yet.
             return false;
         }
+
+        // oily: replay renderer.
+        public override bool CanRenderReplays => true;
+
+        protected override Screen CreateReplayRenderScreen(Score score) => new ReplayRenderScreen(score);
 
         protected override void LoadComplete()
         {

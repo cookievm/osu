@@ -4,6 +4,8 @@
     "projects": [
       "oily\\Oily.Identity.Tests\\Oily.Identity.Tests.csproj",
       "oily\\Oily.Identity\\Oily.Identity.csproj",
+      "oily\\Oily.Rendering.Tests\\Oily.Rendering.Tests.csproj",
+      "oily\\Oily.Rendering\\Oily.Rendering.csproj",
       "osu.Desktop\\osu.Desktop.csproj",
       "osu.Game.Benchmarks\\osu.Game.Benchmarks.csproj",
       "osu.Game.Rulesets.Catch.Tests\\osu.Game.Rulesets.Catch.Tests.csproj",

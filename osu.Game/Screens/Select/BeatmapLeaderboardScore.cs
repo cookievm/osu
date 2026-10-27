@@ -633,6 +633,11 @@ namespace osu.Game.Screens.Select
 
                 if (ShowReplay != null)
                     items.Add(new OsuMenuItem(SongSelectStrings.WatchReplay, MenuItemType.Standard, () => ShowReplay.Invoke(Score)));
+
+                // oily: experimental replay renderer. Same conditions as watching the replay.
+                if (ShowReplay != null && game?.CanRenderReplays == true)
+                    items.Add(new OsuMenuItem(@"Render replay (experimental)", MenuItemType.Standard, () => game.PresentScore(Score, ScorePresentType.Render)));
+
                 items.Add(new OsuMenuItem(CommonStrings.Export, MenuItemType.Standard, () => scoreManager.Export(Score)));
                 items.Add(new OsuMenuItem(Resources.Localisation.Web.CommonStrings.ButtonsDelete, MenuItemType.Destructive, () => dialogOverlay?.Push(new LocalScoreDeleteDialog(Score))));
 
