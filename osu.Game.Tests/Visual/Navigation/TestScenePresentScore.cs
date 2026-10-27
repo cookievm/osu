@@ -219,6 +219,10 @@ namespace osu.Game.Tests.Visual.Navigation
 
         private void presentAndConfirm(Func<ScoreInfo> getImport, ScorePresentType type)
         {
+            // oily: rendering needs the desktop project's renderer, which the test game doesn't have.
+            if (type == ScorePresentType.Render)
+                Assert.Ignore("Replay rendering is covered by Oily.Rendering.Tests.");
+
             AddStep("present score", () => Game.PresentScore(getImport(), type));
 
             switch (type)

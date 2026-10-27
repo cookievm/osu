@@ -826,6 +826,18 @@ namespace osu.Game
             // but `PerformFromScreen` doesn't understand nested stacks.
         }
 
+        // oily: replay renderer. The desktop project provides the screen, since the renderer project references osu.Game.
+
+        /// <summary>
+        /// Whether <see cref="ScorePresentType.Render"/> is available.
+        /// </summary>
+        public virtual bool CanRenderReplays => false;
+
+        /// <summary>
+        /// Creates the screen that renders a score's replay to video.
+        /// </summary>
+        protected virtual Screen CreateReplayRenderScreen(Score score) => null;
+
         /// <summary>
         /// Present a score's replay immediately.
         /// The user should have already requested this interactively.
@@ -914,6 +926,13 @@ namespace osu.Game
 
                     case ScorePresentType.Results:
                         screen.Push(new SoloResultsScreen(databasedScore.ScoreInfo));
+                        break;
+
+                    // oily
+                    case ScorePresentType.Render:
+                        var renderScreen = CreateReplayRenderScreen(databasedScore);
+                        if (renderScreen != null)
+                            screen.Push(renderScreen);
                         break;
                 }
             }, validScreens: validScreens);
