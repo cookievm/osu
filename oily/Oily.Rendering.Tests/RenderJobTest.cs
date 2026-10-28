@@ -128,5 +128,5 @@ namespace Oily.Rendering.Tests
             Assert.That(job.ToRenderSettings().CaptureSize, Is.EqualTo(new System.Drawing.Size(width, height)));
             Assert.That(job.Hidden, Is.True);
         }
-}
+    }
 }
