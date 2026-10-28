@@ -47,6 +47,7 @@ namespace osu.Desktop
                 // Start straight in a window the size of the video, instead of fullscreen.
                 defaults[FrameworkSetting.WindowMode] = Framework.Configuration.WindowMode.Windowed;
                 defaults[FrameworkSetting.WindowedSize] = new System.Drawing.Size(RenderJob.Width, RenderJob.Height);
+                defaults[FrameworkSetting.FrameSync] = FrameSync.Unlimited;
             }
 
             return defaults;
@@ -64,6 +65,13 @@ namespace osu.Desktop
             LocalConfig.SetValue(OsuSetting.MenuMusic, false);
             frameworkConfig.SetValue(FrameworkSetting.WindowMode, Framework.Configuration.WindowMode.Windowed);
             frameworkConfig.SetValue(FrameworkSetting.WindowedSize, new System.Drawing.Size(RenderJob.Width, RenderJob.Height));
+
+            // Each video frame waits for two drawn frames, so any frame rate cap slows the render down.
+            // Without these, VSync holds it to half the screen's refresh rate, and a window in the background
+            // (behind Discord, a browser...) drops to 60 draws a second, so 30 video frames a second at most.
+            Host.AllowBenchmarkUnlimitedFrames = true;
+            Host.MaximumInactiveHz = 0;
+            frameworkConfig.SetValue(FrameworkSetting.FrameSync, FrameSync.Unlimited);
 
             // The video's audio is mixed afterwards from what the render recorded, so the window itself stays silent.
             Audio.Volume.Value = 0;
