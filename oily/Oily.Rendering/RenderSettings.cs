@@ -37,6 +37,12 @@ namespace Oily.Rendering
         public bool RecordAudio { get; init; }
 
         /// <summary>
+        /// When set, frames are drawn off-screen at this size and read straight from the graphics card,
+        /// instead of screenshotting the window. The window only needs the same aspect ratio, and can be hidden.
+        /// </summary>
+        public System.Drawing.Size? CaptureSize { get; init; }
+
+        /// <summary>
         /// The length of one frame in milliseconds.
         /// </summary>
         public double FrameDuration => 1000.0 / FramesPerSecond;

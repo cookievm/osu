@@ -10,7 +10,6 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using osu.Framework.Logging;
-using osu.Framework.Platform;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
@@ -21,12 +20,12 @@ namespace Oily.Rendering
     /// No PNGs are written.
     /// </summary>
     /// <remarks>
-    /// Frames still come from <see cref="GameHost.TakeScreenshotAsync"/>, so they are the window's size.
-    /// ffmpeg scales them to the job's size.
+    /// Frames are usually already the job's size (see <see cref="RenderSettings.CaptureSize"/>).
+    /// Window screenshots may not be, and ffmpeg scales those.
     /// </remarks>
     public class FfmpegPipeCapturer : IFrameCapturer
     {
-        private readonly GameHost host;
+        private readonly Func<Task<Image<Rgba32>>> grabFrame;
         private readonly RenderJob job;
 
         private Process? ffmpeg;
@@ -37,15 +36,17 @@ namespace Oily.Rendering
 
         public string OutputDescription => job.Output;
 
-        public FfmpegPipeCapturer(GameHost host, RenderJob job)
+        /// <param name="grabFrame">Gets the image of the current frame, for example <see cref="ReplayRenderScreen.GrabFrameAsync"/>.</param>
+        /// <param name="job">The render job, for the ffmpeg settings and output path.</param>
+        public FfmpegPipeCapturer(Func<Task<Image<Rgba32>>> grabFrame, RenderJob job)
         {
-            this.host = host;
+            this.grabFrame = grabFrame;
             this.job = job;
         }
 
         public async Task CaptureFrameAsync(RenderedFrame frame)
         {
-            using (var image = await host.TakeScreenshotAsync().ConfigureAwait(false))
+            using (var image = await grabFrame().ConfigureAwait(false))
             {
                 if (ffmpeg == null)
                     start(image.Width, image.Height);

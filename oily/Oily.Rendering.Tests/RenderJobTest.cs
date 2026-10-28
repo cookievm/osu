@@ -114,5 +114,19 @@ namespace Oily.Rendering.Tests
                 "OILY-RENDER ERROR ffmpeg failed",
             }));
         }
-    }
+    
+        [TestCase(1280, 720, 2560, 1440, 1280, 720)]
+        [TestCase(2560, 1440, 2560, 1440, 2304, 1296)]
+        [TestCase(3840, 2160, 1920, 1080, 1728, 972)]
+        [TestCase(1920, 1080, 0, 0, 1920, 1080)]
+        public void TestWindowFitsOnTheDisplayWithTheVideosShape(int width, int height, int displayWidth, int displayHeight, int expectedWidth, int expectedHeight)
+        {
+            var job = RenderJob.Parse($$"""{ "replay": "r.osr", "output": "o.mp4", "width": {{width}}, "height": {{height}} }""");
+            var window = job.WindowSizeFor(new System.Drawing.Size(displayWidth, displayHeight));
+
+            Assert.That(window, Is.EqualTo(new System.Drawing.Size(expectedWidth, expectedHeight)));
+            Assert.That(job.ToRenderSettings().CaptureSize, Is.EqualTo(new System.Drawing.Size(width, height)));
+            Assert.That(job.Hidden, Is.True);
+        }
+}
 }

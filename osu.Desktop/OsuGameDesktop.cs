@@ -187,6 +187,8 @@ namespace osu.Desktop
             }
 
             host.Window.Title = Name;
+
+            hideRenderWindow(host);
         }
 
         protected override BatteryInfo CreateBatteryInfo() => FrameworkEnvironment.UseSDL3 ? new SDL3BatteryInfo() : new SDL2BatteryInfo();

@@ -6,12 +6,14 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Oily.Rendering;
 using Oily.Rendering.Audio;
 using osu.Framework.Allocation;
 using osu.Framework.Configuration;
 using osu.Framework.Logging;
+using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osu.Game.Beatmaps;
 using osu.Game.Configuration;
@@ -64,7 +66,11 @@ namespace osu.Desktop
             LocalConfig.SetValue(OsuSetting.ShowFirstRunSetup, false);
             LocalConfig.SetValue(OsuSetting.MenuMusic, false);
             frameworkConfig.SetValue(FrameworkSetting.WindowMode, Framework.Configuration.WindowMode.Windowed);
-            frameworkConfig.SetValue(FrameworkSetting.WindowedSize, new System.Drawing.Size(RenderJob.Width, RenderJob.Height));
+
+            // Frames are drawn off-screen at the job's size, so the window only needs the right shape.
+            var windowSize = RenderJob.WindowSizeFor(Host.Window?.CurrentDisplayMode.Value.Size ?? System.Drawing.Size.Empty);
+            frameworkConfig.SetValue(FrameworkSetting.WindowedSize, windowSize);
+            Logger.Log($"Render job: {RenderJob.Width}x{RenderJob.Height} video from a {windowSize.Width}x{windowSize.Height} window, renderer {Host.Renderer.GetType().Name}");
 
             // Each video frame waits for two drawn frames, so any frame rate cap slows the render down.
             // Without these, VSync holds it to half the screen's refresh rate, and a window in the background
@@ -75,6 +81,33 @@ namespace osu.Desktop
 
             // The video's audio is mixed afterwards from what the render recorded, so the window itself stays silent.
             Audio.Volume.Value = 0;
+        }
+
+        /// <summary>
+        /// Keeps the window from ever appearing. Called before the first frame is drawn.
+        /// </summary>
+        /// <remarks>
+        /// The framework creates the window hidden and shows it on the first draw. It has no public switch for that, so the flag is turned off by reflection.
+        /// The window keeps drawing while hidden; only minimising stops it.
+        /// </remarks>
+        private void hideRenderWindow(GameHost host)
+        {
+            if (RenderJob?.Hidden != true || host.Window == null)
+                return;
+
+            for (var type = host.Window.GetType(); type != null; type = type.BaseType)
+            {
+                var firstDraw = type.GetField("firstDraw", BindingFlags.Instance | BindingFlags.NonPublic);
+
+                if (firstDraw?.FieldType == typeof(bool))
+                {
+                    firstDraw.SetValue(host.Window, false);
+                    Logger.Log("Render job: window hidden");
+                    return;
+                }
+            }
+
+            Logger.Log("Render job: couldn't hide the window, it will stay visible", LoggingTarget.Runtime, LogLevel.Important);
         }
 
         private void startRenderJob()
@@ -166,7 +199,8 @@ namespace osu.Desktop
         private Screen createRenderJobScreen(Score score)
         {
             var job = RenderJob!;
-            var screen = new ReplayRenderScreen(score, job.ToRenderSettings(), (host, _) => new FfmpegPipeCapturer(host, job));
+            ReplayRenderScreen screen = null!;
+            screen = new ReplayRenderScreen(score, job.ToRenderSettings(), (_, _) => new FfmpegPipeCapturer(screen.GrabFrameAsync, job));
 
             screen.ProgressChanged += p => renderReporter!.Progress(p);
             screen.Finished += path =>

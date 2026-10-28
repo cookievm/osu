@@ -21,6 +21,9 @@ using osu.Game.Scoring;
 using osu.Game.Screens;
 using osu.Game.Screens.Play;
 using osu.Game.Skinning;
+using osuTK;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace Oily.Rendering
 {
@@ -94,6 +97,10 @@ namespace Oily.Rendering
 
         private OsuScreenStack playerStack = null!;
 
+        // Set when capturing off-screen, see RenderSettings.CaptureSize.
+        private RenderCaptureContainer? captureContainer;
+        private Task<Image<Rgba32>>? pendingFrame;
+
         private const int max_preroll_seconds = 10;
 
         private RenderState state;
@@ -137,12 +144,25 @@ namespace Oily.Rendering
             capturer = createCapturer?.Invoke(host, storage.GetStorageForDirectory(@"renders"))
                        ?? new PngSequenceCapturer(host, storage.GetStorageForDirectory(@"renders"));
 
+            playerStack = new OsuScreenStack { RelativeSizeAxes = Axes.Both };
+
+            Drawable content = playerStack;
+
+            if (Settings.CaptureSize is System.Drawing.Size size)
+            {
+                content = captureContainer = new RenderCaptureContainer(new Vector2(size.Width, size.Height))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = playerStack,
+                };
+            }
+
             InternalChild = new NoInputContainer
             {
                 RelativeSizeAxes = Axes.Both,
                 // Everything inside, including the player's transitions, HUD and background, runs on video time.
                 Clock = new FramedClock(videoClock),
-                Child = playerStack = new OsuScreenStack { RelativeSizeAxes = Axes.Both },
+                Child = content,
             };
         }
 
@@ -195,7 +215,8 @@ namespace Oily.Rendering
                     break;
 
                 case RenderState.WaitingForDraw:
-                    if (frameDrawn())
+                    // Off-screen frames are read back by the capture container itself once drawn, so there's nothing to wait for here.
+                    if (captureContainer != null || frameDrawn())
                     {
                         var frame = new RenderedFrame(FramesCaptured, Settings.FrameTime(FramesCaptured), Player.GameplayClockContainer!.CurrentTime);
                         pendingCapture = capturer.CaptureFrameAsync(frame);
@@ -263,8 +284,15 @@ namespace Oily.Rendering
                 SamplePlaybackRecorder.Listener = null;
         }
 
+        /// <summary>
+        /// The image of the frame just stepped to. Capturers call this from <see cref="IFrameCapturer.CaptureFrameAsync"/>.
+        /// </summary>
+        public Task<Image<Rgba32>> GrabFrameAsync() => pendingFrame ?? host.TakeScreenshotAsync();
+
         private void markStepped()
         {
+            pendingFrame = captureContainer?.CaptureAsync();
+
             lastDrawTime = host.DrawThread.Clock.CurrentTime;
             drawFramesSinceStep = 0;
             state = RenderState.WaitingForDraw;
