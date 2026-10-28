@@ -15,7 +15,7 @@ namespace Oily.Rendering.Audio
     /// <param name="Tempo">Speed change that keeps pitch (Double Time).</param>
     /// <param name="Frequency">Speed change that also changes pitch (Nightcore, Daycore).</param>
     /// <param name="Volume">0 to 1.</param>
-    public record MusicTrack(string File, double StartTime, double Tempo = 1, double Frequency = 1, double Volume = 0.8)
+    public record MusicTrack(string File, double StartTime, double Tempo = 1, double Frequency = 1, double Volume = 0.5)
     {
         /// <summary>
         /// How much faster than real time the music plays in the video.
@@ -28,6 +28,14 @@ namespace Oily.Rendering.Audio
     /// </summary>
     public static class RenderAudioMuxer
     {
+        /// <summary>
+        /// Volume of the mixed hitsounds. Music and hitsounds both at full scale come out far too loud once summed.
+        /// </summary>
+        public const double HITSOUND_VOLUME = 0.5;
+
+        // Peaks stay below -1 dBFS, which leaves room for the AAC encoder's overshoot.
+        private const string limiter = "alimiter=limit=0.89:level=false";
+
         public static IReadOnlyList<string> BuildArguments(string video, string hitsounds, MusicTrack? music, string output)
         {
             var args = new List<string>
@@ -48,10 +56,10 @@ namespace Oily.Rendering.Audio
 
                 args.AddRange(new[] { "-i", music.File });
 
-                filter = $"[2:a]{MusicFilter(music)}[music];[1:a][music]amix=inputs=2:normalize=0:duration=first,alimiter=limit=0.95:level=false[audio]";
+                filter = $"[1:a]{hitsounds_filter}[hits];[2:a]{MusicFilter(music)}[music];[hits][music]amix=inputs=2:normalize=0:duration=first,{limiter}[audio]";
             }
             else
-                filter = "[1:a]alimiter=limit=0.95:level=false[audio]";
+                filter = $"[1:a]{hitsounds_filter},{limiter}[audio]";
 
             args.AddRange(new[]
             {
@@ -96,6 +104,8 @@ namespace Oily.Rendering.Audio
 
             return string.Join(',', filters);
         }
+
+        private static readonly string hitsounds_filter = $"volume={number(HITSOUND_VOLUME)}";
 
         private static string seconds(double ms) => (ms / 1000).ToString("0.###", CultureInfo.InvariantCulture);
 

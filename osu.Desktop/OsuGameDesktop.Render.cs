@@ -196,6 +196,7 @@ namespace osu.Desktop
             try
             {
                 renderReporter!.Status("Adding the music and hitsounds");
+                var stopwatch = Stopwatch.StartNew();
 
                 string hitsounds = Path.Combine(folder, "hitsounds.wav");
                 using (var file = File.Create(hitsounds))
@@ -230,7 +231,8 @@ namespace osu.Desktop
                 if (ffmpeg.ExitCode != 0)
                     throw new InvalidOperationException($"ffmpeg failed with code {ffmpeg.ExitCode}: {errors}");
 
-                Logger.Log($"Added audio: {audio.Mixdown.Plays.Count} samples, music {(music == null ? "none" : $"from {music.StartTime:N0} ms at {music.Rate}x")}");
+                int openLoops = audio.Mixdown.Plays.Count(p => p.Looping && p.EndMs == null);
+                Logger.Log($"Added audio: {audio.Mixdown.Plays.Count} samples ({openLoops} loops never stopped) in {stopwatch.ElapsedMilliseconds} ms, music {(music == null ? "none" : $"from {music.StartTime:N0} ms at {music.Rate}x")}");
             }
             catch (Exception e)
             {

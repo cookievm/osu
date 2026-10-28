@@ -120,7 +120,7 @@ namespace Oily.Rendering.Tests
 
             Assert.That(args, Does.Not.Contain("-ss"));
             Assert.That(args.Count(a => a == "-i"), Is.EqualTo(2));
-            Assert.That(args, Does.Contain("[1:a]alimiter=limit=0.95:level=false[audio]"));
+            Assert.That(args, Does.Contain("[1:a]volume=0.5,alimiter=limit=0.89:level=false[audio]"));
             Assert.That(args.Last(), Is.EqualTo("out.mp4"));
             Assert.That(string.Join(' ', args), Does.Contain("-c:v copy"));
         }
@@ -139,7 +139,7 @@ namespace Oily.Rendering.Tests
         [Test]
         public void TestMusicFilterForMods()
         {
-            Assert.That(RenderAudioMuxer.MusicFilter(new MusicTrack("m", 0)), Is.EqualTo("aresample=48000,volume=0.8"));
+            Assert.That(RenderAudioMuxer.MusicFilter(new MusicTrack("m", 0)), Is.EqualTo("aresample=48000,volume=0.5"));
 
             // Double Time: faster, same pitch.
             Assert.That(RenderAudioMuxer.MusicFilter(new MusicTrack("m", 0, Tempo: 1.5)), Does.Contain("atempo=1.5").And.Not.Contain("asetrate"));
