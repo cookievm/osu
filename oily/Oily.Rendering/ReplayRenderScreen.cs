@@ -2,7 +2,10 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
+using Oily.Rendering.Akatsuki;
+using Oily.Rendering.Audio;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -19,6 +22,9 @@ using osu.Game.Overlays.Notifications;
 using osu.Game.Scoring;
 using osu.Game.Screens;
 using osu.Game.Screens.Play;
+using osu.Game.Screens.Play.HUD;
+using osu.Game.Skinning;
+using osuTK;
 
 namespace Oily.Rendering
 {
@@ -52,6 +58,11 @@ namespace Oily.Rendering
         public RenderReplayPlayer Player { get; private set; } = null!;
 
         /// <summary>
+        /// Records the samples played, when <see cref="RenderSettings.RecordAudio"/> is on.
+        /// </summary>
+        public RenderAudioRecorder? Audio { get; }
+
+        /// <summary>
         /// How many frames have been captured so far.
         /// </summary>
         public int FramesCaptured { get; private set; }
@@ -61,12 +72,35 @@ namespace Oily.Rendering
         /// </summary>
         public bool Completed => state == RenderState.Done;
 
+        /// <summary>
+        /// Rough progress from 0 to 1, based on gameplay time against the end of the last hit object.
+        /// </summary>
+        public event Action<double>? ProgressChanged;
+
+        /// <summary>
+        /// Fired once when the video is written. The argument says where it is.
+        /// </summary>
+        public event Action<string>? Finished;
+
+        /// <summary>
+        /// Fired once if the render fails or is cancelled.
+        /// </summary>
+        public event Action<Exception>? Failed;
+
+        // The frame on which the play ended or failed, after which only the tail is rendered.
+        private int? endedAtFrame;
+        private int lastReportedPercent = -1;
+
         private readonly Func<GameHost, Storage, IFrameCapturer>? createCapturer;
         private IFrameCapturer capturer = null!;
 
         private readonly ManualClock videoClock = new ManualClock { Rate = 1, IsRunning = true };
 
         private OsuScreenStack playerStack = null!;
+
+        // Set when capturing off-screen, see RenderSettings.CaptureSize.
+        private RenderCaptureContainer? captureContainer;
+        private Task<FrameReadback>? pendingFrame;
 
         private const int max_preroll_seconds = 10;
 
@@ -75,6 +109,12 @@ namespace Oily.Rendering
         // Frames stepped before gameplay started. These are not captured.
         private int prerollFrames;
         private Task? pendingCapture;
+
+        // Set while the capturer writes out the last frames.
+        private Task? finishing;
+
+        // Runs from the first stepped frame, for the timings logged at the end.
+        private Stopwatch? renderStopwatch;
 
         // Draw thread clock time seen after the last step, used to wait until the stepped frame has been drawn.
         private double lastDrawTime;
@@ -100,6 +140,9 @@ namespace Oily.Rendering
             Score = score;
             Settings = settings ?? new RenderSettings();
             this.createCapturer = createCapturer;
+
+            if (Settings.RecordAudio)
+                Audio = new RenderAudioRecorder(audioVideoTime);
         }
 
         [BackgroundDependencyLoader]
@@ -108,12 +151,25 @@ namespace Oily.Rendering
             capturer = createCapturer?.Invoke(host, storage.GetStorageForDirectory(@"renders"))
                        ?? new PngSequenceCapturer(host, storage.GetStorageForDirectory(@"renders"));
 
+            playerStack = new OsuScreenStack { RelativeSizeAxes = Axes.Both };
+
+            Drawable content = playerStack;
+
+            if (Settings.CaptureSize is System.Drawing.Size size)
+            {
+                content = captureContainer = new RenderCaptureContainer(new Vector2(size.Width, size.Height))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Child = playerStack,
+                };
+            }
+
             InternalChild = new NoInputContainer
             {
                 RelativeSizeAxes = Axes.Both,
                 // Everything inside, including the player's transitions, HUD and background, runs on video time.
                 Clock = new FramedClock(videoClock),
-                Child = playerStack = new OsuScreenStack { RelativeSizeAxes = Axes.Both },
+                Child = content,
             };
         }
 
@@ -127,6 +183,14 @@ namespace Oily.Rendering
 
             // Phase 0 has no audio; stop the song select preview so it doesn't play over the render.
             musicController.Stop();
+
+            if (Audio != null)
+                SamplePlaybackRecorder.Listener = Audio;
+
+            if (Settings.AkatsukiPp)
+                LivePerformanceOverride.Factory = AkatsukiRelaxLiveCalculator.CreateFor;
+
+            RenderTimings.Reset();
 
             playerStack.Push(Player = new RenderReplayPlayer(Score, Settings));
 
@@ -145,6 +209,8 @@ namespace Oily.Rendering
 
                     if (Player.GameplayClockContainer?.IsRunning == true)
                     {
+                        var clock = Player.GameplayClockContainer;
+                        Audio?.Begin(clock.CurrentTime, clock.AdjustmentsFromMods.AggregateTempo.Value, clock.AdjustmentsFromMods.AggregateFrequency.Value);
                         markStepped();
                         break;
                     }
@@ -161,7 +227,8 @@ namespace Oily.Rendering
                     break;
 
                 case RenderState.WaitingForDraw:
-                    if (frameDrawn())
+                    // Off-screen frames are read back by the capture container itself once drawn, so there's nothing to wait for here.
+                    if (captureContainer != null || frameDrawn())
                     {
                         var frame = new RenderedFrame(FramesCaptured, Settings.FrameTime(FramesCaptured), Player.GameplayClockContainer!.CurrentTime);
                         pendingCapture = capturer.CaptureFrameAsync(frame);
@@ -181,8 +248,14 @@ namespace Oily.Rendering
                     }
 
                     FramesCaptured++;
+                    reportProgress();
 
-                    if ((Settings.FrameCount is int count && FramesCaptured >= count) || Player.GameplayState.HasCompleted)
+                    if (endedAtFrame == null && (Player.GameplayState.HasCompleted || Player.GameplayState.HasFailed))
+                        endedAtFrame = FramesCaptured;
+
+                    bool tailDone = endedAtFrame is int ended && (FramesCaptured - ended) * Settings.FrameDuration >= Settings.Tail;
+
+                    if ((Settings.FrameCount is int count && FramesCaptured >= count) || tailDone)
                     {
                         complete();
                         break;
@@ -192,11 +265,71 @@ namespace Oily.Rendering
                     videoClock.CurrentTime = Settings.FrameTime(prerollFrames + FramesCaptured);
                     markStepped();
                     break;
+
+                case RenderState.Finishing:
+                    if (!finishing!.IsCompleted)
+                        break;
+
+                    if (finishing.IsFaulted)
+                        fail(finishing.Exception!);
+                    else
+                        finish();
+
+                    break;
             }
         }
 
+        /// <summary>
+        /// The video time samples are playing at right now, or null when they don't belong in the video.
+        /// </summary>
+        private double? audioVideoTime()
+        {
+            switch (state)
+            {
+                case RenderState.WaitingForGameplay:
+                    // Gameplay may start in this very update, before the state changes.
+                    if (Player?.GameplayClockContainer?.IsRunning != true)
+                        return null;
+
+                    break;
+
+                case RenderState.Finishing:
+                case RenderState.Done:
+                case RenderState.Failed:
+                    return null;
+            }
+
+            return Math.Max(0, videoClock.CurrentTime - Settings.FrameTime(prerollFrames));
+        }
+
+        private void clearPpOverride()
+        {
+            if (Settings.AkatsukiPp)
+                LivePerformanceOverride.Factory = null;
+        }
+
+        private void stopRecordingAudio()
+        {
+            if (Audio != null && SamplePlaybackRecorder.Listener == Audio)
+                SamplePlaybackRecorder.Listener = null;
+        }
+
+        /// <summary>
+        /// The image of the frame just stepped to. Capturers call this from <see cref="IFrameCapturer.CaptureFrameAsync"/>.
+        /// </summary>
+        public Task<FrameReadback> GrabFrameAsync() => pendingFrame ?? screenshotAsync();
+
+        private async Task<FrameReadback> screenshotAsync() => FrameReadback.FromImage(await host.TakeScreenshotAsync().ConfigureAwait(false));
+
         private void markStepped()
         {
+            pendingFrame = captureContainer?.CaptureAsync();
+
+            if (pendingFrame != null)
+                _ = timeDrawAsync(pendingFrame, Stopwatch.GetTimestamp());
+
+            renderStopwatch ??= Stopwatch.StartNew();
+
             lastDrawTime = host.DrawThread.Clock.CurrentTime;
             drawFramesSinceStep = 0;
             state = RenderState.WaitingForDraw;
@@ -220,10 +353,55 @@ namespace Oily.Rendering
             return drawFramesSinceStep >= 2;
         }
 
+        private void reportProgress()
+        {
+            double progress;
+
+            if (Settings.FrameCount is int count)
+                progress = (double)FramesCaptured / count;
+            else
+            {
+                double span = Player.LastObjectEndTime - Player.RenderStartTime;
+                progress = span <= 0 ? 0 : (Player.GameplayClockContainer!.CurrentTime - Player.RenderStartTime) / span;
+            }
+
+            progress = Math.Clamp(progress, 0, 1);
+            int percent = (int)(progress * 100);
+
+            if (percent != lastReportedPercent)
+            {
+                lastReportedPercent = percent;
+                ProgressChanged?.Invoke(progress);
+            }
+        }
+
         private void complete()
         {
+            // The capturer may still be writing the last frames, so wait for it without blocking the game.
+            state = RenderState.Finishing;
+            finishing = capturer.CompleteAsync();
+        }
+
+        private static async Task timeDrawAsync(Task<FrameReadback> frame, long start)
+        {
+            try
+            {
+                await frame.ConfigureAwait(false);
+                RenderTimings.Draw.AddSince(start);
+            }
+            catch
+            {
+                // The render loop reports failed frames.
+            }
+        }
+
+        private void finish()
+        {
             state = RenderState.Done;
-            capturer.Complete();
+
+            Logger.Log(RenderTimings.Summary(renderStopwatch?.Elapsed.TotalSeconds ?? 0, FramesCaptured));
+
+            Finished?.Invoke(capturer.OutputDescription);
 
             Logger.Log($"Replay render finished: {FramesCaptured} frames to {capturer.OutputDescription}");
 
@@ -243,8 +421,9 @@ namespace Oily.Rendering
 
         private void fail(Exception exception)
         {
-            state = RenderState.Done;
+            state = RenderState.Failed;
             Logger.Error(exception, "Replay render failed");
+            Failed?.Invoke(exception);
             this.Exit();
         }
 
@@ -254,6 +433,8 @@ namespace Oily.Rendering
                 return false;
 
             Logger.Log($"Replay render cancelled after {FramesCaptured} frames");
+            state = RenderState.Failed;
+            Failed?.Invoke(new OperationCanceledException("The render was cancelled."));
             this.Exit();
             return true;
         }
@@ -264,6 +445,9 @@ namespace Oily.Rendering
 
         public override bool OnExiting(ScreenExitEvent e)
         {
+            stopRecordingAudio();
+            clearPpOverride();
+
             // Make sure the nested player cleans up (samples, leases) before this screen goes.
             if (playerStack.CurrentScreen is Player player)
                 player.Exit();
@@ -274,6 +458,8 @@ namespace Oily.Rendering
         protected override void Dispose(bool isDisposing)
         {
             base.Dispose(isDisposing);
+            stopRecordingAudio();
+            clearPpOverride();
             capturer?.Dispose();
         }
 
@@ -292,7 +478,18 @@ namespace Oily.Rendering
             WaitingForGameplay,
             WaitingForDraw,
             Capturing,
+
+            /// <summary>
+            /// Every frame is captured, and the capturer is writing out the last ones.
+            /// </summary>
+            Finishing,
+
             Done,
+
+            /// <summary>
+            /// Failed or cancelled. Nothing more happens.
+            /// </summary>
+            Failed,
         }
     }
 }

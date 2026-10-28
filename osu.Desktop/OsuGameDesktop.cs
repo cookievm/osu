@@ -133,7 +133,7 @@ namespace osu.Desktop
         // oily: replay renderer.
         public override bool CanRenderReplays => true;
 
-        protected override Screen CreateReplayRenderScreen(Score score) => new ReplayRenderScreen(score);
+        protected override Screen CreateReplayRenderScreen(Score score) => RenderJob != null ? createRenderJobScreen(score) : new ReplayRenderScreen(score);
 
         protected override void LoadComplete()
         {
@@ -145,7 +145,12 @@ namespace osu.Desktop
                 Dependencies.CacheAs<IWebSocketProvider>(provider);
             }
 
+            // oily: render jobs from the command line.
+            prepareRenderJob();
+
             base.LoadComplete();
+
+            startRenderJob();
 
             // oily: Discord Rich Presence uses ppy's Discord application.
             if (OilyIdentity.DiscordRichPresenceEnabled)
@@ -182,6 +187,8 @@ namespace osu.Desktop
             }
 
             host.Window.Title = Name;
+
+            hideRenderWindow(host);
         }
 
         protected override BatteryInfo CreateBatteryInfo() => FrameworkEnvironment.UseSDL3 ? new SDL3BatteryInfo() : new SDL2BatteryInfo();

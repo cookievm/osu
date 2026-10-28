@@ -48,6 +48,10 @@ namespace osu.Game.Screens.Play.HUD
 
         private Mod[] clonedMods;
 
+        // oily: a different pp system, when a render asks for one.
+        [CanBeNull]
+        private ILivePerformanceCalculator overrideCalculator;
+
         [BackgroundDependencyLoader]
         private void load(BeatmapDifficultyCache difficultyCache)
         {
@@ -57,6 +61,14 @@ namespace osu.Game.Screens.Play.HUD
                 clonedMods = gameplayState.Mods.Select(m => m.DeepClone()).ToArray();
 
                 scoreInfo = new ScoreInfo(gameplayState.Score.ScoreInfo.BeatmapInfo, gameplayState.Score.ScoreInfo.Ruleset) { Mods = clonedMods };
+
+                overrideCalculator = LivePerformanceOverride.Factory?.Invoke(gameplayState);
+
+                if (overrideCalculator != null)
+                {
+                    IsValid = true;
+                    return;
+                }
 
                 var gameplayWorkingBeatmap = new GameplayWorkingBeatmap(gameplayState.Beatmap);
                 difficultyCache.GetTimedDifficultyAttributesAsync(gameplayWorkingBeatmap, gameplayState.Ruleset, clonedMods, loadCancellationSource.Token)
@@ -91,6 +103,14 @@ namespace osu.Game.Screens.Play.HUD
         private void onJudgementChanged(JudgementResult judgement)
         {
             lastJudgement = judgement;
+
+            if (overrideCalculator != null && scoreProcessor != null)
+            {
+                scoreProcessor.PopulateScore(scoreInfo);
+                Current.Value = (int)Math.Round(overrideCalculator.Calculate(scoreInfo, judgement), MidpointRounding.AwayFromZero);
+                IsValid = true;
+                return;
+            }
 
             var attrib = getAttributeAtTime(judgement);
 

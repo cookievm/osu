@@ -124,9 +124,7 @@ namespace Oily.Rendering.Tests
                 return Task.CompletedTask;
             }
 
-            public void Complete()
-            {
-            }
+            public Task CompleteAsync() => Task.CompletedTask;
 
             public void Dispose()
             {

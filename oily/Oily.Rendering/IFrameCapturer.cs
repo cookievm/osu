@@ -22,9 +22,9 @@ namespace Oily.Rendering
         Task CaptureFrameAsync(RenderedFrame frame);
 
         /// <summary>
-        /// Called once after the last frame.
+        /// Called once after the last frame. Finishes writing whatever is still queued.
         /// </summary>
-        void Complete();
+        Task CompleteAsync();
     }
 
     /// <summary>

@@ -26,6 +26,28 @@ namespace Oily.Rendering
         public double LeadIn { get; init; } = 1000;
 
         /// <summary>
+        /// How long to keep rendering after the play ends (or fails), in video milliseconds,
+        /// so the video doesn't cut off on the last hit.
+        /// </summary>
+        public double Tail { get; init; } = 1500;
+
+        /// <summary>
+        /// Whether to record every sample played, so the video's audio can be mixed afterwards. See <see cref="Audio.RenderAudioRecorder"/>.
+        /// </summary>
+        public bool RecordAudio { get; init; }
+
+        /// <summary>
+        /// Whether the PP counter shows Akatsuki's relax pp instead of lazer's, for osu! plays with Relax. See <see cref="Akatsuki.AkatsukiRelaxLiveCalculator"/>.
+        /// </summary>
+        public bool AkatsukiPp { get; init; }
+
+        /// <summary>
+        /// When set, frames are drawn off-screen at this size and read straight from the graphics card,
+        /// instead of screenshotting the window. The window only needs the same aspect ratio, and can be hidden.
+        /// </summary>
+        public System.Drawing.Size? CaptureSize { get; init; }
+
+        /// <summary>
         /// The length of one frame in milliseconds.
         /// </summary>
         public double FrameDuration => 1000.0 / FramesPerSecond;

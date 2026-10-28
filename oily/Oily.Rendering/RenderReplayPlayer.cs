@@ -4,6 +4,7 @@
 using System;
 using System.Linq;
 using osu.Game.Beatmaps;
+using osu.Game.Rulesets.Objects;
 using osu.Game.Scoring;
 using osu.Game.Screens.Play;
 
@@ -20,6 +21,16 @@ namespace Oily.Rendering
         /// The gameplay clock, once the player has loaded.
         /// </summary>
         public new RenderGameplayClockContainer? GameplayClockContainer => base.GameplayClockContainer as RenderGameplayClockContainer;
+
+        /// <summary>
+        /// Gameplay time the render starts at, once the player has loaded.
+        /// </summary>
+        public double RenderStartTime { get; private set; }
+
+        /// <summary>
+        /// Gameplay time when the last hit object ends, once the player has loaded.
+        /// </summary>
+        public double LastObjectEndTime { get; private set; }
 
         public RenderReplayPlayer(Score score, RenderSettings settings)
             : base(score, new PlayerConfiguration
@@ -40,6 +51,9 @@ namespace Oily.Rendering
 
             // Never start later than the ruleset wants gameplay introduced.
             double startTime = Math.Min(gameplayStart, firstObjectTime - settings.LeadIn);
+
+            RenderStartTime = startTime;
+            LastObjectEndTime = beatmap.Beatmap.HitObjects.Count > 0 ? beatmap.Beatmap.HitObjects.Max(h => h.GetEndTime()) : firstObjectTime;
 
             return new RenderGameplayClockContainer(startTime, gameplayStart);
         }
