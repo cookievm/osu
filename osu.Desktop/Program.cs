@@ -5,6 +5,7 @@ using System;
 using System.IO;
 using System.Runtime.Versioning;
 using Oily.Identity;
+using Oily.Rendering;
 using osu.Desktop.LegacyIpc;
 using osu.Desktop.Windows;
 using osu.Framework;
@@ -75,6 +76,9 @@ namespace osu.Desktop
             string gameName = base_game_name;
             bool tournamentClient = false;
 
+            // oily: set when started by the companion app to render one replay.
+            RenderJob? renderJob = null;
+
             foreach (string arg in args)
             {
                 string[] split = arg.Split('=');
@@ -97,12 +101,29 @@ namespace osu.Desktop
 
                         gameName = $"{base_game_name}-{clientID}";
                         break;
+
+                    // oily
+                    case "--render-job":
+                        try
+                        {
+                            renderJob = RenderJob.Load(arg[(arg.IndexOf('=') + 1)..]);
+                        }
+                        catch (Exception e)
+                        {
+                            new RenderJobReporter(Console.Out).Error($"Couldn't read the render job: {e.Message}");
+                            Environment.ExitCode = 2;
+                            return;
+                        }
+
+                        // Renders use their own data folder, so they never touch the user's o!ily data.
+                        gameName = $"{base_game_name}-render";
+                        break;
                 }
             }
 
             var hostOptions = new HostOptions
             {
-                IPCPipeName = !tournamentClient ? OsuGame.IPC_PIPE_NAME : null,
+                IPCPipeName = !tournamentClient && renderJob == null ? OsuGame.IPC_PIPE_NAME : null,
                 FriendlyGameName = OsuGameBase.GAME_NAME,
             };
 
@@ -122,7 +143,7 @@ namespace osu.Desktop
                 }
 
                 // oily: leave the legacy IPC port to official lazer unless explicitly enabled.
-                if (host.IsPrimaryInstance && OilyIdentity.LegacyIpcEnabled)
+                if (host.IsPrimaryInstance && OilyIdentity.LegacyIpcEnabled && renderJob == null)
                 {
                     try
                     {
@@ -144,6 +165,7 @@ namespace osu.Desktop
                     {
                         IsFirstRun = isFirstRun,
                         EnableWebSocketServer = Environment.GetEnvironmentVariable("OSU_WEBSOCKET_SERVER") == "1",
+                        RenderJob = renderJob,
                     });
                 }
             }

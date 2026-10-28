@@ -61,6 +61,25 @@ namespace Oily.Rendering
         /// </summary>
         public bool Completed => state == RenderState.Done;
 
+        /// <summary>
+        /// Rough progress from 0 to 1, based on gameplay time against the end of the last hit object.
+        /// </summary>
+        public event Action<double>? ProgressChanged;
+
+        /// <summary>
+        /// Fired once when the video is written. The argument says where it is.
+        /// </summary>
+        public event Action<string>? Finished;
+
+        /// <summary>
+        /// Fired once if the render fails or is cancelled.
+        /// </summary>
+        public event Action<Exception>? Failed;
+
+        // The frame on which the play ended or failed, after which only the tail is rendered.
+        private int? endedAtFrame;
+        private int lastReportedPercent = -1;
+
         private readonly Func<GameHost, Storage, IFrameCapturer>? createCapturer;
         private IFrameCapturer capturer = null!;
 
@@ -181,8 +200,14 @@ namespace Oily.Rendering
                     }
 
                     FramesCaptured++;
+                    reportProgress();
 
-                    if ((Settings.FrameCount is int count && FramesCaptured >= count) || Player.GameplayState.HasCompleted)
+                    if (endedAtFrame == null && (Player.GameplayState.HasCompleted || Player.GameplayState.HasFailed))
+                        endedAtFrame = FramesCaptured;
+
+                    bool tailDone = endedAtFrame is int ended && (FramesCaptured - ended) * Settings.FrameDuration >= Settings.Tail;
+
+                    if ((Settings.FrameCount is int count && FramesCaptured >= count) || tailDone)
                     {
                         complete();
                         break;
@@ -220,10 +245,43 @@ namespace Oily.Rendering
             return drawFramesSinceStep >= 2;
         }
 
+        private void reportProgress()
+        {
+            double progress;
+
+            if (Settings.FrameCount is int count)
+                progress = (double)FramesCaptured / count;
+            else
+            {
+                double span = Player.LastObjectEndTime - Player.RenderStartTime;
+                progress = span <= 0 ? 0 : (Player.GameplayClockContainer!.CurrentTime - Player.RenderStartTime) / span;
+            }
+
+            progress = Math.Clamp(progress, 0, 1);
+            int percent = (int)(progress * 100);
+
+            if (percent != lastReportedPercent)
+            {
+                lastReportedPercent = percent;
+                ProgressChanged?.Invoke(progress);
+            }
+        }
+
         private void complete()
         {
             state = RenderState.Done;
-            capturer.Complete();
+
+            try
+            {
+                capturer.Complete();
+            }
+            catch (Exception e)
+            {
+                fail(e);
+                return;
+            }
+
+            Finished?.Invoke(capturer.OutputDescription);
 
             Logger.Log($"Replay render finished: {FramesCaptured} frames to {capturer.OutputDescription}");
 
@@ -243,8 +301,9 @@ namespace Oily.Rendering
 
         private void fail(Exception exception)
         {
-            state = RenderState.Done;
+            state = RenderState.Failed;
             Logger.Error(exception, "Replay render failed");
+            Failed?.Invoke(exception);
             this.Exit();
         }
 
@@ -254,6 +313,8 @@ namespace Oily.Rendering
                 return false;
 
             Logger.Log($"Replay render cancelled after {FramesCaptured} frames");
+            state = RenderState.Failed;
+            Failed?.Invoke(new OperationCanceledException("The render was cancelled."));
             this.Exit();
             return true;
         }
@@ -293,6 +354,11 @@ namespace Oily.Rendering
             WaitingForDraw,
             Capturing,
             Done,
+
+            /// <summary>
+            /// Failed or cancelled. Nothing more happens.
+            /// </summary>
+            Failed,
         }
     }
 }

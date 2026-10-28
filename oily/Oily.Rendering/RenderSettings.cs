@@ -26,6 +26,12 @@ namespace Oily.Rendering
         public double LeadIn { get; init; } = 1000;
 
         /// <summary>
+        /// How long to keep rendering after the play ends (or fails), in video milliseconds,
+        /// so the video doesn't cut off on the last hit.
+        /// </summary>
+        public double Tail { get; init; } = 1500;
+
+        /// <summary>
         /// The length of one frame in milliseconds.
         /// </summary>
         public double FrameDuration => 1000.0 / FramesPerSecond;
