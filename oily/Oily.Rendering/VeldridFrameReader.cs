@@ -4,6 +4,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -93,7 +94,11 @@ namespace Oily.Rendering
 
             // All staging textures are busy: wait for the oldest, which also keeps the queue from growing without end.
             if (freeSlots.Count == 0 && allSlots.Count >= slot_count)
+            {
+                long stallStart = Stopwatch.GetTimestamp();
                 finish(busySlots.Dequeue());
+                RenderTimings.ReadbackStall.AddSince(stallStart);
+            }
 
             var slot = freeSlots.Count > 0 ? freeSlots.Pop() : createSlot();
             slot.EnsureMatches(factory, source);
@@ -144,6 +149,8 @@ namespace Oily.Rendering
             var target = slot.Target!;
             slot.Target = null;
 
+            long start = Stopwatch.GetTimestamp();
+
             try
             {
                 if (!device.WaitForFence(slot.Fence, 5_000_000_000))
@@ -167,6 +174,7 @@ namespace Oily.Rendering
                     device.Unmap(staging, 0);
                 }
 
+                RenderTimings.Readback.AddSince(start);
                 target.TrySetResult(frame);
             }
             catch (Exception e)

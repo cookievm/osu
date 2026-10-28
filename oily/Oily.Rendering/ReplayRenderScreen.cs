@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using Oily.Rendering.Audio;
 using osu.Framework.Allocation;
@@ -110,6 +111,9 @@ namespace Oily.Rendering
         // Set while the capturer writes out the last frames.
         private Task? finishing;
 
+        // Runs from the first stepped frame, for the timings logged at the end.
+        private Stopwatch? renderStopwatch;
+
         // Draw thread clock time seen after the last step, used to wait until the stepped frame has been drawn.
         private double lastDrawTime;
         private int drawFramesSinceStep;
@@ -180,6 +184,8 @@ namespace Oily.Rendering
 
             if (Audio != null)
                 SamplePlaybackRecorder.Listener = Audio;
+
+            RenderTimings.Reset();
 
             playerStack.Push(Player = new RenderReplayPlayer(Score, Settings));
 
@@ -308,6 +314,11 @@ namespace Oily.Rendering
         {
             pendingFrame = captureContainer?.CaptureAsync();
 
+            if (pendingFrame != null)
+                _ = timeDrawAsync(pendingFrame, Stopwatch.GetTimestamp());
+
+            renderStopwatch ??= Stopwatch.StartNew();
+
             lastDrawTime = host.DrawThread.Clock.CurrentTime;
             drawFramesSinceStep = 0;
             state = RenderState.WaitingForDraw;
@@ -360,9 +371,24 @@ namespace Oily.Rendering
             finishing = capturer.CompleteAsync();
         }
 
+        private static async Task timeDrawAsync(Task<FrameReadback> frame, long start)
+        {
+            try
+            {
+                await frame.ConfigureAwait(false);
+                RenderTimings.Draw.AddSince(start);
+            }
+            catch
+            {
+                // The render loop reports failed frames.
+            }
+        }
+
         private void finish()
         {
             state = RenderState.Done;
+
+            Logger.Log(RenderTimings.Summary(renderStopwatch?.Elapsed.TotalSeconds ?? 0, FramesCaptured));
 
             Finished?.Invoke(capturer.OutputDescription);
 

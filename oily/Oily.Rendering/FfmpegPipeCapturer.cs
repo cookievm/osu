@@ -62,9 +62,12 @@ namespace Oily.Rendering
 
             writer ??= Task.Run(writeFramesAsync);
 
+            long queueStart = Stopwatch.GetTimestamp();
+
             try
             {
                 await queue.Writer.WriteAsync(readback.Pixels).ConfigureAwait(false);
+                RenderTimings.QueueFull.AddSince(queueStart);
             }
             catch (ChannelClosedException)
             {
@@ -98,16 +101,23 @@ namespace Oily.Rendering
             {
                 await foreach (var pending in queue.Reader.ReadAllAsync().ConfigureAwait(false))
                 {
+                    long waitStart = Stopwatch.GetTimestamp();
+
                     using (var frame = await pending.ConfigureAwait(false))
                     {
+                        RenderTimings.WaitPixels.AddSince(waitStart);
+
                         if (ffmpeg == null)
                             start(frame.Width, frame.Height, frame.Bgra);
                         else if (frame.Width != frameWidth || frame.Height != frameHeight)
                             throw new InvalidOperationException($"The window changed size during the render ({frameWidth}x{frameHeight} to {frame.Width}x{frame.Height}).");
 
+                        long writeStart = Stopwatch.GetTimestamp();
+
                         try
                         {
                             await input!.WriteAsync(frame.Pixels.AsMemory(0, frame.Length)).ConfigureAwait(false);
+                            RenderTimings.Ffmpeg.AddSince(writeStart);
                         }
                         catch (IOException e)
                         {
