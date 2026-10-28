@@ -22,8 +22,6 @@ using osu.Game.Screens;
 using osu.Game.Screens.Play;
 using osu.Game.Skinning;
 using osuTK;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 
 namespace Oily.Rendering
 {
@@ -99,7 +97,7 @@ namespace Oily.Rendering
 
         // Set when capturing off-screen, see RenderSettings.CaptureSize.
         private RenderCaptureContainer? captureContainer;
-        private Task<Image<Rgba32>>? pendingFrame;
+        private Task<FrameReadback>? pendingFrame;
 
         private const int max_preroll_seconds = 10;
 
@@ -108,6 +106,9 @@ namespace Oily.Rendering
         // Frames stepped before gameplay started. These are not captured.
         private int prerollFrames;
         private Task? pendingCapture;
+
+        // Set while the capturer writes out the last frames.
+        private Task? finishing;
 
         // Draw thread clock time seen after the last step, used to wait until the stepped frame has been drawn.
         private double lastDrawTime;
@@ -253,6 +254,17 @@ namespace Oily.Rendering
                     videoClock.CurrentTime = Settings.FrameTime(prerollFrames + FramesCaptured);
                     markStepped();
                     break;
+
+                case RenderState.Finishing:
+                    if (!finishing!.IsCompleted)
+                        break;
+
+                    if (finishing.IsFaulted)
+                        fail(finishing.Exception!);
+                    else
+                        finish();
+
+                    break;
             }
         }
 
@@ -270,6 +282,7 @@ namespace Oily.Rendering
 
                     break;
 
+                case RenderState.Finishing:
                 case RenderState.Done:
                 case RenderState.Failed:
                     return null;
@@ -287,7 +300,9 @@ namespace Oily.Rendering
         /// <summary>
         /// The image of the frame just stepped to. Capturers call this from <see cref="IFrameCapturer.CaptureFrameAsync"/>.
         /// </summary>
-        public Task<Image<Rgba32>> GrabFrameAsync() => pendingFrame ?? host.TakeScreenshotAsync();
+        public Task<FrameReadback> GrabFrameAsync() => pendingFrame ?? screenshotAsync();
+
+        private async Task<FrameReadback> screenshotAsync() => FrameReadback.FromImage(await host.TakeScreenshotAsync().ConfigureAwait(false));
 
         private void markStepped()
         {
@@ -340,17 +355,14 @@ namespace Oily.Rendering
 
         private void complete()
         {
-            state = RenderState.Done;
+            // The capturer may still be writing the last frames, so wait for it without blocking the game.
+            state = RenderState.Finishing;
+            finishing = capturer.CompleteAsync();
+        }
 
-            try
-            {
-                capturer.Complete();
-            }
-            catch (Exception e)
-            {
-                fail(e);
-                return;
-            }
+        private void finish()
+        {
+            state = RenderState.Done;
 
             Finished?.Invoke(capturer.OutputDescription);
 
@@ -427,6 +439,12 @@ namespace Oily.Rendering
             WaitingForGameplay,
             WaitingForDraw,
             Capturing,
+
+            /// <summary>
+            /// Every frame is captured, and the capturer is writing out the last ones.
+            /// </summary>
+            Finishing,
+
             Done,
 
             /// <summary>

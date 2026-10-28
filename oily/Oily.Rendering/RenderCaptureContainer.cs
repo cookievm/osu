@@ -13,8 +13,6 @@ using osu.Framework.Platform;
 using osuTK;
 using osuTK.Graphics;
 using RectangleF = osu.Framework.Graphics.Primitives.RectangleF;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 
 namespace Oily.Rendering
 {
@@ -47,6 +45,11 @@ namespace Oily.Rendering
 
         private PendingCapture? pending;
 
+        // Draw thread only.
+        private VeldridFrameReader? frameReader;
+        private bool frameReaderCreated;
+        private bool pollScheduled;
+
         [Resolved]
         private GameHost host { get; set; } = null!;
 
@@ -64,7 +67,7 @@ namespace Oily.Rendering
         /// <summary>
         /// Captures the first frame drawn after this update. Call it from the update thread once the frame's state is set.
         /// </summary>
-        public Task<Image<Rgba32>> CaptureAsync()
+        public Task<FrameReadback> CaptureAsync()
         {
             pending?.Source.TrySetCanceled();
             pending = new PendingCapture();
@@ -97,11 +100,60 @@ namespace Oily.Rendering
 
             pending?.Source.TrySetCanceled();
             sharedData.Dispose();
+
+            host.DrawThread.Scheduler.Add(() => frameReader?.Dispose());
+        }
+
+        /// <summary>
+        /// Starts reading <paramref name="buffer"/> back. Draw thread only.
+        /// </summary>
+        private FrameReadback readBack(IRenderer renderer, IFrameBuffer buffer)
+        {
+            if (!frameReaderCreated)
+            {
+                frameReaderCreated = true;
+                frameReader = VeldridFrameReader.Create(renderer);
+            }
+
+            var texture = frameReader == null ? null : VeldridFrameReader.GetTexture(buffer);
+
+            if (texture != null)
+            {
+                var pixels = frameReader!.Read(texture);
+                schedulePoll();
+                return new FrameReadback(pixels);
+            }
+
+            // Not a renderer or texture format the fast path knows: read it back the slow way.
+            var image = renderer.ExtractFrameBufferData(buffer);
+
+            if (image == null)
+                throw new InvalidOperationException("The graphics renderer couldn't read the frame back.");
+
+            return FrameReadback.FromImage(image);
+        }
+
+        private void schedulePoll()
+        {
+            if (pollScheduled)
+                return;
+
+            pollScheduled = true;
+
+            // Runs at the start of the next draw frame, and keeps going every frame until every copy is back.
+            host.DrawThread.Scheduler.Add(() =>
+            {
+                pollScheduled = false;
+                frameReader?.Poll();
+
+                if (frameReader?.Busy == true)
+                    schedulePoll();
+            });
         }
 
         private class PendingCapture
         {
-            public readonly TaskCompletionSource<Image<Rgba32>> Source = new TaskCompletionSource<Image<Rgba32>>(TaskCreationOptions.RunContinuationsAsynchronously);
+            public readonly TaskCompletionSource<FrameReadback> Source = new TaskCompletionSource<FrameReadback>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             // Set on the draw thread once a draw node has drawn this frame.
             public bool Drawn;
@@ -148,12 +200,7 @@ namespace Oily.Rendering
                 {
                     try
                     {
-                        var image = renderer.ExtractFrameBufferData(buffer);
-
-                        if (image == null)
-                            capture.Source.TrySetException(new InvalidOperationException("The graphics renderer couldn't read the frame back."));
-                        else
-                            capture.Source.TrySetResult(image);
+                        capture.Source.TrySetResult(Source.readBack(renderer, buffer));
                     }
                     catch (Exception e)
                     {

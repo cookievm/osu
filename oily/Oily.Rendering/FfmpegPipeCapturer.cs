@@ -2,16 +2,14 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using osu.Framework.Logging;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 
 namespace Oily.Rendering
 {
@@ -25,8 +23,22 @@ namespace Oily.Rendering
     /// </remarks>
     public class FfmpegPipeCapturer : IFrameCapturer
     {
-        private readonly Func<Task<Image<Rgba32>>> grabFrame;
+        /// <summary>
+        /// Frames that may wait for ffmpeg at once. Each 4K frame is about 33 MB.
+        /// </summary>
+        private const int max_queued_frames = 4;
+
+        private readonly Func<Task<FrameReadback>> grabFrame;
         private readonly RenderJob job;
+
+        // Frames go to ffmpeg in order on a background task, so the game can draw the next frame while one is written.
+        private readonly Channel<Task<RenderFrame>> queue = Channel.CreateBounded<Task<RenderFrame>>(new BoundedChannelOptions(max_queued_frames)
+        {
+            SingleReader = true,
+            SingleWriter = true,
+        });
+
+        private Task? writer;
 
         private Process? ffmpeg;
         private Stream? input;
@@ -36,9 +48,9 @@ namespace Oily.Rendering
 
         public string OutputDescription => job.Output;
 
-        /// <param name="grabFrame">Gets the image of the current frame, for example <see cref="ReplayRenderScreen.GrabFrameAsync"/>.</param>
+        /// <param name="grabFrame">Gets the current frame, for example <see cref="ReplayRenderScreen.GrabFrameAsync"/>.</param>
         /// <param name="job">The render job, for the ffmpeg settings and output path.</param>
-        public FfmpegPipeCapturer(Func<Task<Image<Rgba32>>> grabFrame, RenderJob job)
+        public FfmpegPipeCapturer(Func<Task<FrameReadback>> grabFrame, RenderJob job)
         {
             this.grabFrame = grabFrame;
             this.job = job;
@@ -46,48 +58,72 @@ namespace Oily.Rendering
 
         public async Task CaptureFrameAsync(RenderedFrame frame)
         {
-            using (var image = await grabFrame().ConfigureAwait(false))
+            var readback = await grabFrame().ConfigureAwait(false);
+
+            writer ??= Task.Run(writeFramesAsync);
+
+            try
             {
-                if (ffmpeg == null)
-                    start(image.Width, image.Height);
-                else if (image.Width != frameWidth || image.Height != frameHeight)
-                    throw new InvalidOperationException($"The window changed size during the render ({frameWidth}x{frameHeight} to {image.Width}x{image.Height}).");
-
-                int length = image.Width * image.Height * 4;
-                byte[] buffer = ArrayPool<byte>.Shared.Rent(length);
-
-                try
-                {
-                    image.CopyPixelDataTo(buffer.AsSpan(0, length));
-                    await input!.WriteAsync(buffer.AsMemory(0, length)).ConfigureAwait(false);
-                }
-                catch (IOException e)
-                {
-                    throw new InvalidOperationException($"ffmpeg stopped accepting frames. ffmpeg said:\n{tail()}", e);
-                }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(buffer);
-                }
+                await queue.Writer.WriteAsync(readback.Pixels).ConfigureAwait(false);
+            }
+            catch (ChannelClosedException)
+            {
+                // The writer stopped. Its exception says why.
+                await writer.ConfigureAwait(false);
+                throw;
             }
         }
 
-        public void Complete()
+        public async Task CompleteAsync()
         {
-            if (ffmpeg == null)
+            if (writer == null)
                 throw new InvalidOperationException("No frames were rendered.");
 
-            input!.Flush();
-            input.Dispose();
+            queue.Writer.TryComplete();
+            await writer.ConfigureAwait(false);
+
+            await input!.FlushAsync().ConfigureAwait(false);
+            await input.DisposeAsync().ConfigureAwait(false);
             input = null;
 
-            ffmpeg.WaitForExit();
+            await ffmpeg!.WaitForExitAsync().ConfigureAwait(false);
 
             if (ffmpeg.ExitCode != 0)
                 throw new InvalidOperationException($"ffmpeg failed with code {ffmpeg.ExitCode}:\n{tail()}");
         }
 
-        private void start(int width, int height)
+        private async Task writeFramesAsync()
+        {
+            try
+            {
+                await foreach (var pending in queue.Reader.ReadAllAsync().ConfigureAwait(false))
+                {
+                    using (var frame = await pending.ConfigureAwait(false))
+                    {
+                        if (ffmpeg == null)
+                            start(frame.Width, frame.Height, frame.Bgra);
+                        else if (frame.Width != frameWidth || frame.Height != frameHeight)
+                            throw new InvalidOperationException($"The window changed size during the render ({frameWidth}x{frameHeight} to {frame.Width}x{frame.Height}).");
+
+                        try
+                        {
+                            await input!.WriteAsync(frame.Pixels.AsMemory(0, frame.Length)).ConfigureAwait(false);
+                        }
+                        catch (IOException e)
+                        {
+                            throw new InvalidOperationException($"ffmpeg stopped accepting frames. ffmpeg said:\n{tail()}", e);
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                queue.Writer.TryComplete(e);
+                throw;
+            }
+        }
+
+        private void start(int width, int height, bool bgra)
         {
             frameWidth = width;
             frameHeight = height;
@@ -105,7 +141,7 @@ namespace Oily.Rendering
                 CreateNoWindow = true,
             };
 
-            foreach (string arg in BuildArguments(job, width, height))
+            foreach (string arg in BuildArguments(job, width, height, bgra ? "bgra" : "rgba"))
                 startInfo.ArgumentList.Add(arg);
 
             Logger.Log($"Starting ffmpeg: {job.Ffmpeg} {string.Join(' ', startInfo.ArgumentList)}");
@@ -128,10 +164,14 @@ namespace Oily.Rendering
         }
 
         /// <summary>
-        /// The ffmpeg command line: raw RGBA frames of <paramref name="frameWidth"/>x<paramref name="frameHeight"/> on stdin,
+        /// The ffmpeg command line: raw frames of <paramref name="frameWidth"/>x<paramref name="frameHeight"/> on stdin,
         /// scaled to the job's size and encoded to the job's output file.
         /// </summary>
-        public static IReadOnlyList<string> BuildArguments(RenderJob job, int frameWidth, int frameHeight)
+        /// <param name="job">The render job.</param>
+        /// <param name="frameWidth">Width of the frames sent to ffmpeg.</param>
+        /// <param name="frameHeight">Height of the frames sent to ffmpeg.</param>
+        /// <param name="pixelFormat">The frames' ffmpeg pixel format, "rgba" or "bgra".</param>
+        public static IReadOnlyList<string> BuildArguments(RenderJob job, int frameWidth, int frameHeight, string pixelFormat = "rgba")
         {
             var args = new List<string>
             {
@@ -139,7 +179,7 @@ namespace Oily.Rendering
                 "-hide_banner",
                 "-loglevel", "warning",
                 "-f", "rawvideo",
-                "-pix_fmt", "rgba",
+                "-pix_fmt", pixelFormat,
                 "-s", $"{frameWidth}x{frameHeight}",
                 "-r", job.FramesPerSecond.ToString(CultureInfo.InvariantCulture),
                 "-i", "-",
@@ -184,6 +224,7 @@ namespace Oily.Rendering
 
         public void Dispose()
         {
+            queue.Writer.TryComplete();
             input?.Dispose();
 
             if (ffmpeg != null)

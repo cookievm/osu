@@ -40,11 +40,13 @@ namespace Oily.Rendering
                 await image.SaveAsPngAsync(stream).ConfigureAwait(false);
         }
 
-        public void Complete()
+        public Task CompleteAsync()
         {
             // Lets anyone looking at the folder know the frame rate needed to turn it into a video.
             using (var writer = new StreamWriter(storage.CreateFileSafely(@"README.txt")))
                 writer.WriteLine(@"Frames rendered by o!ily. Turn them into a video with: ffmpeg -framerate <fps> -i frame_%06d.png -pix_fmt yuv420p out.mp4");
+
+            return Task.CompletedTask;
         }
 
         public void Open() => storage.PresentExternally();
