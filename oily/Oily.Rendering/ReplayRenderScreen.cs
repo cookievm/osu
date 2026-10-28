@@ -202,7 +202,11 @@ namespace Oily.Rendering
 
             RenderTimings.Reset();
 
-            Settings.Display?.Apply(config, rulesetConfigs.GetConfigFor(Score.ScoreInfo.Ruleset.CreateInstance()));
+            if (Settings.Display != null)
+            {
+                Settings.Display.Apply(config, rulesetConfigs.GetConfigFor(Score.ScoreInfo.Ruleset.CreateInstance()));
+                Logger.Log($"Render display: {Settings.Display}");
+            }
 
             playerStack.Push(Player = new RenderReplayPlayer(Score, Settings));
 
