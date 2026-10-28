@@ -40,7 +40,7 @@ namespace Oily.Rendering.Tests
 
             var frame = RenderFrame.FromImage(image);
 
-            Assert.That(frame.Bgra, Is.False);
+            Assert.That(frame.Format, Is.EqualTo(RenderPixelFormat.Rgba));
             Assert.That(frame.Pixels.Take(frame.Length), Is.EqualTo(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }));
 
             frame.Dispose();
@@ -55,6 +55,18 @@ namespace Oily.Rendering.Tests
             var args = FfmpegPipeCapturer.BuildArguments(job, 1920, 1080, "bgra");
 
             Assert.That(string.Join(' ', args), Does.Contain("-f rawvideo -pix_fmt bgra -s 1920x1080"));
+        }
+
+        [Test]
+        public void TestNv12FramesGoStraightToHardwareEncoders()
+        {
+            string nvenc = string.Join(' ', FfmpegPipeCapturer.BuildArguments(new RenderJob { Replay = "a.osr", Output = "out.mp4", Encoder = "h264_nvenc" }, 3840, 2160, "nv12"));
+            string x264 = string.Join(' ', FfmpegPipeCapturer.BuildArguments(new RenderJob { Replay = "a.osr", Output = "out.mp4" }, 3840, 2160, "nv12"));
+
+            Assert.That(nvenc, Does.Contain("-f rawvideo -pix_fmt nv12 -s 3840x2160"));
+            Assert.That(nvenc, Does.Contain("-pix_fmt nv12 -colorspace bt709"));
+            Assert.That(x264, Does.Contain("-pix_fmt yuv420p -colorspace bt709"));
+            Assert.That(x264, Does.Contain("-color_range tv"));
         }
 
         [Test]
@@ -83,8 +95,9 @@ namespace Oily.Rendering.Tests
             Assert.That(error!.Message, Does.Contain("Couldn't start ffmpeg"));
         }
 
-        [Test]
-        public async Task TestFramesAreWrittenInOrderWhenTheyComeBackOutOfOrder()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task TestFramesAreWrittenInOrderWhenTheyComeBackOutOfOrder(bool nv12)
         {
             if (!ffmpegAvailable())
                 Assert.Ignore("ffmpeg isn't installed.");
@@ -108,7 +121,7 @@ namespace Oily.Rendering.Tests
 
                 // The pixels arrive last frame first.
                 for (int i = count - 1; i >= 0; i--)
-                    sources[i].SetResult(grey(i));
+                    sources[i].SetResult(nv12 ? greyNv12(i) : grey(i));
 
                 await captures.ConfigureAwait(false);
                 await capturer.CompleteAsync().ConfigureAwait(false);
@@ -137,7 +150,7 @@ namespace Oily.Rendering.Tests
 
         private static RenderFrame grey(int index)
         {
-            var frame = new RenderFrame(width, height, index % 2 == 1);
+            var frame = new RenderFrame(width, height, index % 2 == 1 ? RenderPixelFormat.Bgra : RenderPixelFormat.Rgba);
             frame.Pixels.AsSpan(0, frame.Length).Fill((byte)greyLevel(index));
 
             // Alpha.
@@ -145,6 +158,26 @@ namespace Oily.Rendering.Tests
                 frame.Pixels[i] = 255;
 
             return frame;
+        }
+
+        private static RenderFrame greyNv12(int index)
+        {
+            using (var rgba = grey(index))
+            {
+                var frame = new RenderFrame(width, height, RenderPixelFormat.Nv12);
+                var handle = System.Runtime.InteropServices.GCHandle.Alloc(rgba.Pixels, System.Runtime.InteropServices.GCHandleType.Pinned);
+
+                try
+                {
+                    Nv12Converter.Convert(handle.AddrOfPinnedObject(), width * 4, width, height, rgba.Format == RenderPixelFormat.Bgra, frame.Pixels);
+                }
+                finally
+                {
+                    handle.Free();
+                }
+
+                return frame;
+            }
         }
 
         private static bool ffmpegAvailable()

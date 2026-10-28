@@ -10,7 +10,29 @@ using SixLabors.ImageSharp.PixelFormats;
 namespace Oily.Rendering
 {
     /// <summary>
-    /// The pixels of one captured frame, 4 bytes per pixel with no padding between rows.
+    /// How a <see cref="RenderFrame"/>'s bytes are laid out.
+    /// </summary>
+    public enum RenderPixelFormat
+    {
+        /// <summary>
+        /// 4 bytes per pixel, red first.
+        /// </summary>
+        Rgba,
+
+        /// <summary>
+        /// 4 bytes per pixel, blue first.
+        /// </summary>
+        Bgra,
+
+        /// <summary>
+        /// The video's own format: a full size brightness plane, then a half size plane of interleaved colour pairs.
+        /// 1.5 bytes per pixel, BT.709 limited range. Encoders take it as is.
+        /// </summary>
+        Nv12,
+    }
+
+    /// <summary>
+    /// The pixels of one captured frame, with no padding between rows.
     /// The pixel array is pooled, so dispose the frame once it's written.
     /// </summary>
     public sealed class RenderFrame : IDisposable
@@ -19,32 +41,32 @@ namespace Oily.Rendering
 
         public int Height { get; }
 
-        /// <summary>
-        /// Whether the bytes are in BGRA order rather than RGBA.
-        /// </summary>
-        public bool Bgra { get; }
+        public RenderPixelFormat Format { get; }
 
         /// <summary>
         /// The pixels. Can be longer than <see cref="Length"/>.
         /// </summary>
         public byte[] Pixels { get; private set; }
 
-        public int Length => Width * Height * 4;
+        public int Length => LengthOf(Width, Height, Format);
 
         /// <summary>
         /// A frame with a pooled pixel array the caller fills.
         /// </summary>
-        public RenderFrame(int width, int height, bool bgra)
+        public RenderFrame(int width, int height, RenderPixelFormat format)
         {
             Width = width;
             Height = height;
-            Bgra = bgra;
-            Pixels = ArrayPool<byte>.Shared.Rent(width * height * 4);
+            Format = format;
+            Pixels = ArrayPool<byte>.Shared.Rent(LengthOf(width, height, format));
         }
+
+        public static int LengthOf(int width, int height, RenderPixelFormat format)
+            => format == RenderPixelFormat.Nv12 ? width * height * 3 / 2 : width * height * 4;
 
         public static RenderFrame FromImage(Image<Rgba32> image)
         {
-            var frame = new RenderFrame(image.Width, image.Height, false);
+            var frame = new RenderFrame(image.Width, image.Height, RenderPixelFormat.Rgba);
             image.CopyPixelDataTo(frame.Pixels.AsSpan(0, frame.Length));
             return frame;
         }

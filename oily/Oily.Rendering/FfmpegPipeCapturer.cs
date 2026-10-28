@@ -108,7 +108,7 @@ namespace Oily.Rendering
                         RenderTimings.WaitPixels.AddSince(waitStart);
 
                         if (ffmpeg == null)
-                            start(frame.Width, frame.Height, frame.Bgra);
+                            start(frame.Width, frame.Height, frame.Format);
                         else if (frame.Width != frameWidth || frame.Height != frameHeight)
                             throw new InvalidOperationException($"The window changed size during the render ({frameWidth}x{frameHeight} to {frame.Width}x{frame.Height}).");
 
@@ -133,7 +133,7 @@ namespace Oily.Rendering
             }
         }
 
-        private void start(int width, int height, bool bgra)
+        private void start(int width, int height, RenderPixelFormat format)
         {
             frameWidth = width;
             frameHeight = height;
@@ -151,7 +151,7 @@ namespace Oily.Rendering
                 CreateNoWindow = true,
             };
 
-            foreach (string arg in BuildArguments(job, width, height, bgra ? "bgra" : "rgba"))
+            foreach (string arg in BuildArguments(job, width, height, PixelFormatName(format)))
                 startInfo.ArgumentList.Add(arg);
 
             Logger.Log($"Starting ffmpeg: {job.Ffmpeg} {string.Join(' ', startInfo.ArgumentList)}");
@@ -180,7 +180,7 @@ namespace Oily.Rendering
         /// <param name="job">The render job.</param>
         /// <param name="frameWidth">Width of the frames sent to ffmpeg.</param>
         /// <param name="frameHeight">Height of the frames sent to ffmpeg.</param>
-        /// <param name="pixelFormat">The frames' ffmpeg pixel format, "rgba" or "bgra".</param>
+        /// <param name="pixelFormat">The frames' ffmpeg pixel format, see <see cref="PixelFormatName"/>.</param>
         public static IReadOnlyList<string> BuildArguments(RenderJob job, int frameWidth, int frameHeight, string pixelFormat = "rgba")
         {
             var args = new List<string>
@@ -207,9 +207,40 @@ namespace Oily.Rendering
             else
                 args.AddRange(new[] { "-crf", quality, "-preset", "faster" });
 
-            args.AddRange(new[] { "-pix_fmt", "yuv420p", "-movflags", "+faststart", job.Output });
+            if (pixelFormat == "nv12")
+            {
+                // Hardware encoders take NV12 as it is. Frames converted by Nv12Converter are BT.709, so say so.
+                bool hardware = job.Encoder.Contains("nvenc", StringComparison.OrdinalIgnoreCase)
+                                || job.Encoder.Contains("qsv", StringComparison.OrdinalIgnoreCase)
+                                || job.Encoder.Contains("amf", StringComparison.OrdinalIgnoreCase);
+
+                args.AddRange(new[] { "-pix_fmt", hardware ? "nv12" : "yuv420p" });
+                args.AddRange(new[] { "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv" });
+            }
+            else
+                args.AddRange(new[] { "-pix_fmt", "yuv420p" });
+
+            args.AddRange(new[] { "-movflags", "+faststart", job.Output });
 
             return args;
+        }
+
+        /// <summary>
+        /// ffmpeg's name for <paramref name="format"/>.
+        /// </summary>
+        public static string PixelFormatName(RenderPixelFormat format)
+        {
+            switch (format)
+            {
+                case RenderPixelFormat.Bgra:
+                    return "bgra";
+
+                case RenderPixelFormat.Nv12:
+                    return "nv12";
+
+                default:
+                    return "rgba";
+            }
         }
 
         private void appendLog(string? line)

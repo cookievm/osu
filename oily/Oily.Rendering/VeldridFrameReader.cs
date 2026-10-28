@@ -46,6 +46,11 @@ namespace Oily.Rendering
 
         private long pollCount;
 
+        /// <summary>
+        /// Whether to hand out frames as NV12 (see <see cref="Nv12Converter"/>) rather than as they are on the graphics card.
+        /// </summary>
+        public bool ConvertToNv12 { get; set; } = true;
+
         private VeldridFrameReader(GraphicsDevice device, ResourceFactory factory)
         {
             this.device = device;
@@ -159,15 +164,23 @@ namespace Oily.Rendering
                 var staging = slot.Staging!;
                 int width = (int)staging.Width;
                 int height = (int)staging.Height;
-                int rowBytes = width * 4;
+                bool bgra = isBgra(staging.Format);
+                bool nv12 = ConvertToNv12 && Nv12Converter.CanConvert(width, height);
 
-                var frame = new RenderFrame(width, height, isBgra(staging.Format));
+                var frame = new RenderFrame(width, height, nv12 ? RenderPixelFormat.Nv12 : bgra ? RenderPixelFormat.Bgra : RenderPixelFormat.Rgba);
                 var mapped = device.Map(staging, MapMode.Read, 0);
 
                 try
                 {
-                    for (int y = 0; y < height; y++)
-                        Marshal.Copy(mapped.Data + y * (nint)mapped.RowPitch, frame.Pixels, y * rowBytes, rowBytes);
+                    if (nv12)
+                        Nv12Converter.Convert(mapped.Data, (int)mapped.RowPitch, width, height, bgra, frame.Pixels);
+                    else
+                    {
+                        int rowBytes = width * 4;
+
+                        for (int y = 0; y < height; y++)
+                            Marshal.Copy(mapped.Data + y * (nint)mapped.RowPitch, frame.Pixels, y * rowBytes, rowBytes);
+                    }
                 }
                 finally
                 {
