@@ -24,6 +24,17 @@ namespace Oily.Rendering.Audio
     }
 
     /// <summary>
+    /// The user's volume settings for a render, each 0 to 1.
+    /// </summary>
+    /// <param name="Master">Scales everything.</param>
+    /// <param name="Hitsounds">Scales the hitsounds.</param>
+    /// <param name="Music">Scales the song.</param>
+    public record AudioVolumes(double Master = 1, double Hitsounds = 1, double Music = 1)
+    {
+        public static AudioVolumes Default { get; } = new AudioVolumes();
+    }
+
+    /// <summary>
     /// Builds the ffmpeg command that adds the music and the mixed hitsounds to a rendered video.
     /// </summary>
     public static class RenderAudioMuxer
@@ -36,8 +47,17 @@ namespace Oily.Rendering.Audio
         // Peaks stay below -1 dBFS, which leaves room for the AAC encoder's overshoot.
         private const string limiter = "alimiter=limit=0.89:level=false";
 
-        public static IReadOnlyList<string> BuildArguments(string video, string hitsounds, MusicTrack? music, string output)
+        /// <param name="video">The video without sound.</param>
+        /// <param name="hitsounds">The mixed hitsounds (.wav).</param>
+        /// <param name="music">The song, if the beatmap has one.</param>
+        /// <param name="output">Where the video with sound goes.</param>
+        /// <param name="volumes">The user's volume settings. Full volume when null.</param>
+        public static IReadOnlyList<string> BuildArguments(string video, string hitsounds, MusicTrack? music, string output, AudioVolumes? volumes = null)
         {
+            volumes ??= AudioVolumes.Default;
+
+            string hitsoundsFilter = $"volume={number(HITSOUND_VOLUME * volumes.Hitsounds * volumes.Master)}";
+
             var args = new List<string>
             {
                 "-y",
@@ -56,10 +76,10 @@ namespace Oily.Rendering.Audio
 
                 args.AddRange(new[] { "-i", music.File });
 
-                filter = $"[1:a]{hitsounds_filter}[hits];[2:a]{MusicFilter(music)}[music];[hits][music]amix=inputs=2:normalize=0:duration=first,{limiter}[audio]";
+                filter = $"[1:a]{hitsoundsFilter}[hits];[2:a]{MusicFilter(music with { Volume = music.Volume * volumes.Music * volumes.Master })}[music];[hits][music]amix=inputs=2:normalize=0:duration=first,{limiter}[audio]";
             }
             else
-                filter = $"[1:a]{hitsounds_filter},{limiter}[audio]";
+                filter = $"[1:a]{hitsoundsFilter},{limiter}[audio]";
 
             args.AddRange(new[]
             {
@@ -104,8 +124,6 @@ namespace Oily.Rendering.Audio
 
             return string.Join(',', filters);
         }
-
-        private static readonly string hitsounds_filter = $"volume={number(HITSOUND_VOLUME)}";
 
         private static string seconds(double ms) => (ms / 1000).ToString("0.###", CultureInfo.InvariantCulture);
 

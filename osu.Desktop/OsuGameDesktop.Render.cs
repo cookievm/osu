@@ -256,7 +256,7 @@ namespace osu.Desktop
                     CreateNoWindow = true,
                 };
 
-                foreach (string arg in RenderAudioMuxer.BuildArguments(silentVideo, hitsounds, music, video))
+                foreach (string arg in RenderAudioMuxer.BuildArguments(silentVideo, hitsounds, music, video, job.Volumes))
                     startInfo.ArgumentList.Add(arg);
 
                 Logger.Log($"Adding audio: {job.Ffmpeg} {string.Join(' ', startInfo.ArgumentList)}");

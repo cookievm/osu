@@ -126,6 +126,23 @@ namespace Oily.Rendering.Tests
         }
 
         [Test]
+        public void TestVolumesScaleHitsoundsAndMusic()
+        {
+            string filter = string.Join(' ', RenderAudioMuxer.BuildArguments("v.mp4", "h.wav", new MusicTrack("m.mp3", 0), "out.mp4", new AudioVolumes(Master: 0.5, Hitsounds: 0.8, Music: 0.4)));
+
+            // Hitsounds: 0.5 × 0.8 × 0.5. Music: 0.5 × 0.4 × 0.5.
+            Assert.That(filter, Does.Contain("[1:a]volume=0.2[hits]"));
+            Assert.That(filter, Does.Contain("volume=0.1[music]"));
+        }
+
+        [Test]
+        public void TestJobVolumesAreChecked()
+        {
+            Assert.That(RenderJob.Parse("""{ "replay": "r.osr", "output": "o.mp4", "musicVolume": 40 }""").Volumes, Is.EqualTo(new AudioVolumes(1, 1, 0.4)));
+            Assert.Throws<System.IO.InvalidDataException>(() => RenderJob.Parse("""{ "replay": "r.osr", "output": "o.mp4", "masterVolume": 150 }"""));
+        }
+
+        [Test]
         public void TestMuxSeeksMusicToTheFirstFrame()
         {
             var args = RenderAudioMuxer.BuildArguments("v.mp4", "h.wav", new MusicTrack("m.mp3", 12345), "out.mp4").ToList();

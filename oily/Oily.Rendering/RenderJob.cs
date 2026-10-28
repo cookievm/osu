@@ -6,6 +6,8 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+using Oily.Rendering.Audio;
+
 namespace Oily.Rendering
 {
     /// <summary>
@@ -47,6 +49,21 @@ namespace Oily.Rendering
         /// </summary>
         public bool AkatsukiPp { get; init; }
 
+        /// <summary>Overall volume of the video's audio, 0 to 100.</summary>
+        public int MasterVolume { get; init; } = 100;
+
+        /// <summary>Volume of the hitsounds, 0 to 100, before <see cref="MasterVolume"/>.</summary>
+        public int HitsoundVolume { get; init; } = 100;
+
+        /// <summary>Volume of the song, 0 to 100, before <see cref="MasterVolume"/>.</summary>
+        public int MusicVolume { get; init; } = 100;
+
+        /// <summary>
+        /// The volumes as the audio mix takes them.
+        /// </summary>
+        [JsonIgnore]
+        public AudioVolumes Volumes => new AudioVolumes(MasterVolume / 100.0, HitsoundVolume / 100.0, MusicVolume / 100.0);
+
         /// <summary>Path to ffmpeg.exe, or "ffmpeg" to find it on PATH.</summary>
         public string Ffmpeg { get; init; } = "ffmpeg";
 
@@ -76,6 +93,8 @@ namespace Oily.Rendering
             return job;
         }
 
+        private static bool isVolume(int volume) => volume >= 0 && volume <= 100;
+
         public static RenderJob Load(string path) => Parse(File.ReadAllText(path));
 
         public string ToJson() => JsonSerializer.Serialize(this, json_options);
@@ -97,6 +116,8 @@ namespace Oily.Rendering
                 throw new InvalidDataException($"Unsupported frame rate {FramesPerSecond}.");
             if (Quality < 0 || Quality > 51)
                 throw new InvalidDataException("Quality must be between 0 and 51.");
+            if (!isVolume(MasterVolume) || !isVolume(HitsoundVolume) || !isVolume(MusicVolume))
+                throw new InvalidDataException("Volumes must be between 0 and 100.");
             if (DurationSeconds <= 0)
                 throw new InvalidDataException("Duration must be positive.");
         }
