@@ -30,6 +30,9 @@ namespace Oily.Rendering
         /// <summary>Whether the cursor leaves a trail, in osu! plays.</summary>
         public bool CursorTrail { get; init; } = true;
 
+        /// <summary>Whether the beatmap's own hitsounds play, rather than only the skin's.</summary>
+        public bool BeatmapHitsounds { get; init; } = true;
+
         /// <summary>The cursor's size, 0.1 to 2 times the skin's.</summary>
         public float CursorSize { get; init; } = 1;
 
@@ -46,6 +49,7 @@ namespace Oily.Rendering
             config.SetValue(OsuSetting.HUDVisibilityMode, Interface ? HUDVisibilityMode.Always : HUDVisibilityMode.Never);
             config.SetValue(OsuSetting.HitLighting, HitLighting);
             config.SetValue(OsuSetting.GameplayCursorSize, CursorSize);
+            config.SetValue(OsuSetting.BeatmapHitsounds, BeatmapHitsounds);
 
             // A beatmap may ask for its own cursor size, which would win over the one picked here.
             config.SetValue(OsuSetting.AutoCursorSize, false);

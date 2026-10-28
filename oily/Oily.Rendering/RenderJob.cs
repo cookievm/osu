@@ -93,6 +93,9 @@ namespace Oily.Rendering
         /// <summary>Whether the cursor leaves a trail, in osu! plays.</summary>
         public bool CursorTrail { get; init; } = true;
 
+        /// <summary>Whether the beatmap's own hitsounds play, rather than only the skin's.</summary>
+        public bool BeatmapHitsounds { get; init; } = true;
+
         /// <summary>The cursor's size, 0.1 to 2 times the skin's.</summary>
         public double CursorSize { get; init; } = 1;
 
@@ -200,6 +203,7 @@ namespace Oily.Rendering
                 Interface = ShowInterface,
                 HitLighting = HitLighting,
                 CursorTrail = CursorTrail,
+                BeatmapHitsounds = BeatmapHitsounds,
                 CursorSize = (float)CursorSize,
             },
         };

@@ -180,7 +180,8 @@ namespace Oily.Rendering.Tests
                                       {
                                         "replay": "a.osr", "output": "a.mp4",
                                         "backgroundDim": 90, "backgroundBlur": 25, "storyboard": false, "showInterface": false,
-                                        "hitLighting": false, "cursorTrail": false, "cursorSize": 1.5
+                                        "hitLighting": false, "cursorTrail": false, "cursorSize": 1.5,
+                                        "beatmapHitsounds": false
                                       }
                                       """);
 
@@ -196,6 +197,7 @@ namespace Oily.Rendering.Tests
             Assert.That(config.Get<HUDVisibilityMode>(OsuSetting.HUDVisibilityMode), Is.EqualTo(HUDVisibilityMode.Never));
             Assert.That(config.Get<bool>(OsuSetting.HitLighting), Is.False);
             Assert.That(config.Get<float>(OsuSetting.GameplayCursorSize), Is.EqualTo(1.5f).Within(0.001));
+            Assert.That(config.Get<bool>(OsuSetting.BeatmapHitsounds), Is.False);
             Assert.That(osuConfig.Get<bool>(OsuRulesetSetting.ShowCursorTrail), Is.False);
         }
     }
