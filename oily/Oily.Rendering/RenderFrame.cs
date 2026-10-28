@@ -3,6 +3,7 @@
 
 using System;
 using System.Buffers;
+using System.Threading;
 using System.Threading.Tasks;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -91,9 +92,25 @@ namespace Oily.Rendering
         /// </summary>
         public Task<RenderFrame> Pixels { get; }
 
+        /// <summary>
+        /// False for a frame that went into a motion blur blend instead of the video. Its <see cref="Pixels"/> never has any.
+        /// </summary>
+        public bool InVideo { get; }
+
+        /// <summary>
+        /// A frame that went into a motion blur blend. The blend's last frame brings the result.
+        /// </summary>
+        public static FrameReadback BlendedIn { get; } = new FrameReadback(Task.FromCanceled<RenderFrame>(new CancellationToken(true)), false);
+
         public FrameReadback(Task<RenderFrame> pixels)
+            : this(pixels, true)
+        {
+        }
+
+        private FrameReadback(Task<RenderFrame> pixels, bool inVideo)
         {
             Pixels = pixels;
+            InVideo = inVideo;
         }
 
         /// <summary>

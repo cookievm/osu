@@ -69,6 +69,12 @@ namespace Oily.Rendering
         /// </summary>
         public string ColourConversion { get; init; } = "gpu";
 
+        /// <summary>
+        /// Motion blur: how many frames the game draws for each video frame, averaged together. 1 is off.
+        /// Renders take about this many times longer, as every one of those frames is drawn.
+        /// </summary>
+        public int MotionBlurFrames { get; init; } = 1;
+
         /// <summary>Path to ffmpeg.exe, or "ffmpeg" to find it on PATH.</summary>
         public string Ffmpeg { get; init; } = "ffmpeg";
 
@@ -125,6 +131,10 @@ namespace Oily.Rendering
                 throw new InvalidDataException("Volumes must be between 0 and 100.");
             if (ColourConversion is not ("gpu" or "cpu"))
                 throw new InvalidDataException($"Colour conversion must be \"gpu\" or \"cpu\", not \"{ColourConversion}\".");
+            if (MotionBlurFrames < 1 || MotionBlurFrames > GpuFrameBlender.MAX_FRAMES)
+                throw new InvalidDataException($"Motion blur frames must be between 1 and {GpuFrameBlender.MAX_FRAMES}.");
+            if (FramesPerSecond * MotionBlurFrames > 1000)
+                throw new InvalidDataException($"Motion blur at {FramesPerSecond} fps would draw more than 1000 frames a second. Use fewer blur frames or a lower frame rate.");
             if (DurationSeconds <= 0)
                 throw new InvalidDataException("Duration must be positive.");
         }
@@ -149,7 +159,9 @@ namespace Oily.Rendering
 
         public RenderSettings ToRenderSettings() => new RenderSettings
         {
-            FramesPerSecond = FramesPerSecond,
+            // With motion blur the game draws several frames for each one in the video.
+            FramesPerSecond = FramesPerSecond * MotionBlurFrames,
+            BlendFrames = MotionBlurFrames,
             RecordAudio = Audio,
             AkatsukiPp = AkatsukiPp,
             CaptureSize = new System.Drawing.Size(Width, Height),

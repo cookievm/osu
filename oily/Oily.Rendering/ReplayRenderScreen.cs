@@ -161,6 +161,7 @@ namespace Oily.Rendering
                 {
                     RelativeSizeAxes = Axes.Both,
                     GpuColourConversion = Settings.GpuColourConversion,
+                    BlendFrames = Settings.BlendFrames,
                     Child = playerStack,
                 };
             }
@@ -195,7 +196,7 @@ namespace Oily.Rendering
 
             playerStack.Push(Player = new RenderReplayPlayer(Score, Settings));
 
-            Logger.Log($"Replay render started: {Settings.FramesPerSecond} fps, output to {capturer.OutputDescription}");
+            Logger.Log($"Replay render started: {Settings.FramesPerSecond} fps, {Settings.BlendFrames} drawn per video frame, output to {capturer.OutputDescription}");
         }
 
         protected override void Update()
@@ -211,7 +212,9 @@ namespace Oily.Rendering
                     if (Player.GameplayClockContainer?.IsRunning == true)
                     {
                         var clock = Player.GameplayClockContainer;
-                        Audio?.Begin(clock.CurrentTime, clock.AdjustmentsFromMods.AggregateTempo.Value, clock.AdjustmentsFromMods.AggregateFrequency.Value);
+                        double tempo = clock.AdjustmentsFromMods.AggregateTempo.Value;
+                        double frequency = clock.AdjustmentsFromMods.AggregateFrequency.Value;
+                        Audio?.Begin(clock.CurrentTime + blendLead * tempo * frequency, tempo, frequency);
                         markStepped();
                         break;
                     }
@@ -300,8 +303,14 @@ namespace Oily.Rendering
                     return null;
             }
 
-            return Math.Max(0, videoClock.CurrentTime - Settings.FrameTime(prerollFrames));
+            return Math.Max(0, videoClock.CurrentTime - Settings.FrameTime(prerollFrames) - blendLead);
         }
+
+        /// <summary>
+        /// With motion blur, each video frame is the average of the frames drawn from its own time up to almost the next one,
+        /// so on average it shows the game this many milliseconds later than its time. The audio is moved earlier by as much to stay in sync.
+        /// </summary>
+        private double blendLead => (Settings.BlendFrames - 1) / 2.0 * Settings.FrameDuration;
 
         private void clearPpOverride()
         {

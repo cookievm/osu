@@ -57,6 +57,9 @@ namespace Oily.Rendering.Tests
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "quality": 60 }""")]
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "durationSeconds": -1 }""")]
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "colourConversion": "magic" }""")]
+        [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "motionBlurFrames": 0 }""")]
+        [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "motionBlurFrames": 17 }""")]
+        [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "framesPerSecond": 240, "motionBlurFrames": 8 }""")]
         [TestCase("null")]
         public void TestRejectsBadJobs(string json)
         {
@@ -72,6 +75,20 @@ namespace Oily.Rendering.Tests
 
             var cpu = RenderJob.Parse("""{ "replay": "a.osr", "output": "a.mp4", "colourConversion": "cpu" }""");
             Assert.That(cpu.ToRenderSettings().GpuColourConversion, Is.False);
+        }
+
+        [Test]
+        public void TestMotionBlurDrawsMoreFramesThanTheVideoHas()
+        {
+            var job = RenderJob.Parse("""{ "replay": "a.osr", "output": "a.mp4", "framesPerSecond": 60, "motionBlurFrames": 8, "durationSeconds": 2 }""");
+            var settings = job.ToRenderSettings();
+
+            Assert.That(settings.FramesPerSecond, Is.EqualTo(480));
+            Assert.That(settings.BlendFrames, Is.EqualTo(8));
+            Assert.That(settings.FrameCount, Is.EqualTo(960));
+
+            // The video itself stays at 60 fps.
+            Assert.That(string.Join(' ', FfmpegPipeCapturer.BuildArguments(job, 1920, 1080)), Does.Contain("-r 60 "));
         }
 
         [Test]

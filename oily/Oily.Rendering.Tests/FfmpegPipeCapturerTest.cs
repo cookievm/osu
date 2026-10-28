@@ -149,6 +149,32 @@ namespace Oily.Rendering.Tests
                 Assert.That(brightness[i], Is.EqualTo(greyLevel(i)).Within(6), $"frame {i}");
         }
 
+        [Test]
+        public async Task TestFramesBlendedInAreLeftOutOfTheVideo()
+        {
+            if (!ffmpegAvailable())
+                Assert.Ignore("ffmpeg isn't installed.");
+
+            var job = this.job("ffmpeg");
+            int next = 0;
+
+            // Like motion blur with two frames a blend: only every second frame brings pixels.
+            using (var capturer = new FfmpegPipeCapturer(() =>
+                   {
+                       int index = next++;
+                       return Task.FromResult(index % 2 == 0 ? FrameReadback.BlendedIn : new FrameReadback(Task.FromResult(grey(index / 2))));
+                   }, job))
+            {
+                for (int i = 0; i < 6; i++)
+                    await capturer.CaptureFrameAsync(new RenderedFrame(i, i * 50, i * 50)).ConfigureAwait(false);
+
+                await capturer.CompleteAsync().ConfigureAwait(false);
+            }
+
+            byte[] decoded = await decodeToGrey(job.Output).ConfigureAwait(false);
+            Assert.That(decoded.Length, Is.EqualTo(3 * width * height));
+        }
+
         private RenderJob job(string ffmpeg) => new RenderJob
         {
             Replay = "a.osr",

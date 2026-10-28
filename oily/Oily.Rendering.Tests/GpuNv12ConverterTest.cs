@@ -40,5 +40,25 @@ namespace Oily.Rendering.Tests
         {
             Assert.That(Encoding.UTF8.GetByteCount(GpuNv12Converter.SHADER), Is.EqualTo(GpuNv12Converter.SHADER.Length));
         }
+
+        [TestCase(CrossCompileTarget.HLSL)]
+        [TestCase(CrossCompileTarget.GLSL)]
+        [TestCase(CrossCompileTarget.MSL)]
+        public void TestBlendShaderTranslates(CrossCompileTarget target)
+        {
+            var spirv = SpirvCompilation.CompileGlslToSpirv(GpuFrameBlender.SHADER, "blend.comp", ShaderStages.Compute, new GlslCompileOptions(true));
+            var result = SpirvCompilation.CompileCompute(spirv.SpirvBytes, target);
+
+            var elements = result.Reflection.ResourceLayouts[0].Elements;
+            Assert.That(elements, Has.Length.EqualTo(5));
+            Assert.That(elements[2].Kind, Is.EqualTo(ResourceKind.StructuredBufferReadWrite));
+            Assert.That(elements[3].Kind, Is.EqualTo(ResourceKind.TextureReadWrite));
+
+            if (target == CrossCompileTarget.GLSL)
+                Assert.That(result.ComputeShader, Does.Contain("buffer Sums").And.Contain("uniform Params").And.Contain("Blended").And.Contain("sampler2D Source"));
+
+            if (target == CrossCompileTarget.HLSL)
+                Assert.That(result.ComputeShader, Does.Contain("RWByteAddressBuffer").And.Contain("RWTexture2D"));
+        }
     }
 }

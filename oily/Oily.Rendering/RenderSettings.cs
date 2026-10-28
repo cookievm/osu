@@ -54,6 +54,13 @@ namespace Oily.Rendering
         public bool GpuColourConversion { get; init; } = true;
 
         /// <summary>
+        /// Motion blur: how many drawn frames are averaged into each video frame. 1 is no blur.
+        /// <see cref="FramesPerSecond"/> is how often the game draws, so the video has <see cref="FramesPerSecond"/> / <see cref="BlendFrames"/> frames a second.
+        /// Only applies with <see cref="CaptureSize"/>.
+        /// </summary>
+        public int BlendFrames { get; init; } = 1;
+
+        /// <summary>
         /// The length of one frame in milliseconds.
         /// </summary>
         public double FrameDuration => 1000.0 / FramesPerSecond;

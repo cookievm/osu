@@ -60,6 +60,10 @@ namespace Oily.Rendering
         {
             var readback = await grabFrame().ConfigureAwait(false);
 
+            // Part of a motion blur blend; the blend's last frame carries it into the video.
+            if (!readback.InVideo)
+                return;
+
             writer ??= Task.Run(writeFramesAsync);
 
             long queueStart = Stopwatch.GetTimestamp();
