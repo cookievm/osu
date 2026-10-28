@@ -61,6 +61,11 @@ namespace Oily.Rendering
         public int BlendFrames { get; init; } = 1;
 
         /// <summary>
+        /// How the gameplay looks: background dim, cursor trail and so on. <c>null</c> keeps the game's own settings.
+        /// </summary>
+        public RenderDisplay? Display { get; init; }
+
+        /// <summary>
         /// The length of one frame in milliseconds.
         /// </summary>
         public double FrameDuration => 1000.0 / FramesPerSecond;
