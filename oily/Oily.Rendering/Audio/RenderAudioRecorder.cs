@@ -129,6 +129,9 @@ namespace Oily.Rendering.Audio
             try
             {
                 clip = ReadBassSample(id);
+
+                var info = Bass.SampleGetInfo(id);
+                Logger.Log($"Render audio: {sample.Name} is {info.Channels} channel {info.Frequency} Hz ({info.Flags}), {info.Length} bytes, {clip.Frames * 1000.0 / AudioMixdown.SAMPLE_RATE:N0} ms");
             }
             catch (Exception e)
             {

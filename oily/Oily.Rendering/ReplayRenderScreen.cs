@@ -16,9 +16,11 @@ using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Framework.Screens;
 using osu.Framework.Timing;
+using osu.Game.Configuration;
 using osu.Game.Input.Bindings;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Notifications;
+using osu.Game.Rulesets;
 using osu.Game.Scoring;
 using osu.Game.Screens;
 using osu.Game.Screens.Play;
@@ -129,6 +131,12 @@ namespace Oily.Rendering
         [Resolved]
         private INotificationOverlay? notifications { get; set; }
 
+        [Resolved]
+        private OsuConfigManager config { get; set; } = null!;
+
+        [Resolved]
+        private IRulesetConfigCache rulesetConfigs { get; set; } = null!;
+
         /// <param name="score">The score whose replay is rendered.</param>
         /// <param name="settings">Render settings.</param>
         /// <param name="createCapturer">Creates the capturer. Defaults to <see cref="PngSequenceCapturer"/>.</param>
@@ -193,6 +201,12 @@ namespace Oily.Rendering
                 LivePerformanceOverride.Factory = AkatsukiRelaxLiveCalculator.CreateFor;
 
             RenderTimings.Reset();
+
+            if (Settings.Display != null)
+            {
+                Settings.Display.Apply(config, rulesetConfigs.GetConfigFor(Score.ScoreInfo.Ruleset.CreateInstance()));
+                Logger.Log($"Render display: {Settings.Display}");
+            }
 
             playerStack.Push(Player = new RenderReplayPlayer(Score, Settings));
 

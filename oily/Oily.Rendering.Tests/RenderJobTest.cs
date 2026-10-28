@@ -5,6 +5,10 @@ using System;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using osu.Framework.Testing;
+using osu.Game.Configuration;
+using osu.Game.Rulesets.Osu;
+using osu.Game.Rulesets.Osu.Configuration;
 
 namespace Oily.Rendering.Tests
 {
@@ -58,6 +62,9 @@ namespace Oily.Rendering.Tests
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "durationSeconds": -1 }""")]
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "colourConversion": "magic" }""")]
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "motionBlurFrames": 0 }""")]
+        [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "backgroundDim": 101 }""")]
+        [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "backgroundBlur": -1 }""")]
+        [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "cursorSize": 3 }""")]
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "motionBlurFrames": 17 }""")]
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "framesPerSecond": 240, "motionBlurFrames": 8 }""")]
         [TestCase("null")]
@@ -156,6 +163,42 @@ namespace Oily.Rendering.Tests
             Assert.That(window, Is.EqualTo(new System.Drawing.Size(expectedWidth, expectedHeight)));
             Assert.That(job.ToRenderSettings().CaptureSize, Is.EqualTo(new System.Drawing.Size(width, height)));
             Assert.That(job.Hidden, Is.True);
+        }
+
+        [Test]
+        public void TestDisplayDefaultsMatchLazer()
+        {
+            var display = RenderJob.Parse("""{ "replay": "a.osr", "output": "a.mp4" }""").ToRenderSettings().Display;
+
+            Assert.That(display, Is.EqualTo(new RenderDisplay()));
+        }
+
+        [Test]
+        public void TestDisplaySettingsReachTheGame()
+        {
+            var job = RenderJob.Parse("""
+                                      {
+                                        "replay": "a.osr", "output": "a.mp4",
+                                        "backgroundDim": 90, "backgroundBlur": 25, "storyboard": false, "showInterface": false,
+                                        "hitLighting": false, "cursorTrail": false, "cursorSize": 1.5,
+                                        "beatmapHitsounds": false
+                                      }
+                                      """);
+
+            using var storage = new TemporaryNativeStorage("oily-render-display-test");
+            var config = new OsuConfigManager(storage);
+            var osuConfig = new OsuRulesetConfigManager(null, new OsuRuleset().RulesetInfo);
+
+            job.ToRenderSettings().Display!.Apply(config, osuConfig);
+
+            Assert.That(config.Get<double>(OsuSetting.DimLevel), Is.EqualTo(0.9).Within(0.001));
+            Assert.That(config.Get<double>(OsuSetting.BlurLevel), Is.EqualTo(0.25).Within(0.001));
+            Assert.That(config.Get<bool>(OsuSetting.ShowStoryboard), Is.False);
+            Assert.That(config.Get<HUDVisibilityMode>(OsuSetting.HUDVisibilityMode), Is.EqualTo(HUDVisibilityMode.Never));
+            Assert.That(config.Get<bool>(OsuSetting.HitLighting), Is.False);
+            Assert.That(config.Get<float>(OsuSetting.GameplayCursorSize), Is.EqualTo(1.5f).Within(0.001));
+            Assert.That(config.Get<bool>(OsuSetting.BeatmapHitsounds), Is.False);
+            Assert.That(osuConfig.Get<bool>(OsuRulesetSetting.ShowCursorTrail), Is.False);
         }
     }
 }

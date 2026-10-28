@@ -75,6 +75,30 @@ namespace Oily.Rendering
         /// </summary>
         public int MotionBlurFrames { get; init; } = 1;
 
+        /// <summary>How dark the background is, 0 (not at all) to 100 (black).</summary>
+        public int BackgroundDim { get; init; } = 70;
+
+        /// <summary>How blurred the background is, 0 to 100.</summary>
+        public int BackgroundBlur { get; init; }
+
+        /// <summary>Whether the beatmap's storyboard and video play.</summary>
+        public bool Storyboard { get; init; } = true;
+
+        /// <summary>Whether the interface (score, combo, health bar, PP counter...) shows.</summary>
+        public bool ShowInterface { get; init; } = true;
+
+        /// <summary>Whether hit circles light up when hit.</summary>
+        public bool HitLighting { get; init; } = true;
+
+        /// <summary>Whether the cursor leaves a trail, in osu! plays.</summary>
+        public bool CursorTrail { get; init; } = true;
+
+        /// <summary>Whether the beatmap's own hitsounds play, rather than only the skin's.</summary>
+        public bool BeatmapHitsounds { get; init; } = true;
+
+        /// <summary>The cursor's size, 0.1 to 2 times the skin's.</summary>
+        public double CursorSize { get; init; } = 1;
+
         /// <summary>Path to ffmpeg.exe, or "ffmpeg" to find it on PATH.</summary>
         public string Ffmpeg { get; init; } = "ffmpeg";
 
@@ -104,7 +128,7 @@ namespace Oily.Rendering
             return job;
         }
 
-        private static bool isVolume(int volume) => volume >= 0 && volume <= 100;
+        private static bool isPercentage(int value) => value >= 0 && value <= 100;
 
         public static RenderJob Load(string path) => Parse(File.ReadAllText(path));
 
@@ -127,7 +151,7 @@ namespace Oily.Rendering
                 throw new InvalidDataException($"Unsupported frame rate {FramesPerSecond}.");
             if (Quality < 0 || Quality > 51)
                 throw new InvalidDataException("Quality must be between 0 and 51.");
-            if (!isVolume(MasterVolume) || !isVolume(HitsoundVolume) || !isVolume(MusicVolume))
+            if (!isPercentage(MasterVolume) || !isPercentage(HitsoundVolume) || !isPercentage(MusicVolume))
                 throw new InvalidDataException("Volumes must be between 0 and 100.");
             if (ColourConversion is not ("gpu" or "cpu"))
                 throw new InvalidDataException($"Colour conversion must be \"gpu\" or \"cpu\", not \"{ColourConversion}\".");
@@ -135,6 +159,10 @@ namespace Oily.Rendering
                 throw new InvalidDataException($"Motion blur frames must be between 1 and {GpuFrameBlender.MAX_FRAMES}.");
             if (FramesPerSecond * MotionBlurFrames > 1000)
                 throw new InvalidDataException($"Motion blur at {FramesPerSecond} fps would draw more than 1000 frames a second. Use fewer blur frames or a lower frame rate.");
+            if (!isPercentage(BackgroundDim) || !isPercentage(BackgroundBlur))
+                throw new InvalidDataException("Background dim and blur must be between 0 and 100.");
+            if (!(CursorSize >= 0.1 && CursorSize <= 2))
+                throw new InvalidDataException("Cursor size must be between 0.1 and 2.");
             if (DurationSeconds <= 0)
                 throw new InvalidDataException("Duration must be positive.");
         }
@@ -167,6 +195,17 @@ namespace Oily.Rendering
             CaptureSize = new System.Drawing.Size(Width, Height),
             GpuColourConversion = ColourConversion == "gpu",
             Duration = DurationSeconds is double seconds ? TimeSpan.FromSeconds(seconds) : null,
+            Display = new RenderDisplay
+            {
+                BackgroundDim = BackgroundDim / 100.0,
+                BackgroundBlur = BackgroundBlur / 100.0,
+                Storyboard = Storyboard,
+                Interface = ShowInterface,
+                HitLighting = HitLighting,
+                CursorTrail = CursorTrail,
+                BeatmapHitsounds = BeatmapHitsounds,
+                CursorSize = (float)CursorSize,
+            },
         };
     }
 }
