@@ -21,6 +21,7 @@ namespace Oily.Rendering
             try
             {
                 process.PriorityClass = ProcessPriorityClass.BelowNormal;
+                Logger.Log($"Render priority: {process.ProcessName} ({process.Id}) is now {process.PriorityClass}");
             }
             catch (Exception e) when (e is Win32Exception or InvalidOperationException or PlatformNotSupportedException)
             {

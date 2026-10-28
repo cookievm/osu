@@ -81,7 +81,15 @@ namespace osu.Desktop
 
             // The video's audio is mixed afterwards from what the render recorded, so the window itself stays silent.
             Audio.Volume.Value = 0;
+
+            // The framework sets the process to high priority when its window is active and normal when it isn't.
+            // A render should give way to whatever the user is playing, so it goes back below normal each time.
+            Host.Activated += lowerRenderPriority;
+            Host.Deactivated += lowerRenderPriority;
+            lowerRenderPriority();
         }
+
+        private static void lowerRenderPriority() => RenderPriority.Lower(Process.GetCurrentProcess());
 
         /// <summary>
         /// Keeps the window from ever appearing. Called before the first frame is drawn.
