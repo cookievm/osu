@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using osu.Framework.Extensions;
 using osu.Framework.Graphics.Rendering;
+using osu.Framework.Logging;
 using Veldrid;
 using Texture = Veldrid.Texture;
 
@@ -25,6 +26,7 @@ namespace Oily.Rendering
     /// This copies each frame into one of a few reused staging textures and maps it a frame or two later, once the copy is done,
     /// so the game keeps drawing while earlier frames come back.
     /// Pixels are converted on other threads while the staging texture stays mapped, so the draw thread only maps and unmaps.
+    /// When it can, the graphics card converts them instead (see <see cref="GpuNv12Converter"/>), and the other threads only copy the result.
     /// Everything here must be called on the draw thread.
     /// </remarks>
     internal sealed class VeldridFrameReader : IDisposable
@@ -60,22 +62,32 @@ namespace Oily.Rendering
         /// </summary>
         public bool ConvertToNv12 { get; set; } = true;
 
-        private VeldridFrameReader(GraphicsDevice device, ResourceFactory factory)
+        // Null when converting on the CPU, by choice or because the graphics card can't.
+        private GpuNv12Converter? gpuConverter;
+
+        private VeldridFrameReader(GraphicsDevice device, ResourceFactory factory, bool gpuConversion)
         {
             this.device = device;
             this.factory = factory;
+
+            if (gpuConversion)
+                gpuConverter = GpuNv12Converter.TryCreate(device, factory);
+            else
+                Logger.Log("Render: converting colours on the CPU");
         }
 
         /// <summary>
         /// A reader for <paramref name="renderer"/>, or null when it isn't a Veldrid renderer.
         /// </summary>
-        public static VeldridFrameReader? Create(IRenderer renderer)
+        /// <param name="renderer">The game's renderer.</param>
+        /// <param name="gpuConversion">Whether to convert frames to NV12 on the graphics card when it can, rather than on the CPU.</param>
+        public static VeldridFrameReader? Create(IRenderer renderer, bool gpuConversion)
         {
             var type = renderer.GetType();
 
             if (type.GetProperty("Device")?.GetValue(renderer) is GraphicsDevice device
                 && type.GetProperty("Factory")?.GetValue(renderer) is ResourceFactory factory)
-                return new VeldridFrameReader(device, factory);
+                return new VeldridFrameReader(device, factory, gpuConversion);
 
             return null;
         }
@@ -122,13 +134,12 @@ namespace Oily.Rendering
             }
 
             var slot = freeSlots.Count > 0 ? freeSlots.Pop() : createSlot();
-            slot.EnsureMatches(factory, source);
 
             slot.Target = new TaskCompletionSource<RenderFrame>(TaskCreationOptions.RunContinuationsAsynchronously);
             slot.SubmittedAt = pollCount;
 
             slot.Commands.Begin();
-            slot.Commands.CopyTexture(source, slot.Staging!);
+            recordCopy(slot, source);
             slot.Commands.End();
 
             device.ResetFence(slot.Fence);
@@ -145,6 +156,39 @@ namespace Oily.Rendering
         {
             pollCount++;
             collectFinished();
+        }
+
+        /// <summary>
+        /// Records converting <paramref name="source"/> on the graphics card into <paramref name="slot"/>, or copying it as it is.
+        /// </summary>
+        private void recordCopy(Slot slot, Texture source)
+        {
+            if (gpuConverter != null && ConvertToNv12 && GpuNv12Converter.CanConvert(source))
+            {
+                try
+                {
+                    gpuConverter.Record(slot.Commands, source, ref slot.Gpu);
+                    slot.ConvertedOnGpu = true;
+                    slot.GpuWidth = (int)source.Width;
+                    slot.GpuHeight = (int)source.Height;
+                    return;
+                }
+                catch (Exception e)
+                {
+                    Logger.Error(e, "Render: colour conversion on the graphics card failed, converting on the CPU from now on");
+
+                    gpuConverter.Dispose();
+                    gpuConverter = null;
+
+                    // Start the command list again, without whatever was recorded before the failure.
+                    slot.Commands.End();
+                    slot.Commands.Begin();
+                }
+            }
+
+            slot.ConvertedOnGpu = false;
+            slot.EnsureMatches(factory, source);
+            slot.Commands.CopyTexture(source, slot.Staging!);
         }
 
         private void collectFinished()
@@ -183,6 +227,12 @@ namespace Oily.Rendering
             {
                 if (!device.WaitForFence(slot.Fence, 5_000_000_000))
                     throw new TimeoutException("The graphics card didn't copy the frame back within 5 seconds.");
+
+                if (slot.ConvertedOnGpu)
+                {
+                    startCopyingConverted(slot, target);
+                    return;
+                }
 
                 var staging = slot.Staging!;
                 int width = (int)staging.Width;
@@ -238,6 +288,42 @@ namespace Oily.Rendering
         }
 
         /// <summary>
+        /// Maps the NV12 frame the graphics card converted into <paramref name="slot"/> and copies it out on another thread.
+        /// </summary>
+        private void startCopyingConverted(Slot slot, TaskCompletionSource<RenderFrame> target)
+        {
+            var gpu = slot.Gpu!;
+            int width = slot.GpuWidth;
+            int height = slot.GpuHeight;
+            var mapped = device.Map(gpu.Staging, MapMode.Read);
+            slot.Mapped = true;
+
+            IntPtr data = mapped.Data;
+
+            slot.Conversion = Task.Run(() =>
+            {
+                long copyStart = Stopwatch.GetTimestamp();
+                var frame = new RenderFrame(width, height, RenderPixelFormat.Nv12);
+
+                try
+                {
+                    Marshal.Copy(data, frame.Pixels, 0, frame.Length);
+                }
+                catch (Exception e)
+                {
+                    frame.Dispose();
+                    target.TrySetException(e);
+                    return;
+                }
+
+                RenderTimings.Convert.AddSince(copyStart);
+                target.TrySetResult(frame);
+            });
+
+            convertingSlots.Enqueue(slot);
+        }
+
+        /// <summary>
         /// Unmaps <paramref name="slot"/> once its pixels are converted, so it can take another frame.
         /// </summary>
         private void release(Slot slot)
@@ -246,11 +332,19 @@ namespace Oily.Rendering
 
             if (slot.Mapped)
             {
-                device.Unmap(slot.Staging!, 0);
+                unmap(slot);
                 slot.Mapped = false;
             }
 
             freeSlots.Push(slot);
+        }
+
+        private void unmap(Slot slot)
+        {
+            if (slot.ConvertedOnGpu)
+                device.Unmap(slot.Gpu!.Staging);
+            else
+                device.Unmap(slot.Staging!, 0);
         }
 
         private static bool isSupported(Veldrid.PixelFormat format)
@@ -269,7 +363,7 @@ namespace Oily.Rendering
             foreach (var slot in allSlots)
             {
                 if (slot.Mapped)
-                    device.Unmap(slot.Staging!, 0);
+                    unmap(slot);
 
                 slot.Target?.TrySetCanceled();
                 slot.Dispose();
@@ -277,6 +371,9 @@ namespace Oily.Rendering
 
             allSlots.Clear();
             freeSlots.Clear();
+
+            gpuConverter?.Dispose();
+            gpuConverter = null;
             busySlots.Clear();
             convertingSlots.Clear();
         }
@@ -287,6 +384,13 @@ namespace Oily.Rendering
             public readonly Fence Fence;
 
             public Texture? Staging;
+
+            // Used instead of the staging texture when the graphics card converts the frame.
+            public GpuNv12Converter.Target? Gpu;
+            public bool ConvertedOnGpu;
+            public int GpuWidth;
+            public int GpuHeight;
+
             public TaskCompletionSource<RenderFrame>? Target;
             public long SubmittedAt;
             public Task? Conversion;
@@ -311,6 +415,7 @@ namespace Oily.Rendering
             public void Dispose()
             {
                 Staging?.Dispose();
+                Gpu?.Dispose();
                 Commands.Dispose();
                 Fence.Dispose();
             }

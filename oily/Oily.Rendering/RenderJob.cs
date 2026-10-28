@@ -64,6 +64,11 @@ namespace Oily.Rendering
         [JsonIgnore]
         public AudioVolumes Volumes => new AudioVolumes(MasterVolume / 100.0, HitsoundVolume / 100.0, MusicVolume / 100.0);
 
+        /// <summary>
+        /// Where frames are converted to the video's colour format: "gpu" (on the graphics card, falling back to the CPU if it can't) or "cpu".
+        /// </summary>
+        public string ColourConversion { get; init; } = "gpu";
+
         /// <summary>Path to ffmpeg.exe, or "ffmpeg" to find it on PATH.</summary>
         public string Ffmpeg { get; init; } = "ffmpeg";
 
@@ -118,6 +123,8 @@ namespace Oily.Rendering
                 throw new InvalidDataException("Quality must be between 0 and 51.");
             if (!isVolume(MasterVolume) || !isVolume(HitsoundVolume) || !isVolume(MusicVolume))
                 throw new InvalidDataException("Volumes must be between 0 and 100.");
+            if (ColourConversion is not ("gpu" or "cpu"))
+                throw new InvalidDataException($"Colour conversion must be \"gpu\" or \"cpu\", not \"{ColourConversion}\".");
             if (DurationSeconds <= 0)
                 throw new InvalidDataException("Duration must be positive.");
         }
@@ -146,6 +153,7 @@ namespace Oily.Rendering
             RecordAudio = Audio,
             AkatsukiPp = AkatsukiPp,
             CaptureSize = new System.Drawing.Size(Width, Height),
+            GpuColourConversion = ColourConversion == "gpu",
             Duration = DurationSeconds is double seconds ? TimeSpan.FromSeconds(seconds) : null,
         };
     }
