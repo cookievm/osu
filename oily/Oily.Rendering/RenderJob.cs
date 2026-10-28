@@ -42,6 +42,11 @@ namespace Oily.Rendering
         /// </summary>
         public string? Preset { get; init; }
 
+        /// <summary>
+        /// Whether the PP counter shows Akatsuki's relax pp instead of lazer's, for osu! plays with Relax.
+        /// </summary>
+        public bool AkatsukiPp { get; init; }
+
         /// <summary>Path to ffmpeg.exe, or "ffmpeg" to find it on PATH.</summary>
         public string Ffmpeg { get; init; } = "ffmpeg";
 
@@ -118,6 +123,7 @@ namespace Oily.Rendering
         {
             FramesPerSecond = FramesPerSecond,
             RecordAudio = Audio,
+            AkatsukiPp = AkatsukiPp,
             CaptureSize = new System.Drawing.Size(Width, Height),
             Duration = DurationSeconds is double seconds ? TimeSpan.FromSeconds(seconds) : null,
         };

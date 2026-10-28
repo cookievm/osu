@@ -37,6 +37,11 @@ namespace Oily.Rendering
         public bool RecordAudio { get; init; }
 
         /// <summary>
+        /// Whether the PP counter shows Akatsuki's relax pp instead of lazer's, for osu! plays with Relax. See <see cref="Akatsuki.AkatsukiRelaxLiveCalculator"/>.
+        /// </summary>
+        public bool AkatsukiPp { get; init; }
+
+        /// <summary>
         /// When set, frames are drawn off-screen at this size and read straight from the graphics card,
         /// instead of screenshotting the window. The window only needs the same aspect ratio, and can be hidden.
         /// </summary>

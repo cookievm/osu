@@ -4,6 +4,7 @@
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Oily.Rendering.Akatsuki;
 using Oily.Rendering.Audio;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
@@ -21,6 +22,7 @@ using osu.Game.Overlays.Notifications;
 using osu.Game.Scoring;
 using osu.Game.Screens;
 using osu.Game.Screens.Play;
+using osu.Game.Screens.Play.HUD;
 using osu.Game.Skinning;
 using osuTK;
 
@@ -185,6 +187,9 @@ namespace Oily.Rendering
             if (Audio != null)
                 SamplePlaybackRecorder.Listener = Audio;
 
+            if (Settings.AkatsukiPp)
+                LivePerformanceOverride.Factory = AkatsukiRelaxLiveCalculator.CreateFor;
+
             RenderTimings.Reset();
 
             playerStack.Push(Player = new RenderReplayPlayer(Score, Settings));
@@ -295,6 +300,12 @@ namespace Oily.Rendering
             }
 
             return Math.Max(0, videoClock.CurrentTime - Settings.FrameTime(prerollFrames));
+        }
+
+        private void clearPpOverride()
+        {
+            if (Settings.AkatsukiPp)
+                LivePerformanceOverride.Factory = null;
         }
 
         private void stopRecordingAudio()
@@ -435,6 +446,7 @@ namespace Oily.Rendering
         public override bool OnExiting(ScreenExitEvent e)
         {
             stopRecordingAudio();
+            clearPpOverride();
 
             // Make sure the nested player cleans up (samples, leases) before this screen goes.
             if (playerStack.CurrentScreen is Player player)
@@ -447,6 +459,7 @@ namespace Oily.Rendering
         {
             base.Dispose(isDisposing);
             stopRecordingAudio();
+            clearPpOverride();
             capturer?.Dispose();
         }
 
