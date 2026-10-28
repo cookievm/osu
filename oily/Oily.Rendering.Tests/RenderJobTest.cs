@@ -114,7 +114,7 @@ namespace Oily.Rendering.Tests
                 "OILY-RENDER ERROR ffmpeg failed",
             }));
         }
-    
+
         [TestCase(1280, 720, 2560, 1440, 1280, 720)]
         [TestCase(2560, 1440, 2560, 1440, 2304, 1296)]
         [TestCase(3840, 2160, 1920, 1080, 1728, 972)]

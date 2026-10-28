@@ -28,10 +28,8 @@ namespace Oily.Rendering.Audio
         /// </summary>
         public static PcmClip FromInterleaved(ReadOnlySpan<float> samples, int channels, int sampleRate)
         {
-            if (channels < 1)
-                throw new ArgumentOutOfRangeException(nameof(channels));
-            if (sampleRate < 1)
-                throw new ArgumentOutOfRangeException(nameof(sampleRate));
+            ArgumentOutOfRangeException.ThrowIfLessThan(channels, 1);
+            ArgumentOutOfRangeException.ThrowIfLessThan(sampleRate, 1);
 
             int sourceFrames = samples.Length / channels;
 
