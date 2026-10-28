@@ -67,6 +67,9 @@ namespace Oily.Rendering.Tests
             Assert.That(nvenc, Does.Contain("-pix_fmt nv12 -colorspace bt709"));
             Assert.That(x264, Does.Contain("-pix_fmt yuv420p -colorspace bt709"));
             Assert.That(x264, Does.Contain("-color_range tv"));
+
+            // Tagged on the input too, or ffmpeg converts every frame through RGB to retag it.
+            Assert.That(nvenc, Does.Contain("-color_range tv -i -"));
         }
 
         [Test]

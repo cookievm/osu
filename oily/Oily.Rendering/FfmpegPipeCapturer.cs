@@ -159,6 +159,7 @@ namespace Oily.Rendering
             try
             {
                 ffmpeg = Process.Start(startInfo) ?? throw new InvalidOperationException("ffmpeg didn't start.");
+                RenderPriority.Lower(ffmpeg);
             }
             catch (System.ComponentModel.Win32Exception e)
             {
@@ -192,8 +193,14 @@ namespace Oily.Rendering
                 "-pix_fmt", pixelFormat,
                 "-s", $"{frameWidth}x{frameHeight}",
                 "-r", job.FramesPerSecond.ToString(CultureInfo.InvariantCulture),
-                "-i", "-",
             };
+
+            // Frames converted by Nv12Converter are BT.709 limited range. Saying so on the input as well as the output
+            // stops ffmpeg converting every frame to RGB and back just to change the (missing) tags, which cost a third of the CPU.
+            if (pixelFormat == "nv12")
+                args.AddRange(bt709_tags);
+
+            args.AddRange(new[] { "-i", "-" });
 
             if (frameWidth != job.Width || frameHeight != job.Height)
                 args.AddRange(new[] { "-vf", $"scale={job.Width}:{job.Height}:flags=lanczos" });
@@ -215,7 +222,7 @@ namespace Oily.Rendering
                                 || job.Encoder.Contains("amf", StringComparison.OrdinalIgnoreCase);
 
                 args.AddRange(new[] { "-pix_fmt", hardware ? "nv12" : "yuv420p" });
-                args.AddRange(new[] { "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv" });
+                args.AddRange(bt709_tags);
             }
             else
                 args.AddRange(new[] { "-pix_fmt", "yuv420p" });
@@ -224,6 +231,8 @@ namespace Oily.Rendering
 
             return args;
         }
+
+        private static readonly string[] bt709_tags = { "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv" };
 
         /// <summary>
         /// ffmpeg's name for <paramref name="format"/>.

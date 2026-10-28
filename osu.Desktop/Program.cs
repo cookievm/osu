@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.Versioning;
 using Oily.Identity;
@@ -117,6 +118,9 @@ namespace osu.Desktop
 
                         // Renders use their own data folder, so they never touch the user's o!ily data.
                         gameName = $"{base_game_name}-render";
+
+                        // A render runs in the background, often while the user plays, so it gives way.
+                        RenderPriority.Lower(Process.GetCurrentProcess());
                         break;
                 }
             }
