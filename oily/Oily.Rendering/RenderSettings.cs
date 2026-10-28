@@ -48,6 +48,12 @@ namespace Oily.Rendering
         public System.Drawing.Size? CaptureSize { get; init; }
 
         /// <summary>
+        /// Whether captured frames are converted to the video's colour format on the graphics card, when it can, rather than on the CPU.
+        /// Only applies with <see cref="CaptureSize"/>.
+        /// </summary>
+        public bool GpuColourConversion { get; init; } = true;
+
+        /// <summary>
         /// The length of one frame in milliseconds.
         /// </summary>
         public double FrameDuration => 1000.0 / FramesPerSecond;

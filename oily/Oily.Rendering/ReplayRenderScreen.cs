@@ -160,6 +160,7 @@ namespace Oily.Rendering
                 content = captureContainer = new RenderCaptureContainer(new Vector2(size.Width, size.Height))
                 {
                     RelativeSizeAxes = Axes.Both,
+                    GpuColourConversion = Settings.GpuColourConversion,
                     Child = playerStack,
                 };
             }

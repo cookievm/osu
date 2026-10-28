@@ -56,10 +56,22 @@ namespace Oily.Rendering.Tests
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "framesPerSecond": 0 }""")]
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "quality": 60 }""")]
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "durationSeconds": -1 }""")]
+        [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "colourConversion": "magic" }""")]
         [TestCase("null")]
         public void TestRejectsBadJobs(string json)
         {
             Assert.Throws<InvalidDataException>(() => RenderJob.Parse(json));
+        }
+
+        [Test]
+        public void TestColourConversionDefaultsToTheGraphicsCard()
+        {
+            var job = RenderJob.Parse("""{ "replay": "a.osr", "output": "a.mp4" }""");
+            Assert.That(job.ColourConversion, Is.EqualTo("gpu"));
+            Assert.That(job.ToRenderSettings().GpuColourConversion, Is.True);
+
+            var cpu = RenderJob.Parse("""{ "replay": "a.osr", "output": "a.mp4", "colourConversion": "cpu" }""");
+            Assert.That(cpu.ToRenderSettings().GpuColourConversion, Is.False);
         }
 
         [Test]

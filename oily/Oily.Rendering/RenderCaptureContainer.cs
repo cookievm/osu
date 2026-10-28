@@ -30,6 +30,11 @@ namespace Oily.Rendering
         /// </summary>
         public Vector2 TargetSize { get; }
 
+        /// <summary>
+        /// Whether frames are converted to the video's colour format on the graphics card when it can, rather than on the CPU.
+        /// </summary>
+        public bool GpuColourConversion { get; init; } = true;
+
         public IShader TextureShader { get; private set; } = null!;
 
         public Color4 BackgroundColour => Color4.Black;
@@ -112,7 +117,7 @@ namespace Oily.Rendering
             if (!frameReaderCreated)
             {
                 frameReaderCreated = true;
-                frameReader = VeldridFrameReader.Create(renderer);
+                frameReader = VeldridFrameReader.Create(renderer, GpuColourConversion);
             }
 
             var texture = frameReader == null ? null : VeldridFrameReader.GetTexture(buffer);
