@@ -35,6 +35,15 @@ namespace Oily.Rendering
         /// </summary>
         public bool GpuColourConversion { get; init; } = true;
 
+        /// <summary>
+        /// For motion blur: how many drawn frames are averaged into each captured one. 1 captures every frame as drawn.
+        /// The frames that only go into a blend come back as <see cref="FrameReadback.BlendedIn"/>.
+        /// </summary>
+        public int BlendFrames { get; init; } = 1;
+
+        // Draw thread only: frames read back the slow way, which can't blend and keeps every BlendFrames-th one instead.
+        private long slowFrames;
+
         public IShader TextureShader { get; private set; } = null!;
 
         public Color4 BackgroundColour => Color4.Black;
@@ -124,12 +133,25 @@ namespace Oily.Rendering
 
             if (texture != null)
             {
+                if (BlendFrames > 1)
+                {
+                    var blended = frameReader!.Blend(texture, BlendFrames);
+
+                    if (blended == null)
+                        return FrameReadback.BlendedIn;
+
+                    texture = blended;
+                }
+
                 var pixels = frameReader!.Read(texture);
                 schedulePoll();
                 return new FrameReadback(pixels);
             }
 
             // Not a renderer or texture format the fast path knows: read it back the slow way.
+            if (BlendFrames > 1 && ++slowFrames % BlendFrames != 0)
+                return FrameReadback.BlendedIn;
+
             var image = renderer.ExtractFrameBufferData(buffer);
 
             if (image == null)

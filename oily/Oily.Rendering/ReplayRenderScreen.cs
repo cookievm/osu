@@ -161,6 +161,7 @@ namespace Oily.Rendering
                 {
                     RelativeSizeAxes = Axes.Both,
                     GpuColourConversion = Settings.GpuColourConversion,
+                    BlendFrames = Settings.BlendFrames,
                     Child = playerStack,
                 };
             }
@@ -195,7 +196,7 @@ namespace Oily.Rendering
 
             playerStack.Push(Player = new RenderReplayPlayer(Score, Settings));
 
-            Logger.Log($"Replay render started: {Settings.FramesPerSecond} fps, output to {capturer.OutputDescription}");
+            Logger.Log($"Replay render started: {Settings.FramesPerSecond} fps, {Settings.BlendFrames} drawn per video frame, output to {capturer.OutputDescription}");
         }
 
         protected override void Update()

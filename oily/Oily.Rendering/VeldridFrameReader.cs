@@ -65,6 +65,11 @@ namespace Oily.Rendering
         // Null when converting on the CPU, by choice or because the graphics card can't.
         private GpuNv12Converter? gpuConverter;
 
+        // Created on the first blend. Null when the graphics card can't blend.
+        private GpuFrameBlender? blender;
+        private bool blenderCreated;
+        private long unblendedFrames;
+
         private VeldridFrameReader(GraphicsDevice device, ResourceFactory factory, bool gpuConversion)
         {
             this.device = device;
@@ -147,6 +152,43 @@ namespace Oily.Rendering
 
             busySlots.Enqueue(slot);
             return slot.Target.Task;
+        }
+
+        /// <summary>
+        /// Adds <paramref name="source"/> to a motion blur blend of <paramref name="frames"/> frames.
+        /// Call it where <see cref="Read"/> would be called, and read the texture it returns, if any.
+        /// </summary>
+        /// <param name="source">The frame just drawn.</param>
+        /// <param name="frames">How many frames make one blend.</param>
+        /// <returns>The blended frame once this frame finishes a blend, or null while the blend needs more.</returns>
+        /// <remarks>
+        /// If the graphics card can't blend, every <paramref name="frames"/>-th frame is returned as it is,
+        /// so the video still has the right length and speed, just without the blur.
+        /// </remarks>
+        public Texture? Blend(Texture source, int frames)
+        {
+            if (!blenderCreated)
+            {
+                blenderCreated = true;
+                blender = GpuFrameBlender.TryCreate(device, factory);
+            }
+
+            if (blender != null && GpuFrameBlender.CanBlend(source))
+            {
+                try
+                {
+                    return blender.Add(source, frames) ? blender.Output : null;
+                }
+                catch (Exception e)
+                {
+                    Logger.Error(e, "Render: motion blur on the graphics card failed, so the rest of the video has none");
+
+                    blender.Dispose();
+                    blender = null;
+                }
+            }
+
+            return ++unblendedFrames % frames == 0 ? source : null;
         }
 
         /// <summary>
@@ -374,6 +416,9 @@ namespace Oily.Rendering
 
             gpuConverter?.Dispose();
             gpuConverter = null;
+
+            blender?.Dispose();
+            blender = null;
             busySlots.Clear();
             convertingSlots.Clear();
         }
