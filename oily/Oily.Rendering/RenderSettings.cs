@@ -32,6 +32,11 @@ namespace Oily.Rendering
         public double Tail { get; init; } = 1500;
 
         /// <summary>
+        /// Whether to record every sample played, so the video's audio can be mixed afterwards. See <see cref="Audio.RenderAudioRecorder"/>.
+        /// </summary>
+        public bool RecordAudio { get; init; }
+
+        /// <summary>
         /// The length of one frame in milliseconds.
         /// </summary>
         public double FrameDuration => 1000.0 / FramesPerSecond;

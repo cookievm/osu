@@ -39,6 +39,9 @@ namespace Oily.Rendering
         /// <summary>Path to ffmpeg.exe, or "ffmpeg" to find it on PATH.</summary>
         public string Ffmpeg { get; init; } = "ffmpeg";
 
+        /// <summary>Whether the video gets the music and hitsounds.</summary>
+        public bool Audio { get; init; } = true;
+
         /// <summary>Only render this many seconds of video. Null renders the whole replay.</summary>
         public double? DurationSeconds { get; init; }
 
@@ -87,6 +90,7 @@ namespace Oily.Rendering
         public RenderSettings ToRenderSettings() => new RenderSettings
         {
             FramesPerSecond = FramesPerSecond,
+            RecordAudio = Audio,
             Duration = DurationSeconds is double seconds ? TimeSpan.FromSeconds(seconds) : null,
         };
     }

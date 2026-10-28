@@ -3,6 +3,7 @@
 
 using System;
 using System.Threading.Tasks;
+using Oily.Rendering.Audio;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -19,6 +20,7 @@ using osu.Game.Overlays.Notifications;
 using osu.Game.Scoring;
 using osu.Game.Screens;
 using osu.Game.Screens.Play;
+using osu.Game.Skinning;
 
 namespace Oily.Rendering
 {
@@ -50,6 +52,11 @@ namespace Oily.Rendering
         /// The player doing the rendering, once pushed.
         /// </summary>
         public RenderReplayPlayer Player { get; private set; } = null!;
+
+        /// <summary>
+        /// Records the samples played, when <see cref="RenderSettings.RecordAudio"/> is on.
+        /// </summary>
+        public RenderAudioRecorder? Audio { get; }
 
         /// <summary>
         /// How many frames have been captured so far.
@@ -119,6 +126,9 @@ namespace Oily.Rendering
             Score = score;
             Settings = settings ?? new RenderSettings();
             this.createCapturer = createCapturer;
+
+            if (Settings.RecordAudio)
+                Audio = new RenderAudioRecorder(audioVideoTime);
         }
 
         [BackgroundDependencyLoader]
@@ -147,6 +157,9 @@ namespace Oily.Rendering
             // Phase 0 has no audio; stop the song select preview so it doesn't play over the render.
             musicController.Stop();
 
+            if (Audio != null)
+                SamplePlaybackRecorder.Listener = Audio;
+
             playerStack.Push(Player = new RenderReplayPlayer(Score, Settings));
 
             Logger.Log($"Replay render started: {Settings.FramesPerSecond} fps, output to {capturer.OutputDescription}");
@@ -164,6 +177,8 @@ namespace Oily.Rendering
 
                     if (Player.GameplayClockContainer?.IsRunning == true)
                     {
+                        var clock = Player.GameplayClockContainer;
+                        Audio?.Begin(clock.CurrentTime, clock.AdjustmentsFromMods.AggregateTempo.Value, clock.AdjustmentsFromMods.AggregateFrequency.Value);
                         markStepped();
                         break;
                     }
@@ -218,6 +233,34 @@ namespace Oily.Rendering
                     markStepped();
                     break;
             }
+        }
+
+        /// <summary>
+        /// The video time samples are playing at right now, or null when they don't belong in the video.
+        /// </summary>
+        private double? audioVideoTime()
+        {
+            switch (state)
+            {
+                case RenderState.WaitingForGameplay:
+                    // Gameplay may start in this very update, before the state changes.
+                    if (Player?.GameplayClockContainer?.IsRunning != true)
+                        return null;
+
+                    break;
+
+                case RenderState.Done:
+                case RenderState.Failed:
+                    return null;
+            }
+
+            return Math.Max(0, videoClock.CurrentTime - Settings.FrameTime(prerollFrames));
+        }
+
+        private void stopRecordingAudio()
+        {
+            if (Audio != null && SamplePlaybackRecorder.Listener == Audio)
+                SamplePlaybackRecorder.Listener = null;
         }
 
         private void markStepped()
@@ -325,6 +368,8 @@ namespace Oily.Rendering
 
         public override bool OnExiting(ScreenExitEvent e)
         {
+            stopRecordingAudio();
+
             // Make sure the nested player cleans up (samples, leases) before this screen goes.
             if (playerStack.CurrentScreen is Player player)
                 player.Exit();
@@ -335,6 +380,7 @@ namespace Oily.Rendering
         protected override void Dispose(bool isDisposing)
         {
             base.Dispose(isDisposing);
+            stopRecordingAudio();
             capturer?.Dispose();
         }
 

@@ -31,6 +31,9 @@ namespace osu.Game.Skinning
         private ISampleInfo sampleInfo;
         private SampleChannel activeChannel;
 
+        // oily: the skin's sample, handed to the replay renderer's audio recorder.
+        private ISample skinSample;
+
         /// <summary>
         /// Creates a new <see cref="PoolableSkinnableSample"/> with no applied <see cref="ISampleInfo"/>.
         /// An <see cref="ISampleInfo"/> can be applied later via <see cref="Apply"/>.
@@ -104,6 +107,7 @@ namespace osu.Game.Skinning
             if (sample == null)
                 return;
 
+            skinSample = sample;
             sampleContainer.Add(Sample = new DrawableSample(sample));
 
             // Start playback internally for the new sample if the previous one was playing beforehand.
@@ -125,6 +129,8 @@ namespace osu.Game.Skinning
             activeChannel.Looping = Looping;
             activeChannel.Play();
 
+            SamplePlaybackRecorder.Listener?.SamplePlayed(this, skinSample);
+
             Played = true;
         }
 
@@ -133,6 +139,9 @@ namespace osu.Game.Skinning
         /// </summary>
         public void Stop()
         {
+            if (activeChannel != null)
+                SamplePlaybackRecorder.Listener?.SampleStopped(this);
+
             activeChannel?.Stop();
             activeChannel = null;
         }
