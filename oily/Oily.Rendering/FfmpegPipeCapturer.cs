@@ -159,6 +159,7 @@ namespace Oily.Rendering
             try
             {
                 ffmpeg = Process.Start(startInfo) ?? throw new InvalidOperationException("ffmpeg didn't start.");
+                RenderPriority.Lower(ffmpeg);
             }
             catch (System.ComponentModel.Win32Exception e)
             {

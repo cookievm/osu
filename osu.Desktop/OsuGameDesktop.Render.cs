@@ -262,6 +262,7 @@ namespace osu.Desktop
                 Logger.Log($"Adding audio: {job.Ffmpeg} {string.Join(' ', startInfo.ArgumentList)}");
 
                 using var ffmpeg = Process.Start(startInfo) ?? throw new InvalidOperationException("ffmpeg didn't start.");
+                RenderPriority.Lower(ffmpeg);
 
                 var errors = new System.Text.StringBuilder();
                 ffmpeg.ErrorDataReceived += (_, e) => errors.AppendLine(e.Data);
