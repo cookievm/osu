@@ -203,9 +203,9 @@ namespace Oily.Rendering
             string quality = job.Quality.ToString(CultureInfo.InvariantCulture);
 
             if (job.Encoder.Contains("nvenc", StringComparison.OrdinalIgnoreCase))
-                args.AddRange(new[] { "-rc", "vbr", "-cq", quality, "-b:v", "0", "-preset", "p5" });
+                args.AddRange(new[] { "-rc", "vbr", "-cq", quality, "-b:v", "0", "-preset", job.Preset ?? "p5" });
             else
-                args.AddRange(new[] { "-crf", quality, "-preset", "faster" });
+                args.AddRange(new[] { "-crf", quality, "-preset", job.Preset ?? "faster" });
 
             if (pixelFormat == "nv12")
             {

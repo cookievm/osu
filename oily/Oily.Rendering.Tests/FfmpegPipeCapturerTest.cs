@@ -70,6 +70,16 @@ namespace Oily.Rendering.Tests
         }
 
         [Test]
+        public void TestPresetComesFromTheJob()
+        {
+            string standard = string.Join(' ', FfmpegPipeCapturer.BuildArguments(new RenderJob { Replay = "a.osr", Output = "out.mp4", Encoder = "h264_nvenc" }, 1920, 1080));
+            string fast = string.Join(' ', FfmpegPipeCapturer.BuildArguments(new RenderJob { Replay = "a.osr", Output = "out.mp4", Encoder = "h264_nvenc", Preset = "p3" }, 1920, 1080));
+
+            Assert.That(standard, Does.Contain("-preset p5"));
+            Assert.That(fast, Does.Contain("-preset p3"));
+        }
+
+        [Test]
         public void TestCompletingWithoutFramesFails()
         {
             using var capturer = new FfmpegPipeCapturer(() => throw new InvalidOperationException("never called"), job("ffmpeg"));

@@ -36,6 +36,12 @@ namespace Oily.Rendering
         /// <summary>Quality: CRF for libx264, CQ for NVENC. Lower is better.</summary>
         public int Quality { get; init; } = 18;
 
+        /// <summary>
+        /// Encoder speed preset, for example "p4" for NVENC or "faster" for libx264. Null uses the encoder's default here.
+        /// Faster presets render sooner and make slightly bigger files at the same quality.
+        /// </summary>
+        public string? Preset { get; init; }
+
         /// <summary>Path to ffmpeg.exe, or "ffmpeg" to find it on PATH.</summary>
         public string Ffmpeg { get; init; } = "ffmpeg";
 
