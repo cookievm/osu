@@ -33,16 +33,21 @@ namespace Oily.Rendering
         public static Stage Ffmpeg { get; } = new Stage("ffmpeg");
 
         /// <summary>
-        /// Mapping and copying pixels out of a staging texture, on the draw thread.
+        /// Waiting for and mapping a staging texture, on the draw thread.
         /// </summary>
-        public static Stage Readback { get; } = new Stage("readback copy");
+        public static Stage Readback { get; } = new Stage("readback map");
+
+        /// <summary>
+        /// Converting or copying pixels out of a mapped staging texture, on other threads.
+        /// </summary>
+        public static Stage Convert { get; } = new Stage("convert");
 
         /// <summary>
         /// The draw thread waiting for the oldest copy because every staging texture was busy.
         /// </summary>
         public static Stage ReadbackStall { get; } = new Stage("readback stall");
 
-        private static readonly Stage[] all = { Draw, QueueFull, WaitPixels, Ffmpeg, Readback, ReadbackStall };
+        private static readonly Stage[] all = { Draw, QueueFull, WaitPixels, Ffmpeg, Readback, Convert, ReadbackStall };
 
         public static void Reset()
         {

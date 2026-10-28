@@ -9,6 +9,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using osu.Framework.Extensions;
 using osu.Framework.Graphics.Rendering;
 using Veldrid;
 using Texture = Veldrid.Texture;
@@ -23,16 +24,23 @@ namespace Oily.Rendering
     /// waits for the graphics card to finish, and copies the pixels several times. At 4K that is most of a render's time.
     /// This copies each frame into one of a few reused staging textures and maps it a frame or two later, once the copy is done,
     /// so the game keeps drawing while earlier frames come back.
+    /// Pixels are converted on other threads while the staging texture stays mapped, so the draw thread only maps and unmaps.
     /// Everything here must be called on the draw thread.
     /// </remarks>
     internal sealed class VeldridFrameReader : IDisposable
     {
-        private const int slot_count = 3;
+        // One more than before conversion moved off the draw thread, as a slot stays mapped while its pixels are converted.
+        private const int slot_count = 4;
 
         /// <summary>
         /// Draw frames to wait before mapping a copy, so the graphics card has finished it and mapping doesn't stall.
         /// </summary>
         private const int frames_before_map = 2;
+
+        /// <summary>
+        /// Leaves cores free for the game's update and draw threads, which the conversion would otherwise slow down.
+        /// </summary>
+        private static readonly int conversion_threads = Math.Max(1, Environment.ProcessorCount - 2);
 
         private static readonly PropertyInfo? native_texture_property =
             typeof(osu.Framework.Graphics.Textures.Texture).GetProperty("NativeTexture", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
@@ -42,6 +50,7 @@ namespace Oily.Rendering
 
         private readonly Stack<Slot> freeSlots = new Stack<Slot>();
         private readonly Queue<Slot> busySlots = new Queue<Slot>();
+        private readonly Queue<Slot> convertingSlots = new Queue<Slot>();
         private readonly List<Slot> allSlots = new List<Slot>();
 
         private long pollCount;
@@ -101,7 +110,14 @@ namespace Oily.Rendering
             if (freeSlots.Count == 0 && allSlots.Count >= slot_count)
             {
                 long stallStart = Stopwatch.GetTimestamp();
-                finish(busySlots.Dequeue());
+
+                if (convertingSlots.Count == 0)
+                    startConverting(busySlots.Dequeue());
+
+                var oldest = convertingSlots.Dequeue();
+                oldest.Conversion!.WaitSafely();
+                release(oldest);
+
                 RenderTimings.ReadbackStall.AddSince(stallStart);
             }
 
@@ -133,14 +149,17 @@ namespace Oily.Rendering
 
         private void collectFinished()
         {
+            while (convertingSlots.TryPeek(out var converting) && converting.Conversion!.IsCompleted)
+                release(convertingSlots.Dequeue());
+
             while (busySlots.TryPeek(out var slot) && slot.Fence.Signaled && pollCount - slot.SubmittedAt >= frames_before_map)
-                finish(busySlots.Dequeue());
+                startConverting(busySlots.Dequeue());
         }
 
         /// <summary>
-        /// Whether copies are still on their way back.
+        /// Whether copies are still on their way back or being converted.
         /// </summary>
-        public bool Busy => busySlots.Count > 0;
+        public bool Busy => busySlots.Count > 0 || convertingSlots.Count > 0;
 
         private Slot createSlot()
         {
@@ -149,7 +168,11 @@ namespace Oily.Rendering
             return slot;
         }
 
-        private void finish(Slot slot)
+        /// <summary>
+        /// Maps <paramref name="slot"/>'s staging texture and converts its pixels on other threads.
+        /// The texture stays mapped until <see cref="release"/>, back on the draw thread.
+        /// </summary>
+        private void startConverting(Slot slot)
         {
             var target = slot.Target!;
             slot.Target = null;
@@ -167,37 +190,67 @@ namespace Oily.Rendering
                 bool bgra = isBgra(staging.Format);
                 bool nv12 = ConvertToNv12 && Nv12Converter.CanConvert(width, height);
 
-                var frame = new RenderFrame(width, height, nv12 ? RenderPixelFormat.Nv12 : bgra ? RenderPixelFormat.Bgra : RenderPixelFormat.Rgba);
                 var mapped = device.Map(staging, MapMode.Read, 0);
+                slot.Mapped = true;
 
-                try
+                IntPtr data = mapped.Data;
+                int rowPitch = (int)mapped.RowPitch;
+
+                slot.Conversion = Task.Run(() =>
                 {
-                    if (nv12)
-                        Nv12Converter.Convert(mapped.Data, (int)mapped.RowPitch, width, height, bgra, frame.Pixels);
-                    else
+                    long convertStart = Stopwatch.GetTimestamp();
+                    var frame = new RenderFrame(width, height, nv12 ? RenderPixelFormat.Nv12 : bgra ? RenderPixelFormat.Bgra : RenderPixelFormat.Rgba);
+
+                    try
                     {
-                        int rowBytes = width * 4;
+                        if (nv12)
+                            Nv12Converter.Convert(data, rowPitch, width, height, bgra, frame.Pixels, conversion_threads);
+                        else
+                        {
+                            int rowBytes = width * 4;
 
-                        for (int y = 0; y < height; y++)
-                            Marshal.Copy(mapped.Data + y * (nint)mapped.RowPitch, frame.Pixels, y * rowBytes, rowBytes);
+                            for (int y = 0; y < height; y++)
+                                Marshal.Copy(data + y * (nint)rowPitch, frame.Pixels, y * rowBytes, rowBytes);
+                        }
                     }
-                }
-                finally
-                {
-                    device.Unmap(staging, 0);
-                }
+                    catch (Exception e)
+                    {
+                        frame.Dispose();
+                        target.TrySetException(e);
+                        return;
+                    }
 
-                RenderTimings.Readback.AddSince(start);
-                target.TrySetResult(frame);
+                    RenderTimings.Convert.AddSince(convertStart);
+                    target.TrySetResult(frame);
+                });
+
+                convertingSlots.Enqueue(slot);
             }
             catch (Exception e)
             {
                 target.TrySetException(e);
+                release(slot);
             }
             finally
             {
-                freeSlots.Push(slot);
+                RenderTimings.Readback.AddSince(start);
             }
+        }
+
+        /// <summary>
+        /// Unmaps <paramref name="slot"/> once its pixels are converted, so it can take another frame.
+        /// </summary>
+        private void release(Slot slot)
+        {
+            slot.Conversion = null;
+
+            if (slot.Mapped)
+            {
+                device.Unmap(slot.Staging!, 0);
+                slot.Mapped = false;
+            }
+
+            freeSlots.Push(slot);
         }
 
         private static bool isSupported(Veldrid.PixelFormat format)
@@ -209,8 +262,15 @@ namespace Oily.Rendering
 
         public void Dispose()
         {
+            // The conversions read mapped memory, so they finish before anything is unmapped.
+            foreach (var slot in convertingSlots)
+                slot.Conversion!.WaitSafely();
+
             foreach (var slot in allSlots)
             {
+                if (slot.Mapped)
+                    device.Unmap(slot.Staging!, 0);
+
                 slot.Target?.TrySetCanceled();
                 slot.Dispose();
             }
@@ -218,6 +278,7 @@ namespace Oily.Rendering
             allSlots.Clear();
             freeSlots.Clear();
             busySlots.Clear();
+            convertingSlots.Clear();
         }
 
         private sealed class Slot : IDisposable
@@ -228,6 +289,8 @@ namespace Oily.Rendering
             public Texture? Staging;
             public TaskCompletionSource<RenderFrame>? Target;
             public long SubmittedAt;
+            public Task? Conversion;
+            public bool Mapped;
 
             public Slot(CommandList commands, Fence fence)
             {

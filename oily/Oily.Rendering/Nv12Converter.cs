@@ -29,7 +29,8 @@ namespace Oily.Rendering
         /// <param name="height">Height in pixels. Even.</param>
         /// <param name="bgra">Whether the source is BGRA rather than RGBA.</param>
         /// <param name="destination">At least <paramref name="width"/> × <paramref name="height"/> × 1.5 bytes.</param>
-        public static unsafe void Convert(IntPtr source, int rowPitch, int width, int height, bool bgra, byte[] destination)
+        /// <param name="maxThreads">The most threads to convert on, or -1 for as many as there are cores.</param>
+        public static unsafe void Convert(IntPtr source, int rowPitch, int width, int height, bool bgra, byte[] destination, int maxThreads = -1)
         {
             if (!CanConvert(width, height))
                 throw new ArgumentException($"NV12 needs an even width and height, not {width}x{height}.");
@@ -46,7 +47,7 @@ namespace Oily.Rendering
                 byte* dstPtr = dst;
 
                 // One iteration per pair of rows: two rows of brightness and one row of colour.
-                Parallel.For(0, height / 2, pair =>
+                Parallel.For(0, height / 2, new ParallelOptions { MaxDegreeOfParallelism = maxThreads }, pair =>
                 {
                     byte* top = src + (long)pair * 2 * rowPitch;
                     byte* bottom = top + rowPitch;
