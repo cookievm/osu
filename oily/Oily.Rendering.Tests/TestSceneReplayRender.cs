@@ -141,6 +141,42 @@ namespace Oily.Rendering.Tests
             AddAssert("pp shown", () => provider.Scores.All(s => s.ShowPerformancePoints.Value));
         }
 
+        [Test]
+        public void TestNoFixedModIcons()
+        {
+            startRender(new RenderSettings { FramesPerSecond = 30, Duration = TimeSpan.FromSeconds(2) });
+            AddUntilStep("wait for gameplay", () => renderScreen.Player?.Hud?.IsLoaded == true);
+            AddAssert("top right mod icons gone", () => renderScreen.Player.Hud.TopRightElements.Contains(renderScreen.Player.Hud.ModDisplay), () => Is.False);
+        }
+
+        [Test]
+        public void TestLeaderboardColours()
+        {
+            DrawableGameplayLeaderboard leaderboard = null!;
+
+            startRender(new RenderSettings
+            {
+                FramesPerSecond = 30,
+                Duration = TimeSpan.FromSeconds(3),
+                Leaderboard = new[] { new RenderLeaderboardEntry { Username = "someone", UserId = 2, TotalScore = 2_000_000, Pp = 100, Accuracy = 0.9, MaxCombo = 10 } },
+            });
+            AddUntilStep("wait for gameplay", () => renderScreen.Player?.Hud?.IsLoaded == true);
+
+            AddStep("add a coloured leaderboard", () => renderScreen.Player.Hud.Add(leaderboard = new DrawableGameplayLeaderboard
+            {
+                UseCustomColours = { Value = true },
+                BackgroundColour = { Value = Colour4.Purple },
+                PlayerColour = { Value = Colour4.Red },
+                BackgroundOpacity = { Value = 1 },
+            }));
+
+            AddUntilStep("rows shown", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().Count(), () => Is.EqualTo(2));
+            AddAssert("rows use the leaderboard's settings", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>()
+                                                                             .All(r => r.UseCustomColours.Value && r.CustomColour.Value == Colour4.Purple && r.BackgroundOpacity.Value == 1));
+            AddStep("back to lazer's look", () => leaderboard.UseCustomColours.Value = false);
+            AddAssert("rows follow", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().All(r => !r.UseCustomColours.Value));
+        }
+
         private void render(RenderSettings settings, params Mod[] extraMods)
         {
             startRender(settings, extraMods);

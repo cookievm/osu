@@ -60,6 +60,17 @@ namespace osu.Game.Screens.Play.HUD
         public Bindable<int?> ScorePosition { get; } = new Bindable<int?>();
         public Bindable<long> DisplayOrder { get; } = new Bindable<long>();
 
+        /// <summary>
+        /// oily: the <see cref="BackgroundOpacity"/> that gives lazer's own look.
+        /// </summary>
+        public const float DEFAULT_BACKGROUND_OPACITY = 0.33f;
+
+        // oily: the leaderboard's own colours and background opacity, from its skin settings.
+        public BindableBool UseCustomColours { get; } = new BindableBool();
+        public BindableColour4 CustomColour { get; } = new BindableColour4();
+        public BindableColour4 CustomPlayerColour { get; } = new BindableColour4();
+        public BindableFloat BackgroundOpacity { get; } = new BindableFloat(DEFAULT_BACKGROUND_OPACITY);
+
         // oily: leaderboards sorted by pp show it instead of the score.
         public BindableDouble PerformancePoints { get; } = new BindableDouble();
         public BindableBool ShowPerformancePoints { get; } = new BindableBool();
@@ -326,6 +337,11 @@ namespace osu.Game.Screens.Play.HUD
             HasQuit.BindValueChanged(_ => updatePanelState());
             ScorePosition.BindValueChanged(_ => updatePanelState(), true);
 
+            UseCustomColours.BindValueChanged(_ => updatePanelState());
+            CustomColour.BindValueChanged(_ => updatePanelState());
+            CustomPlayerColour.BindValueChanged(_ => updatePanelState());
+            BackgroundOpacity.BindValueChanged(_ => updatePanelState(), true);
+
             FinishTransforms(true);
         }
 
@@ -359,6 +375,12 @@ namespace osu.Game.Screens.Play.HUD
                 setPanelColour(Color4.Gray);
                 usernameColour = colours.Red2;
             }
+            else if (UseCustomColours.Value)
+            {
+                // oily: the leaderboard's own colours. First place keeps its wider panel.
+                widthExtension = Tracked || ScorePosition.Value == 1;
+                setPanelColour(Tracked ? CustomPlayerColour.Value : CustomColour.Value);
+            }
             else if (ScorePosition.Value == 1)
             {
                 widthExtension = true;
@@ -385,9 +407,13 @@ namespace osu.Game.Screens.Play.HUD
 
         private void setPanelColour(Color4 baseColour)
         {
-            leftLayerGradient.Colour = ColourInfo.GradientVertical(baseColour.Opacity(0.2f), baseColour.Opacity(0.5f));
-            rightLayerGradient.Colour = ColourInfo.GradientVertical(baseColour.Opacity(0.1f), baseColour.Opacity(0.3f));
-            scorePanel.BorderColour = ColourInfo.GradientVertical(baseColour.Opacity(0.2f), baseColour);
+            // oily: the background opacity setting scales lazer's own opacities; 1 makes the panel solid.
+            float scale = BackgroundOpacity.Value / DEFAULT_BACKGROUND_OPACITY;
+            float opacity(float lazer) => Math.Clamp(lazer * scale, 0, 1);
+
+            leftLayerGradient.Colour = ColourInfo.GradientVertical(baseColour.Opacity(opacity(0.2f)), baseColour.Opacity(opacity(0.5f)));
+            rightLayerGradient.Colour = ColourInfo.GradientVertical(baseColour.Opacity(opacity(0.1f)), baseColour.Opacity(opacity(0.3f)));
+            scorePanel.BorderColour = ColourInfo.GradientVertical(baseColour.Opacity(opacity(0.2f)), baseColour.Opacity(opacity(1)));
         }
 
         protected override void Update()

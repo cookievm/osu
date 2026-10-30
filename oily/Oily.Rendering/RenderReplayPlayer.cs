@@ -81,6 +81,9 @@ namespace Oily.Rendering
 
             // The "watching X play Y" message and playback controls don't belong in a video.
             ReplayOverlay.Alpha = 0;
+
+            // lazer's fixed mod icons in the top right corner. Skins can place their own with the "Mods" HUD piece instead.
+            HUDOverlay.TopRightElements.Remove(HUDOverlay.ModDisplay, false);
         }
     }
 }
