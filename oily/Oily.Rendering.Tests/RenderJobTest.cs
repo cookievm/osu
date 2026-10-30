@@ -87,6 +87,15 @@ namespace Oily.Rendering.Tests
         }
 
         [Test]
+        public void TestPlayerGlobalRankReachesTheGame()
+        {
+            var job = RenderJob.Parse("""{ "replay": "a.osr", "output": "a.mp4", "playerGlobalRank": 12345 }""");
+
+            Assert.That(job.ToRenderSettings().PlayerGlobalRank, Is.EqualTo(12345));
+            Assert.That(RenderJob.Parse("""{ "replay": "a.osr", "output": "a.mp4" }""").ToRenderSettings().PlayerGlobalRank, Is.Null);
+        }
+
+        [Test]
         public void TestColourConversionDefaultsToTheGraphicsCard()
         {
             var job = RenderJob.Parse("""{ "replay": "a.osr", "output": "a.mp4" }""");

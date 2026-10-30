@@ -100,13 +100,26 @@ namespace osu.Game.Screens.Play.HUD
 
         public virtual bool IsValid { get; set; }
 
+        /// <summary>
+        /// oily: whether this counter shows the pp the play would be worth so far without any misses. See <see cref="FullComboScore"/>.
+        /// </summary>
+        protected virtual bool IfFullCombo => false;
+
+        private void populateScore()
+        {
+            scoreProcessor.PopulateScore(scoreInfo);
+
+            if (IfFullCombo)
+                FullComboScore.Apply(scoreInfo, scoreProcessor);
+        }
+
         private void onJudgementChanged(JudgementResult judgement)
         {
             lastJudgement = judgement;
 
             if (overrideCalculator != null && scoreProcessor != null)
             {
-                scoreProcessor.PopulateScore(scoreInfo);
+                populateScore();
                 Current.Value = (int)Math.Round(overrideCalculator.Calculate(scoreInfo, judgement), MidpointRounding.AwayFromZero);
                 IsValid = true;
                 return;
@@ -120,7 +133,7 @@ namespace osu.Game.Screens.Play.HUD
                 return;
             }
 
-            scoreProcessor.PopulateScore(scoreInfo);
+            populateScore();
             Current.Value = (int)Math.Round(performanceCalculator?.Calculate(scoreInfo, attrib).Total ?? 0, MidpointRounding.AwayFromZero);
             IsValid = true;
         }

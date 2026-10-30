@@ -6,10 +6,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using osu.Framework.Graphics;
 using osu.Framework.Screens;
+using osu.Framework.Testing;
+using osu.Game.Graphics.Sprites;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu;
 using osu.Game.Rulesets.Osu.Mods;
+using osu.Game.Screens.Play.HUD;
+using osu.Game.Skinning.Components;
 using osu.Game.Tests.Visual;
 using osuTK.Input;
 
@@ -84,6 +89,27 @@ namespace Oily.Rendering.Tests
 
             AddStep("hide gameplay", () => renderScreen.Player.HideGameplay());
             AddAssert("HUD still measured", () => HudPreviewCapturer.Measure(renderScreen.Player.Hud).Pieces.Count(p => p.Visible), () => Is.GreaterThan(2));
+        }
+
+        [Test]
+        public void TestOilyHudPieces()
+        {
+            ArgonIfFcPerformancePointsCounter ifFc = null!;
+            GlobalRankDisplay rank = null!;
+
+            startRender(new RenderSettings { FramesPerSecond = 30, Duration = TimeSpan.FromSeconds(4), PlayerGlobalRank = 12345 });
+            AddUntilStep("wait for gameplay", () => renderScreen.Player?.Hud?.IsLoaded == true);
+
+            AddStep("add pieces", () => renderScreen.Player.Hud.AddRange(new Drawable[]
+            {
+                ifFc = new ArgonIfFcPerformancePointsCounter(),
+                rank = new GlobalRankDisplay(),
+            }));
+
+            AddUntilStep("pp if FC counts", () => ifFc.Current.Value, () => Is.GreaterThan(0));
+            AddAssert("rank shows", () => rank.ChildrenOfType<OsuSpriteText>().Single().Text.ToString(), () => Is.EqualTo("#12,345"));
+            AddUntilStep("wait for render to finish", () => renderScreen.Completed);
+            AddAssert("rank cleared after the render", () => PlayerGlobalRank.Current, () => Is.Null);
         }
 
         private void render(RenderSettings settings, params Mod[] extraMods)

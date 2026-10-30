@@ -43,7 +43,12 @@ namespace osu.Game.Skinning.Triangles
 
         protected override LocalisableString FormatCount(int count) => count.ToString(@"D");
 
-        protected override IHasText CreateText() => new TextComponent
+        /// <summary>
+        /// oily: the small text after the digits.
+        /// </summary>
+        protected virtual LocalisableString Suffix => BeatmapsetsStrings.ShowScoreboardHeaderspp;
+
+        protected override IHasText CreateText() => new TextComponent(Suffix)
         {
             Alpha = alpha_when_invalid
         };
@@ -58,7 +63,7 @@ namespace osu.Game.Skinning.Triangles
 
             private readonly OsuSpriteText text;
 
-            public TextComponent()
+            public TextComponent(LocalisableString suffix)
             {
                 AutoSizeAxes = Axes.Both;
 
@@ -78,7 +83,7 @@ namespace osu.Game.Skinning.Triangles
                         {
                             Anchor = Anchor.BottomLeft,
                             Origin = Anchor.BottomLeft,
-                            Text = BeatmapsetsStrings.ShowScoreboardHeaderspp,
+                            Text = suffix,
                             Font = OsuFont.Numeric.With(size: 8),
                             Padding = new MarginPadding { Bottom = 1.5f }, // align baseline better
                         }

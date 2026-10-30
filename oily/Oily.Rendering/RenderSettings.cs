@@ -42,6 +42,11 @@ namespace Oily.Rendering
         public bool AkatsukiPp { get; init; }
 
         /// <summary>
+        /// The player's global osu! rank, for the "Global rank" HUD piece. Null hides it. See <see cref="osu.Game.Screens.Play.HUD.PlayerGlobalRank"/>.
+        /// </summary>
+        public int? PlayerGlobalRank { get; init; }
+
+        /// <summary>
         /// When set, frames are drawn off-screen at this size and read straight from the graphics card,
         /// instead of screenshotting the window. The window only needs the same aspect ratio, and can be hidden.
         /// </summary>

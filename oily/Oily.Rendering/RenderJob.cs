@@ -71,6 +71,11 @@ namespace Oily.Rendering
         /// </summary>
         public bool AkatsukiPp { get; init; }
 
+        /// <summary>
+        /// The player's global osu! rank, looked up by the companion app, for the "Global rank" HUD piece. Null hides it.
+        /// </summary>
+        public int? PlayerGlobalRank { get; init; }
+
         /// <summary>Overall volume of the video's audio, 0 to 100.</summary>
         public int MasterVolume { get; init; } = 100;
 
@@ -247,6 +252,7 @@ namespace Oily.Rendering
             BlendFrames = MotionBlurFrames,
             RecordAudio = Audio && !HudPreview,
             AkatsukiPp = AkatsukiPp,
+            PlayerGlobalRank = PlayerGlobalRank,
             CaptureSize = new System.Drawing.Size(Width, Height),
             GpuColourConversion = ColourConversion == "gpu",
             Duration = DurationSeconds is double seconds ? TimeSpan.FromSeconds(seconds) : null,
