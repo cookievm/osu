@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -15,7 +16,9 @@ using osu.Game.Configuration;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Online.API;
+using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
+using osu.Game.Rulesets.UI;
 using osu.Game.Screens.Play.Leaderboards;
 using osu.Game.Users;
 using osu.Game.Users.Drawables;
@@ -59,6 +62,29 @@ namespace osu.Game.Screens.Play.HUD
         public BindableBool HasQuit { get; } = new BindableBool();
         public Bindable<int?> ScorePosition { get; } = new Bindable<int?>();
         public Bindable<long> DisplayOrder { get; } = new Bindable<long>();
+
+        /// <summary>
+        /// oily: the <see cref="BackgroundOpacity"/> that gives lazer's own look.
+        /// </summary>
+        public const float DEFAULT_BACKGROUND_OPACITY = 0.33f;
+
+        /// <summary>
+        /// oily: room on the right of each row for its mods, when the leaderboard shows them. About four icons.
+        /// </summary>
+        public const float MODS_WIDTH = 76;
+
+        private const float MOD_ICON_SCALE = 0.22f;
+
+        // oily: the score's mods, shown when the leaderboard's "Show mods" setting is on.
+        public IReadOnlyList<Mod> Mods { get; }
+        public BindableBool ShowMods { get; } = new BindableBool();
+        private FillFlowContainer modsFlow = null!;
+
+        // oily: the leaderboard's own colours and background opacity, from its skin settings.
+        public BindableBool UseCustomColours { get; } = new BindableBool();
+        public BindableColour4 CustomColour { get; } = new BindableColour4();
+        public BindableColour4 CustomPlayerColour { get; } = new BindableColour4();
+        public BindableFloat BackgroundOpacity { get; } = new BindableFloat(DEFAULT_BACKGROUND_OPACITY);
 
         // oily: leaderboards sorted by pp show it instead of the score.
         public BindableDouble PerformancePoints { get; } = new BindableDouble();
@@ -123,6 +149,7 @@ namespace osu.Game.Screens.Play.HUD
             PerformancePoints.BindTo(score.PerformancePoints);
             ShowPerformancePoints.BindTo(score.ShowPerformancePoints);
             GetDisplayScore = score.GetDisplayScore;
+            Mods = score.Mods;
 
             if (score.TeamColour != null)
                 BackgroundColour = score.TeamColour.Value;
@@ -142,7 +169,23 @@ namespace osu.Game.Screens.Play.HUD
 
             Container avatarLayer;
 
-            InternalChild = scorePanel = new FillFlowContainer
+            AddInternal(modsFlow = new FillFlowContainer
+            {
+                // oily: the score's mods as lazer's own icons, in the column right of the panel (see MODS_WIDTH).
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreLeft,
+                X = -MODS_WIDTH + 4,
+                AutoSizeAxes = Axes.Both,
+                Direction = FillDirection.Horizontal,
+                Spacing = new Vector2(1),
+                Shear = -OsuGame.SHEAR,
+                ChildrenEnumerable = Mods.Select(m => new ModIcon(m, showTooltip: false, showExtendedInformation: false)
+                {
+                    Scale = new Vector2(MOD_ICON_SCALE),
+                }),
+            });
+
+            AddInternal(scorePanel = new FillFlowContainer
             {
                 CornerRadius = corner_radius,
                 BorderThickness = 2f,
@@ -302,7 +345,7 @@ namespace osu.Game.Screens.Play.HUD
                     },
                     avatarLayer.CreateProxy(),
                 }
-            };
+            });
         }
 
         protected override void LoadComplete()
@@ -325,6 +368,17 @@ namespace osu.Game.Screens.Play.HUD
 
             HasQuit.BindValueChanged(_ => updatePanelState());
             ScorePosition.BindValueChanged(_ => updatePanelState(), true);
+
+            ShowMods.BindValueChanged(v =>
+            {
+                modsFlow.Alpha = v.NewValue ? 1 : 0;
+                drawSizeLayout.Invalidate();
+            }, true);
+
+            UseCustomColours.BindValueChanged(_ => updatePanelState());
+            CustomColour.BindValueChanged(_ => updatePanelState());
+            CustomPlayerColour.BindValueChanged(_ => updatePanelState());
+            BackgroundOpacity.BindValueChanged(_ => updatePanelState(), true);
 
             FinishTransforms(true);
         }
@@ -359,6 +413,12 @@ namespace osu.Game.Screens.Play.HUD
                 setPanelColour(Color4.Gray);
                 usernameColour = colours.Red2;
             }
+            else if (UseCustomColours.Value)
+            {
+                // oily: the leaderboard's own colours. First place keeps its wider panel.
+                widthExtension = Tracked || ScorePosition.Value == 1;
+                setPanelColour(Tracked ? CustomPlayerColour.Value : CustomColour.Value);
+            }
             else if (ScorePosition.Value == 1)
             {
                 widthExtension = true;
@@ -385,9 +445,13 @@ namespace osu.Game.Screens.Play.HUD
 
         private void setPanelColour(Color4 baseColour)
         {
-            leftLayerGradient.Colour = ColourInfo.GradientVertical(baseColour.Opacity(0.2f), baseColour.Opacity(0.5f));
-            rightLayerGradient.Colour = ColourInfo.GradientVertical(baseColour.Opacity(0.1f), baseColour.Opacity(0.3f));
-            scorePanel.BorderColour = ColourInfo.GradientVertical(baseColour.Opacity(0.2f), baseColour);
+            // oily: the background opacity setting scales lazer's own opacities; 1 makes the panel solid.
+            float scale = BackgroundOpacity.Value / DEFAULT_BACKGROUND_OPACITY;
+            float opacity(float lazer) => Math.Clamp(lazer * scale, 0, 1);
+
+            leftLayerGradient.Colour = ColourInfo.GradientVertical(baseColour.Opacity(opacity(0.2f)), baseColour.Opacity(opacity(0.5f)));
+            rightLayerGradient.Colour = ColourInfo.GradientVertical(baseColour.Opacity(opacity(0.1f)), baseColour.Opacity(opacity(0.3f)));
+            scorePanel.BorderColour = ColourInfo.GradientVertical(baseColour.Opacity(opacity(0.2f)), baseColour.Opacity(opacity(1)));
         }
 
         protected override void Update()
@@ -416,7 +480,7 @@ namespace osu.Game.Screens.Play.HUD
             scoreText.Alpha = showUsernameAndScore ? 1 : 0;
         }
 
-        private float computeRightLayerWidth() => Math.Max(0, DrawWidth - extended_left_panel_width - avatar_size / 2);
+        private float computeRightLayerWidth() => Math.Max(0, DrawWidth - extended_left_panel_width - avatar_size / 2 - (ShowMods.Value ? MODS_WIDTH : 0));
 
         private partial class ScoreAvatar : CompositeDrawable
         {

@@ -39,6 +39,38 @@ namespace osu.Game.Screens.Play.HUD
         [SettingSource("Sort by", "What the leaderboard is sorted by. Only o!ily renders can sort by pp.")]
         public Bindable<GameplayLeaderboardSort> SortBy { get; } = new Bindable<GameplayLeaderboardSort>();
 
+        /// <summary>
+        /// oily: use <see cref="BackgroundColour"/> and <see cref="PlayerColour"/> instead of lazer's colours (blue, gold for first, orange for the player).
+        /// </summary>
+        [SettingSource("Show mods", "Show each score's mods on the right of its row. Only o!ily renders know the mods.")]
+        public Bindable<bool> ShowMods { get; } = new BindableBool(true);
+
+        [SettingSource("Custom colours", "Use your own background colours instead of lazer's.")]
+        public Bindable<bool> UseCustomColours { get; } = new BindableBool();
+
+        /// <summary>
+        /// oily: the background behind everyone else's scores, with <see cref="UseCustomColours"/>.
+        /// </summary>
+        [SettingSource("Background colour", "The background behind everyone else's scores, with custom colours on.")]
+        public BindableColour4 BackgroundColour { get; } = new BindableColour4(Colour4.FromHex(@"2e576b"));
+
+        /// <summary>
+        /// oily: the background behind the player's own score, with <see cref="UseCustomColours"/>.
+        /// </summary>
+        [SettingSource("Player colour", "The background behind the player's own score, with custom colours on.")]
+        public BindableColour4 PlayerColour { get; } = new BindableColour4(Colour4.FromHex(@"ebc247"));
+
+        /// <summary>
+        /// oily: how solid the backgrounds are. 0 is see-through, 1 is solid, and the default is lazer's own look.
+        /// </summary>
+        [SettingSource("Background opacity", "How solid the score backgrounds are. 0 is see-through, 1 is solid.")]
+        public BindableFloat BackgroundOpacity { get; } = new BindableFloat(DrawableGameplayLeaderboardScore.DEFAULT_BACKGROUND_OPACITY)
+        {
+            MinValue = 0,
+            MaxValue = 1,
+            Precision = 0.01f,
+        };
+
         private readonly Bindable<bool> expanded = new BindableBool();
 
         [Resolved]
@@ -60,7 +92,8 @@ namespace osu.Game.Screens.Play.HUD
             // Extra lenience is applied so the scores don't get cut off from the left due to elastic easing transforms.
             float xOffset = DrawableGameplayLeaderboardScore.SHEAR_WIDTH + DrawableGameplayLeaderboardScore.ELASTIC_WIDTH_LENIENCE;
 
-            Width = 260 + xOffset;
+            // oily: wider than lazer's, to leave a column on the right for each score's mods.
+            Width = 260 + xOffset + DrawableGameplayLeaderboardScore.MODS_WIDTH;
             Height = 300;
 
             InternalChildren = new Drawable[]
@@ -145,6 +178,11 @@ namespace osu.Game.Screens.Play.HUD
             }
 
             drawable.Expanded.BindTo(expanded);
+            drawable.ShowMods.BindTo(ShowMods);
+            drawable.UseCustomColours.BindTo(UseCustomColours);
+            drawable.CustomColour.BindTo(BackgroundColour);
+            drawable.CustomPlayerColour.BindTo(PlayerColour);
+            drawable.BackgroundOpacity.BindTo(BackgroundOpacity);
 
             Flow.Add(drawable);
             drawable.ScorePosition.BindValueChanged(_ => Scheduler.AddOnce(sort));
@@ -166,7 +204,7 @@ namespace osu.Game.Screens.Play.HUD
             base.Update();
 
             // limit leaderboard dimensions to a sane minimum.
-            Width = Math.Max(Width, Flow.X + DrawableGameplayLeaderboardScore.MIN_WIDTH);
+            Width = Math.Max(Width, Flow.X + DrawableGameplayLeaderboardScore.MIN_WIDTH + (ShowMods.Value ? DrawableGameplayLeaderboardScore.MODS_WIDTH : 0));
             Height = Math.Max(Height, DrawableGameplayLeaderboardScore.PANEL_HEIGHT);
 
             requiresScroll = Flow.DrawHeight > Height;
