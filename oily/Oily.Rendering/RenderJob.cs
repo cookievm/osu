@@ -2,11 +2,14 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using Oily.Rendering.Audio;
+using osu.Game.Beatmaps;
 
 namespace Oily.Rendering
 {
@@ -16,11 +19,30 @@ namespace Oily.Rendering
     /// </summary>
     public record RenderJob
     {
-        /// <summary>The replay to render (.osr).</summary>
+        /// <summary>The replay to render (.osr). Not needed with <see cref="Autoplay"/>.</summary>
         public string Replay { get; init; } = string.Empty;
 
         /// <summary>The beatmapset to import first (.osz), if the game doesn't have it yet.</summary>
         public string? Beatmap { get; init; }
+
+        /// <summary>
+        /// Render a perfect autoplay of <see cref="Beatmap"/> instead of a replay.
+        /// <see cref="BeatmapId"/> or <see cref="Difficulty"/> picks the difficulty when the set has more than one.
+        /// </summary>
+        public bool Autoplay { get; init; }
+
+        /// <summary>The online ID of the difficulty to autoplay.</summary>
+        public int? BeatmapId { get; init; }
+
+        /// <summary>The name of the difficulty to autoplay, for example "Insane", when it has no online ID.</summary>
+        public string? Difficulty { get; init; }
+
+        /// <summary>Mods for the autoplay, by acronym, separated by spaces, for example "HD DT". Replays bring their own.</summary>
+        public string Mods { get; init; } = string.Empty;
+
+        /// <summary><see cref="Mods"/> split into acronyms.</summary>
+        [JsonIgnore]
+        public string[] ModAcronyms => Mods.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
         /// <summary>A skin to import and use (.osk), for example one exported from lazer with its skin editor layout.</summary>
         public string? Skin { get; init; }
@@ -139,7 +161,12 @@ namespace Oily.Rendering
         /// </summary>
         public void Validate()
         {
-            if (string.IsNullOrWhiteSpace(Replay))
+            if (Autoplay)
+            {
+                if (string.IsNullOrWhiteSpace(Beatmap))
+                    throw new InvalidDataException("An autoplay render needs a beatmap.");
+            }
+            else if (string.IsNullOrWhiteSpace(Replay))
                 throw new InvalidDataException("The render job has no replay.");
             if (string.IsNullOrWhiteSpace(Output))
                 throw new InvalidDataException("The render job has no output path.");
@@ -165,6 +192,23 @@ namespace Oily.Rendering
                 throw new InvalidDataException("Cursor size must be between 0.1 and 2.");
             if (DurationSeconds <= 0)
                 throw new InvalidDataException("Duration must be positive.");
+        }
+
+        /// <summary>
+        /// The difficulty to autoplay from an imported set: the one with <see cref="BeatmapId"/>, else the one named <see cref="Difficulty"/>,
+        /// else the only one. Null when none of those match.
+        /// </summary>
+        public BeatmapInfo? PickDifficulty(IEnumerable<BeatmapInfo> difficulties)
+        {
+            var list = difficulties.ToList();
+
+            if (BeatmapId is int id && list.FirstOrDefault(b => b.OnlineID == id) is BeatmapInfo byId)
+                return byId;
+
+            if (!string.IsNullOrEmpty(Difficulty) && list.FirstOrDefault(b => string.Equals(b.DifficultyName, Difficulty, StringComparison.OrdinalIgnoreCase)) is BeatmapInfo byName)
+                return byName;
+
+            return list.Count == 1 ? list[0] : null;
         }
 
         /// <summary>

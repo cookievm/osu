@@ -19,6 +19,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Configuration;
 using osu.Game.Database;
 using osu.Game.Overlays.Notifications;
+using osu.Game.Rulesets.Mods;
 using osu.Game.Scoring;
 using osu.Game.Screens;
 
@@ -132,10 +133,12 @@ namespace osu.Desktop
 
             try
             {
+                Live<BeatmapSetInfo>? beatmapSet = null;
+
                 if (!string.IsNullOrEmpty(job.Beatmap))
                 {
                     renderReporter!.Status("Importing the beatmap");
-                    await BeatmapManager.Import(new ImportTask(copyForImport(job.Beatmap))).ConfigureAwait(false);
+                    beatmapSet = await BeatmapManager.Import(new ImportTask(copyForImport(job.Beatmap))).ConfigureAwait(false);
                 }
 
                 if (!string.IsNullOrEmpty(job.Skin))
@@ -146,19 +149,67 @@ namespace osu.Desktop
                         Schedule(() => SkinManager.CurrentSkinInfo.Value = skin);
                 }
 
-                renderReporter!.Status("Importing the replay");
-                var scores = await ScoreManager.Import(new ProgressNotification(), new[] { new ImportTask(copyForImport(job.Replay)) }).ConfigureAwait(false);
-                var score = scores.FirstOrDefault()
-                            ?? throw new InvalidOperationException("The replay couldn't be imported. Is its beatmap missing?");
+                if (job.Autoplay)
+                {
+                    var beatmap = beatmapSet?.PerformRead(s => job.PickDifficulty(s.Beatmaps)?.Detach())
+                                  ?? throw new InvalidOperationException(beatmapSet == null
+                                      ? "The beatmap couldn't be imported."
+                                      : "Couldn't tell which difficulty to autoplay. Pick one by its beatmap ID or name.");
 
-                renderReporter.Status("Starting the render");
-                var detached = score.PerformRead(s => s.Detach());
-                Schedule(() => PresentScore(detached, ScorePresentType.Render));
+                    renderReporter!.Status("Starting the render");
+                    Schedule(() => presentAutoplay(beatmap));
+                }
+                else
+                {
+                    await presentReplay(job).ConfigureAwait(false);
+                }
 
                 await Task.Delay(TimeSpan.FromSeconds(render_start_timeout_seconds)).ConfigureAwait(false);
 
                 if (activeRenderScreen == null)
                     throw new TimeoutException("The render didn't start. The replay's beatmap may be missing.");
+            }
+            catch (Exception e)
+            {
+                finishRenderJob(e);
+            }
+        }
+
+        private async Task presentReplay(RenderJob job)
+        {
+            renderReporter!.Status("Importing the replay");
+            var scores = await ScoreManager.Import(new ProgressNotification(), new[] { new ImportTask(copyForImport(job.Replay)) }).ConfigureAwait(false);
+            var score = scores.FirstOrDefault()
+                        ?? throw new InvalidOperationException("The replay couldn't be imported. Is its beatmap missing?");
+
+            renderReporter.Status("Starting the render");
+            var detached = score.PerformRead(s => s.Detach());
+            Schedule(() => PresentScore(detached, ScorePresentType.Render));
+        }
+
+        /// <summary>
+        /// Renders a perfect play of <paramref name="beatmap"/> by the ruleset's autoplay, with the job's mods.
+        /// </summary>
+        private void presentAutoplay(BeatmapInfo beatmap)
+        {
+            try
+            {
+                var ruleset = beatmap.Ruleset.CreateInstance();
+                var mods = RenderJob!.ModAcronyms.Select(acronym => ruleset.CreateModFromAcronym(acronym)
+                                                            ?? throw new InvalidOperationException($"{ruleset.Description} has no mod called {acronym}.")).ToArray();
+                var autoplay = ruleset.GetAutoplayMod() ?? throw new InvalidOperationException($"{ruleset.Description} has no autoplay.");
+
+                // With autoplay among the mods, the video shows the AT icon as lazer does when watching one.
+                mods = mods.Prepend(autoplay).ToArray();
+
+                var working = BeatmapManager.GetWorkingBeatmap(beatmap);
+                var score = autoplay.CreateScoreFromReplayData(working.GetPlayableBeatmap(ruleset.RulesetInfo, mods), mods);
+                score.ScoreInfo.BeatmapInfo = beatmap;
+                score.ScoreInfo.Ruleset = ruleset.RulesetInfo;
+                score.ScoreInfo.Mods = mods;
+
+                Logger.Log($"Render job: autoplay of {beatmap} with {string.Join(' ', mods.Select(m => m.Acronym))}");
+                PresentRender(score);
             }
             catch (Exception e)
             {

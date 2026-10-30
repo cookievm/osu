@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Testing;
+using osu.Game.Beatmaps;
 using osu.Game.Configuration;
 using osu.Game.Rulesets.Osu;
 using osu.Game.Rulesets.Osu.Configuration;
@@ -55,6 +56,7 @@ namespace Oily.Rendering.Tests
         }
 
         [TestCase("""{ "output": "a.mp4" }""")]
+        [TestCase("""{ "output": "a.mp4", "autoplay": true }""")]
         [TestCase("""{ "replay": "a.osr" }""")]
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "width": 1921 }""")]
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "framesPerSecond": 0 }""")]
@@ -199,6 +201,33 @@ namespace Oily.Rendering.Tests
             Assert.That(config.Get<float>(OsuSetting.GameplayCursorSize), Is.EqualTo(1.5f).Within(0.001));
             Assert.That(config.Get<bool>(OsuSetting.BeatmapHitsounds), Is.False);
             Assert.That(osuConfig.Get<bool>(OsuRulesetSetting.ShowCursorTrail), Is.False);
+        }
+
+        [Test]
+        public void TestAutoplayNeedsNoReplay()
+        {
+            var job = RenderJob.Parse("""{ "autoplay": true, "beatmap": "C:\\maps\\set.osz", "beatmapId": 42, "mods": "HD DT", "output": "a.mp4" }""");
+
+            Assert.That(job.Autoplay, Is.True);
+            Assert.That(job.Replay, Is.Empty);
+            Assert.That(job.ModAcronyms, Is.EqualTo(new[] { "HD", "DT" }));
+        }
+
+        [Test]
+        public void TestPicksTheDifficultyToAutoplay()
+        {
+            var easy = new BeatmapInfo { OnlineID = 1, DifficultyName = "Easy" };
+            var insane = new BeatmapInfo { OnlineID = 2, DifficultyName = "Insane" };
+            var unsubmitted = new BeatmapInfo { OnlineID = -1, DifficultyName = "My Extra" };
+            var set = new[] { easy, insane, unsubmitted };
+
+            Assert.That(job(42, null).PickDifficulty(new[] { easy }), Is.SameAs(easy), "the only difficulty");
+            Assert.That(job(2, null).PickDifficulty(set), Is.SameAs(insane));
+            Assert.That(job(null, "my extra").PickDifficulty(set), Is.SameAs(unsubmitted));
+            Assert.That(job(99, "Easy").PickDifficulty(set), Is.SameAs(easy), "falls back to the name");
+            Assert.That(job(null, null).PickDifficulty(set), Is.Null);
+
+            static RenderJob job(int? id, string? name) => new RenderJob { Autoplay = true, Beatmap = "s.osz", Output = "a.mp4", BeatmapId = id, Difficulty = name };
         }
     }
 }
