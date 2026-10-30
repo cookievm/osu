@@ -33,6 +33,12 @@ namespace osu.Game.Screens.Play.HUD
         [SettingSource(typeof(SkinnableComponentStrings), nameof(SkinnableComponentStrings.CollapseDuringGameplay), nameof(SkinnableComponentStrings.CollapseDuringGameplayDescription))]
         public Bindable<bool> CollapseDuringGameplay { get; } = new BindableBool(true);
 
+        /// <summary>
+        /// oily: what the leaderboard is sorted by. Only o!ily renders can sort by pp; lazer's own leaderboards stay sorted by score.
+        /// </summary>
+        [SettingSource("Sort by", "What the leaderboard is sorted by. Only o!ily renders can sort by pp.")]
+        public Bindable<GameplayLeaderboardSort> SortBy { get; } = new Bindable<GameplayLeaderboardSort>();
+
         private readonly Bindable<bool> expanded = new BindableBool();
 
         [Resolved]
@@ -95,6 +101,10 @@ namespace osu.Game.Screens.Play.HUD
             base.LoadComplete();
 
             scores.BindTo(leaderboardProvider.Scores);
+
+            // One way only: binding both ways would make every leaderboard in the layout share one setting.
+            if (leaderboardProvider is ISortableGameplayLeaderboardProvider sortable)
+                SortBy.BindValueChanged(v => sortable.SortBy.Value = v.NewValue, true);
             scores.BindCollectionChanged((_, _) =>
             {
                 Clear();

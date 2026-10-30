@@ -71,6 +71,16 @@ namespace Oily.Rendering
         /// </summary>
         public bool AkatsukiPp { get; init; }
 
+        /// <summary>
+        /// The player's global osu! rank, looked up by the companion app, for the "Global rank" HUD piece. Null hides it.
+        /// </summary>
+        public int? PlayerGlobalRank { get; init; }
+
+        /// <summary>
+        /// The map's top scores from osu!, looked up by the companion app, for the HUD's leaderboard. Empty shows only the player.
+        /// </summary>
+        public RenderLeaderboardEntry[]? Leaderboard { get; init; }
+
         /// <summary>Overall volume of the video's audio, 0 to 100.</summary>
         public int MasterVolume { get; init; } = 100;
 
@@ -136,6 +146,12 @@ namespace Oily.Rendering
         /// <summary>Only render this many seconds of video. Null renders the whole replay.</summary>
         public double? DurationSeconds { get; init; }
 
+        /// <summary>
+        /// Instead of a video, save a picture of each HUD piece as the skin draws it at the end of <see cref="DurationSeconds"/>,
+        /// with where each one is, into the <see cref="Output"/> folder. For the companion app's HUD editor; see <see cref="HudPreviewCapturer"/>.
+        /// </summary>
+        public bool HudPreview { get; init; }
+
         private static readonly JsonSerializerOptions json_options = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -195,6 +211,8 @@ namespace Oily.Rendering
                 throw new InvalidDataException("Cursor size must be between 0.1 and 2.");
             if (DurationSeconds <= 0)
                 throw new InvalidDataException("Duration must be positive.");
+            if (HudPreview && DurationSeconds == null)
+                throw new InvalidDataException("A HUD preview needs a duration: the HUD is pictured at its end.");
         }
 
         /// <summary>
@@ -237,8 +255,10 @@ namespace Oily.Rendering
             // With motion blur the game draws several frames for each one in the video.
             FramesPerSecond = FramesPerSecond * MotionBlurFrames,
             BlendFrames = MotionBlurFrames,
-            RecordAudio = Audio,
+            RecordAudio = Audio && !HudPreview,
             AkatsukiPp = AkatsukiPp,
+            PlayerGlobalRank = PlayerGlobalRank,
+            Leaderboard = Leaderboard ?? Array.Empty<RenderLeaderboardEntry>(),
             CaptureSize = new System.Drawing.Size(Width, Height),
             GpuColourConversion = ColourConversion == "gpu",
             Duration = DurationSeconds is double seconds ? TimeSpan.FromSeconds(seconds) : null,

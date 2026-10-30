@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
 
 namespace Oily.Rendering
 {
@@ -40,6 +41,16 @@ namespace Oily.Rendering
         /// Whether the PP counter shows Akatsuki's relax pp instead of lazer's, for osu! plays with Relax. See <see cref="Akatsuki.AkatsukiRelaxLiveCalculator"/>.
         /// </summary>
         public bool AkatsukiPp { get; init; }
+
+        /// <summary>
+        /// The player's global osu! rank, for the "Global rank" HUD piece. Null hides it. See <see cref="osu.Game.Screens.Play.HUD.PlayerGlobalRank"/>.
+        /// </summary>
+        public int? PlayerGlobalRank { get; init; }
+
+        /// <summary>
+        /// The other scores on the leaderboard, best first. Empty shows only the player. See <see cref="RenderLeaderboardProvider"/>.
+        /// </summary>
+        public IReadOnlyList<RenderLeaderboardEntry> Leaderboard { get; init; } = Array.Empty<RenderLeaderboardEntry>();
 
         /// <summary>
         /// When set, frames are drawn off-screen at this size and read straight from the graphics card,

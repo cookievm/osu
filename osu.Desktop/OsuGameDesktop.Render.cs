@@ -259,7 +259,10 @@ namespace osu.Desktop
         {
             var job = RenderJob!;
             ReplayRenderScreen screen = null!;
-            screen = new ReplayRenderScreen(score, job.ToRenderSettings(), (_, _) => new FfmpegPipeCapturer(screen.GrabFrameAsync, job));
+            var settings = job.ToRenderSettings();
+            screen = new ReplayRenderScreen(score, settings, (_, _) => job.HudPreview
+                ? new HudPreviewCapturer(screen, job.Output, settings.FrameCount!.Value)
+                : new FfmpegPipeCapturer(screen.GrabFrameAsync, job));
 
             screen.ProgressChanged += p => renderReporter!.Progress(p);
             screen.Finished += path =>

@@ -89,6 +89,16 @@ namespace osu.Game.Screens.Play.Leaderboards
         /// </summary>
         public Bindable<long> DisplayOrder { get; } = new BindableLong();
 
+        /// <summary>
+        /// oily: the score's pp, for leaderboards sorted by pp. Only set by providers that know it.
+        /// </summary>
+        public BindableDouble PerformancePoints { get; } = new BindableDouble();
+
+        /// <summary>
+        /// oily: whether the leaderboard shows <see cref="PerformancePoints"/> instead of the score.
+        /// </summary>
+        public BindableBool ShowPerformancePoints { get; } = new BindableBool();
+
         public GameplayLeaderboardScore(GameplayState gameplayState, bool tracked, ComboDisplayMode comboMode)
         {
             User = gameplayState.Score.ScoreInfo.User;

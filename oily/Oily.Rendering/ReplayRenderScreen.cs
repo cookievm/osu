@@ -200,6 +200,8 @@ namespace Oily.Rendering
             if (Settings.AkatsukiPp)
                 LivePerformanceOverride.Factory = AkatsukiRelaxLiveCalculator.CreateFor;
 
+            PlayerGlobalRank.Current = Settings.PlayerGlobalRank;
+
             RenderTimings.Reset();
 
             if (Settings.Display != null)
@@ -326,10 +328,12 @@ namespace Oily.Rendering
         /// </summary>
         private double blendLead => (Settings.BlendFrames - 1) / 2.0 * Settings.FrameDuration;
 
-        private void clearPpOverride()
+        private void clearGameplayOverrides()
         {
             if (Settings.AkatsukiPp)
                 LivePerformanceOverride.Factory = null;
+
+            PlayerGlobalRank.Current = null;
         }
 
         private void stopRecordingAudio()
@@ -470,7 +474,7 @@ namespace Oily.Rendering
         public override bool OnExiting(ScreenExitEvent e)
         {
             stopRecordingAudio();
-            clearPpOverride();
+            clearGameplayOverrides();
 
             // Make sure the nested player cleans up (samples, leases) before this screen goes.
             if (playerStack.CurrentScreen is Player player)
@@ -483,7 +487,7 @@ namespace Oily.Rendering
         {
             base.Dispose(isDisposing);
             stopRecordingAudio();
-            clearPpOverride();
+            clearGameplayOverrides();
             capturer?.Dispose();
         }
 

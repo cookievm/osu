@@ -69,10 +69,33 @@ namespace Oily.Rendering.Tests
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "cursorSize": 3 }""")]
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "motionBlurFrames": 17 }""")]
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "framesPerSecond": 240, "motionBlurFrames": 8 }""")]
+        [TestCase("""{ "beatmap": "a.osz", "autoplay": true, "output": "preview", "hudPreview": true }""")]
         [TestCase("null")]
         public void TestRejectsBadJobs(string json)
         {
             Assert.Throws<InvalidDataException>(() => RenderJob.Parse(json));
+        }
+
+        [Test]
+        public void TestHudPreviewHasNoAudio()
+        {
+            var job = RenderJob.Parse("""{ "beatmap": "a.osz", "autoplay": true, "output": "C:\\preview", "hudPreview": true, "durationSeconds": 4 }""");
+
+            Assert.That(job.HudPreview, Is.True);
+            Assert.That(job.ToRenderSettings().RecordAudio, Is.False);
+            Assert.That(job.ToRenderSettings().FrameCount, Is.Not.Null);
+        }
+
+        [Test]
+        public void TestPlayerGlobalRankReachesTheGame()
+        {
+            var job = RenderJob.Parse("""{ "replay": "a.osr", "output": "a.mp4", "playerGlobalRank": 12345 }""");
+
+            Assert.That(job.ToRenderSettings().PlayerGlobalRank, Is.EqualTo(12345));
+
+            var withLeaderboard = RenderJob.Parse("""{ "replay": "a.osr", "output": "a.mp4", "leaderboard": [ { "username": "peppy", "userId": 2, "totalScore": 900000, "pp": 727.5, "accuracy": 0.99, "maxCombo": 1234 } ] }""");
+            Assert.That(withLeaderboard.ToRenderSettings().Leaderboard.Single(), Is.EqualTo(new RenderLeaderboardEntry { Username = "peppy", UserId = 2, TotalScore = 900000, Pp = 727.5, Accuracy = 0.99, MaxCombo = 1234 }));
+            Assert.That(RenderJob.Parse("""{ "replay": "a.osr", "output": "a.mp4" }""").ToRenderSettings().PlayerGlobalRank, Is.Null);
         }
 
         [Test]
