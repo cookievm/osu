@@ -69,10 +69,21 @@ namespace Oily.Rendering.Tests
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "cursorSize": 3 }""")]
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "motionBlurFrames": 17 }""")]
         [TestCase("""{ "replay": "a.osr", "output": "a.mp4", "framesPerSecond": 240, "motionBlurFrames": 8 }""")]
+        [TestCase("""{ "beatmap": "a.osz", "autoplay": true, "output": "preview", "hudPreview": true }""")]
         [TestCase("null")]
         public void TestRejectsBadJobs(string json)
         {
             Assert.Throws<InvalidDataException>(() => RenderJob.Parse(json));
+        }
+
+        [Test]
+        public void TestHudPreviewHasNoAudio()
+        {
+            var job = RenderJob.Parse("""{ "beatmap": "a.osz", "autoplay": true, "output": "C:\\preview", "hudPreview": true, "durationSeconds": 4 }""");
+
+            Assert.That(job.HudPreview, Is.True);
+            Assert.That(job.ToRenderSettings().RecordAudio, Is.False);
+            Assert.That(job.ToRenderSettings().FrameCount, Is.Not.Null);
         }
 
         [Test]

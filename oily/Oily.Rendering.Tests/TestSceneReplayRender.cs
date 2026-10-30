@@ -68,6 +68,24 @@ namespace Oily.Rendering.Tests
             AddAssert("second render matches", () => capturer.Frames, () => Is.EqualTo(firstRender));
         }
 
+        [Test]
+        public void TestMeasuresHudPieces()
+        {
+            render(new RenderSettings { FramesPerSecond = 30, Duration = TimeSpan.FromSeconds(2) });
+
+            AddAssert("HUD pieces measured", () =>
+            {
+                var hud = HudPreviewCapturer.Measure(renderScreen.Player.Hud);
+                return hud.Pieces.Count(p => p.Visible && p.Group == "global");
+            }, () => Is.GreaterThan(2));
+
+            AddAssert("origins sit inside or on their pieces", () => HudPreviewCapturer.Measure(renderScreen.Player.Hud).Pieces.Where(p => p.Visible).All(p =>
+                p.OriginX >= p.Left - 1 && p.OriginX <= p.Left + p.Width + 1 && p.OriginY >= p.Top - 1 && p.OriginY <= p.Top + p.Height + 1));
+
+            AddStep("hide gameplay", () => renderScreen.Player.HideGameplay());
+            AddAssert("HUD still measured", () => HudPreviewCapturer.Measure(renderScreen.Player.Hud).Pieces.Count(p => p.Visible), () => Is.GreaterThan(2));
+        }
+
         private void render(RenderSettings settings, params Mod[] extraMods)
         {
             startRender(settings, extraMods);
