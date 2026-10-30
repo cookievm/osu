@@ -84,16 +84,19 @@ namespace osu.Game.Screens.Play.HUD
         private readonly IBindable<LocalUserPlayingState> userPlayingState = new Bindable<LocalUserPlayingState>();
         private readonly IBindable<bool> holdingForHUD = new Bindable<bool>();
 
+        // Extra lenience is applied so the scores don't get cut off from the left due to elastic easing transforms.
+        private static readonly float x_offset = DrawableGameplayLeaderboardScore.SHEAR_WIDTH + DrawableGameplayLeaderboardScore.ELASTIC_WIDTH_LENIENCE;
+
+        // oily: lazer's own leaderboard width, before the mods column.
+        private static readonly float lazer_width = 260 + x_offset;
+
         /// <summary>
         /// Create a new leaderboard.
         /// </summary>
         public DrawableGameplayLeaderboard()
         {
-            // Extra lenience is applied so the scores don't get cut off from the left due to elastic easing transforms.
-            float xOffset = DrawableGameplayLeaderboardScore.SHEAR_WIDTH + DrawableGameplayLeaderboardScore.ELASTIC_WIDTH_LENIENCE;
-
             // oily: wider than lazer's, to leave a column on the right for each score's mods.
-            Width = 260 + xOffset + DrawableGameplayLeaderboardScore.MODS_WIDTH;
+            Width = lazer_width + DrawableGameplayLeaderboardScore.MODS_WIDTH;
             Height = 300;
 
             InternalChildren = new Drawable[]
@@ -106,7 +109,7 @@ namespace osu.Game.Screens.Play.HUD
                     {
                         Alpha = 0f,
                         RelativeSizeAxes = Axes.X,
-                        X = xOffset,
+                        X = x_offset,
                         AutoSizeAxes = Axes.Y,
                         Direction = FillDirection.Vertical,
                         Spacing = new Vector2(2.5f),
@@ -205,6 +208,10 @@ namespace osu.Game.Screens.Play.HUD
 
             // limit leaderboard dimensions to a sane minimum.
             Width = Math.Max(Width, Flow.X + DrawableGameplayLeaderboardScore.MIN_WIDTH + (ShowMods.Value ? DrawableGameplayLeaderboardScore.MODS_WIDTH : 0));
+
+            // oily: with mods shown, keep at least lazer's own row width for the scores, so accuracy and combo still fit.
+            if (ShowMods.Value)
+                Width = Math.Max(Width, lazer_width + DrawableGameplayLeaderboardScore.MODS_WIDTH);
             Height = Math.Max(Height, DrawableGameplayLeaderboardScore.PANEL_HEIGHT);
 
             requiresScroll = Flow.DrawHeight > Height;
