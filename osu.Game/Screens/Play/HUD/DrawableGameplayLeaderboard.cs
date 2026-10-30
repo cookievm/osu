@@ -42,6 +42,9 @@ namespace osu.Game.Screens.Play.HUD
         /// <summary>
         /// oily: use <see cref="BackgroundColour"/> and <see cref="PlayerColour"/> instead of lazer's colours (blue, gold for first, orange for the player).
         /// </summary>
+        [SettingSource("Show mods", "Show each score's mods on the right of its row. Only o!ily renders know the mods.")]
+        public Bindable<bool> ShowMods { get; } = new BindableBool(true);
+
         [SettingSource("Custom colours", "Use your own background colours instead of lazer's.")]
         public Bindable<bool> UseCustomColours { get; } = new BindableBool();
 
@@ -174,6 +177,7 @@ namespace osu.Game.Screens.Play.HUD
             }
 
             drawable.Expanded.BindTo(expanded);
+            drawable.ShowMods.BindTo(ShowMods);
             drawable.UseCustomColours.BindTo(UseCustomColours);
             drawable.CustomColour.BindTo(BackgroundColour);
             drawable.CustomPlayerColour.BindTo(PlayerColour);

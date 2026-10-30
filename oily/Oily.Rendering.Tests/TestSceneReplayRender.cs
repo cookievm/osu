@@ -13,6 +13,7 @@ using osu.Game.Graphics.Sprites;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu;
 using osu.Game.Rulesets.Osu.Mods;
+using osu.Game.Rulesets.UI;
 using osu.Game.Screens.Play.HUD;
 using osu.Game.Screens.Play.Leaderboards;
 using osu.Game.Skinning.Components;
@@ -158,7 +159,7 @@ namespace Oily.Rendering.Tests
             {
                 FramesPerSecond = 30,
                 Duration = TimeSpan.FromSeconds(3),
-                Leaderboard = new[] { new RenderLeaderboardEntry { Username = "someone", UserId = 2, TotalScore = 2_000_000, Pp = 100, Accuracy = 0.9, MaxCombo = 10 } },
+                Leaderboard = new[] { new RenderLeaderboardEntry { Username = "someone", UserId = 2, TotalScore = 2_000_000, Pp = 100, Accuracy = 0.9, MaxCombo = 10, Mods = new[] { "HD", "DT" } } },
             });
             AddUntilStep("wait for gameplay", () => renderScreen.Player?.Hud?.IsLoaded == true);
 
@@ -173,6 +174,10 @@ namespace Oily.Rendering.Tests
             AddUntilStep("rows shown", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().Count(), () => Is.EqualTo(2));
             AddAssert("rows use the leaderboard's settings", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>()
                                                                              .All(r => r.UseCustomColours.Value && r.CustomColour.Value == Colour4.Purple && r.BackgroundOpacity.Value == 1));
+            AddAssert("other score shows its mods", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().Single(r => !r.Tracked)
+                                                                         .ChildrenOfType<ModSwitchTiny>().Count(), () => Is.EqualTo(2));
+            AddAssert("player's autoplay isn't shown as a mod", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().Single(r => r.Tracked)
+                                                                                   .ChildrenOfType<ModSwitchTiny>().Count(), () => Is.Zero);
             AddStep("back to lazer's look", () => leaderboard.UseCustomColours.Value = false);
             AddAssert("rows follow", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().All(r => !r.UseCustomColours.Value));
         }

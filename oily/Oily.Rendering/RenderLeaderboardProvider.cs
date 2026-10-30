@@ -9,6 +9,7 @@ using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Game.Online.API.Requests.Responses;
+using osu.Game.Rulesets.Mods;
 using osu.Game.Scoring;
 using osu.Game.Screens.Play;
 using osu.Game.Screens.Play.HUD;
@@ -32,6 +33,9 @@ namespace Oily.Rendering
         public double Accuracy { get; init; }
 
         public int MaxCombo { get; init; }
+
+        /// <summary>Mod acronyms, like "HD" and "DT". Null for none.</summary>
+        public string[]? Mods { get; init; }
     }
 
     /// <summary>
@@ -73,12 +77,16 @@ namespace Oily.Rendering
                 }, false, GameplayLeaderboardScore.ComboDisplayMode.Highest);
 
                 score.PerformancePoints.Value = e.Pp ?? 0;
+                score.Mods = modsFor(e);
                 return score;
             }).ToList();
 
             if (gameplayState != null)
             {
-                tracked = new GameplayLeaderboardScore(gameplayState, tracked: true, GameplayLeaderboardScore.ComboDisplayMode.Highest);
+                tracked = new GameplayLeaderboardScore(gameplayState, tracked: true, GameplayLeaderboardScore.ComboDisplayMode.Highest)
+                {
+                    Mods = gameplayState.Mods.Where(m => m.UserPlayable).ToArray(),
+                };
                 newScores.Add(tracked);
 
                 // The player's pp so far, worked out the same way as the HUD's pp counter.
@@ -91,6 +99,15 @@ namespace Oily.Rendering
 
             SortBy.BindValueChanged(_ => Sort(), true);
             Scheduler.AddDelayed(Sort, 1000, true);
+        }
+
+        private IReadOnlyList<Mod> modsFor(RenderLeaderboardEntry entry)
+        {
+            if (entry.Mods == null || gameplayState == null)
+                return Array.Empty<Mod>();
+
+            var ruleset = gameplayState.Ruleset;
+            return entry.Mods.Select(a => ruleset.CreateModFromAcronym(a)).OfType<Mod>().ToArray();
         }
 
         /// <summary>

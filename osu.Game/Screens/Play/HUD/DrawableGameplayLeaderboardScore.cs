@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -15,7 +16,9 @@ using osu.Game.Configuration;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Online.API;
+using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
+using osu.Game.Rulesets.UI;
 using osu.Game.Screens.Play.Leaderboards;
 using osu.Game.Users;
 using osu.Game.Users.Drawables;
@@ -64,6 +67,11 @@ namespace osu.Game.Screens.Play.HUD
         /// oily: the <see cref="BackgroundOpacity"/> that gives lazer's own look.
         /// </summary>
         public const float DEFAULT_BACKGROUND_OPACITY = 0.33f;
+
+        // oily: the score's mods, shown when the leaderboard's "Show mods" setting is on.
+        public IReadOnlyList<Mod> Mods { get; }
+        public BindableBool ShowMods { get; } = new BindableBool();
+        private FillFlowContainer modsFlow = null!;
 
         // oily: the leaderboard's own colours and background opacity, from its skin settings.
         public BindableBool UseCustomColours { get; } = new BindableBool();
@@ -134,6 +142,7 @@ namespace osu.Game.Screens.Play.HUD
             PerformancePoints.BindTo(score.PerformancePoints);
             ShowPerformancePoints.BindTo(score.ShowPerformancePoints);
             GetDisplayScore = score.GetDisplayScore;
+            Mods = score.Mods;
 
             if (score.TeamColour != null)
                 BackgroundColour = score.TeamColour.Value;
@@ -282,6 +291,7 @@ namespace osu.Game.Screens.Play.HUD
                                         {
                                             new Dimension(),
                                             new Dimension(GridSizeMode.AutoSize),
+                                            new Dimension(GridSizeMode.AutoSize),
                                         },
                                         RowDimensions = new[]
                                         {
@@ -289,7 +299,7 @@ namespace osu.Game.Screens.Play.HUD
                                         },
                                         Content = new[]
                                         {
-                                            new[]
+                                            new Drawable[]
                                             {
                                                 scoreText = new TruncatingSpriteText
                                                 {
@@ -297,6 +307,21 @@ namespace osu.Game.Screens.Play.HUD
                                                     Origin = Anchor.BottomLeft,
                                                     Font = OsuFont.Style.Body.With(weight: FontWeight.Regular),
                                                     RelativeSizeAxes = Axes.X,
+                                                },
+                                                // oily: the score's mods, as small badges.
+                                                modsFlow = new FillFlowContainer
+                                                {
+                                                    Anchor = Anchor.BottomRight,
+                                                    Origin = Anchor.BottomRight,
+                                                    AutoSizeAxes = Axes.Both,
+                                                    Direction = FillDirection.Horizontal,
+                                                    Spacing = new Vector2(1),
+                                                    Margin = new MarginPadding { Horizontal = 4, Bottom = 1 },
+                                                    ChildrenEnumerable = Mods.Select(m => new ModSwitchTiny(m)
+                                                    {
+                                                        Active = { Value = true },
+                                                        Scale = new Vector2(0.4f),
+                                                    }),
                                                 },
                                                 comboText = new OsuSpriteText
                                                 {
@@ -336,6 +361,8 @@ namespace osu.Game.Screens.Play.HUD
 
             HasQuit.BindValueChanged(_ => updatePanelState());
             ScorePosition.BindValueChanged(_ => updatePanelState(), true);
+
+            ShowMods.BindValueChanged(v => modsFlow.Alpha = v.NewValue ? 1 : 0, true);
 
             UseCustomColours.BindValueChanged(_ => updatePanelState());
             CustomColour.BindValueChanged(_ => updatePanelState());

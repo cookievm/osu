@@ -2,10 +2,12 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Game.Online.Rooms;
 using osu.Game.Online.Spectator;
+using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
 using osu.Game.Scoring.Legacy;
@@ -98,6 +100,11 @@ namespace osu.Game.Screens.Play.Leaderboards
         /// oily: whether the leaderboard shows <see cref="PerformancePoints"/> instead of the score.
         /// </summary>
         public BindableBool ShowPerformancePoints { get; } = new BindableBool();
+
+        /// <summary>
+        /// oily: the score's mods, for leaderboards that show them. Only set by providers that know them.
+        /// </summary>
+        public IReadOnlyList<Mod> Mods { get; set; } = Array.Empty<Mod>();
 
         public GameplayLeaderboardScore(GameplayState gameplayState, bool tracked, ComboDisplayMode comboMode)
         {
