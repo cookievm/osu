@@ -68,6 +68,13 @@ namespace osu.Game.Screens.Play.HUD
         /// </summary>
         public const float DEFAULT_BACKGROUND_OPACITY = 0.33f;
 
+        /// <summary>
+        /// oily: room on the right of each row for its mods, when the leaderboard shows them. About four icons.
+        /// </summary>
+        public const float MODS_WIDTH = 76;
+
+        private const float MOD_ICON_SCALE = 0.22f;
+
         // oily: the score's mods, shown when the leaderboard's "Show mods" setting is on.
         public IReadOnlyList<Mod> Mods { get; }
         public BindableBool ShowMods { get; } = new BindableBool();
@@ -162,7 +169,23 @@ namespace osu.Game.Screens.Play.HUD
 
             Container avatarLayer;
 
-            InternalChild = scorePanel = new FillFlowContainer
+            AddInternal(modsFlow = new FillFlowContainer
+            {
+                // oily: the score's mods as lazer's own icons, in the column right of the panel (see MODS_WIDTH).
+                Anchor = Anchor.CentreRight,
+                Origin = Anchor.CentreLeft,
+                X = -MODS_WIDTH + 4,
+                AutoSizeAxes = Axes.Both,
+                Direction = FillDirection.Horizontal,
+                Spacing = new Vector2(1),
+                Shear = -OsuGame.SHEAR,
+                ChildrenEnumerable = Mods.Select(m => new ModIcon(m, showTooltip: false, showExtendedInformation: false)
+                {
+                    Scale = new Vector2(MOD_ICON_SCALE),
+                }),
+            });
+
+            AddInternal(scorePanel = new FillFlowContainer
             {
                 CornerRadius = corner_radius,
                 BorderThickness = 2f,
@@ -291,7 +314,6 @@ namespace osu.Game.Screens.Play.HUD
                                         {
                                             new Dimension(),
                                             new Dimension(GridSizeMode.AutoSize),
-                                            new Dimension(GridSizeMode.AutoSize),
                                         },
                                         RowDimensions = new[]
                                         {
@@ -299,7 +321,7 @@ namespace osu.Game.Screens.Play.HUD
                                         },
                                         Content = new[]
                                         {
-                                            new Drawable[]
+                                            new[]
                                             {
                                                 scoreText = new TruncatingSpriteText
                                                 {
@@ -307,21 +329,6 @@ namespace osu.Game.Screens.Play.HUD
                                                     Origin = Anchor.BottomLeft,
                                                     Font = OsuFont.Style.Body.With(weight: FontWeight.Regular),
                                                     RelativeSizeAxes = Axes.X,
-                                                },
-                                                // oily: the score's mods, as small badges.
-                                                modsFlow = new FillFlowContainer
-                                                {
-                                                    Anchor = Anchor.BottomRight,
-                                                    Origin = Anchor.BottomRight,
-                                                    AutoSizeAxes = Axes.Both,
-                                                    Direction = FillDirection.Horizontal,
-                                                    Spacing = new Vector2(1),
-                                                    Margin = new MarginPadding { Horizontal = 4, Bottom = 1 },
-                                                    ChildrenEnumerable = Mods.Select(m => new ModSwitchTiny(m)
-                                                    {
-                                                        Active = { Value = true },
-                                                        Scale = new Vector2(0.4f),
-                                                    }),
                                                 },
                                                 comboText = new OsuSpriteText
                                                 {
@@ -338,7 +345,7 @@ namespace osu.Game.Screens.Play.HUD
                     },
                     avatarLayer.CreateProxy(),
                 }
-            };
+            });
         }
 
         protected override void LoadComplete()
@@ -362,7 +369,11 @@ namespace osu.Game.Screens.Play.HUD
             HasQuit.BindValueChanged(_ => updatePanelState());
             ScorePosition.BindValueChanged(_ => updatePanelState(), true);
 
-            ShowMods.BindValueChanged(v => modsFlow.Alpha = v.NewValue ? 1 : 0, true);
+            ShowMods.BindValueChanged(v =>
+            {
+                modsFlow.Alpha = v.NewValue ? 1 : 0;
+                drawSizeLayout.Invalidate();
+            }, true);
 
             UseCustomColours.BindValueChanged(_ => updatePanelState());
             CustomColour.BindValueChanged(_ => updatePanelState());
@@ -469,7 +480,7 @@ namespace osu.Game.Screens.Play.HUD
             scoreText.Alpha = showUsernameAndScore ? 1 : 0;
         }
 
-        private float computeRightLayerWidth() => Math.Max(0, DrawWidth - extended_left_panel_width - avatar_size / 2);
+        private float computeRightLayerWidth() => Math.Max(0, DrawWidth - extended_left_panel_width - avatar_size / 2 - (ShowMods.Value ? MODS_WIDTH : 0));
 
         private partial class ScoreAvatar : CompositeDrawable
         {

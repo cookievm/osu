@@ -92,7 +92,8 @@ namespace osu.Game.Screens.Play.HUD
             // Extra lenience is applied so the scores don't get cut off from the left due to elastic easing transforms.
             float xOffset = DrawableGameplayLeaderboardScore.SHEAR_WIDTH + DrawableGameplayLeaderboardScore.ELASTIC_WIDTH_LENIENCE;
 
-            Width = 260 + xOffset;
+            // oily: wider than lazer's, to leave a column on the right for each score's mods.
+            Width = 260 + xOffset + DrawableGameplayLeaderboardScore.MODS_WIDTH;
             Height = 300;
 
             InternalChildren = new Drawable[]
@@ -203,7 +204,7 @@ namespace osu.Game.Screens.Play.HUD
             base.Update();
 
             // limit leaderboard dimensions to a sane minimum.
-            Width = Math.Max(Width, Flow.X + DrawableGameplayLeaderboardScore.MIN_WIDTH);
+            Width = Math.Max(Width, Flow.X + DrawableGameplayLeaderboardScore.MIN_WIDTH + (ShowMods.Value ? DrawableGameplayLeaderboardScore.MODS_WIDTH : 0));
             Height = Math.Max(Height, DrawableGameplayLeaderboardScore.PANEL_HEIGHT);
 
             requiresScroll = Flow.DrawHeight > Height;

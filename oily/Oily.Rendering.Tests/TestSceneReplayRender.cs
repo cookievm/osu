@@ -175,9 +175,9 @@ namespace Oily.Rendering.Tests
             AddAssert("rows use the leaderboard's settings", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>()
                                                                              .All(r => r.UseCustomColours.Value && r.CustomColour.Value == Colour4.Purple && r.BackgroundOpacity.Value == 1));
             AddAssert("other score shows its mods", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().Single(r => !r.Tracked)
-                                                                         .ChildrenOfType<ModSwitchTiny>().Count(), () => Is.EqualTo(2));
+                                                                         .ChildrenOfType<ModIcon>().Count(), () => Is.EqualTo(2));
             AddAssert("player's autoplay isn't shown as a mod", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().Single(r => r.Tracked)
-                                                                                   .ChildrenOfType<ModSwitchTiny>().Count(), () => Is.Zero);
+                                                                                   .ChildrenOfType<ModIcon>().Count(), () => Is.Zero);
             AddStep("back to lazer's look", () => leaderboard.UseCustomColours.Value = false);
             AddAssert("rows follow", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().All(r => !r.UseCustomColours.Value));
         }
