@@ -839,6 +839,28 @@ namespace osu.Game
         protected virtual Screen CreateReplayRenderScreen(Score score) => null;
 
         /// <summary>
+        /// Renders a score that isn't in the database, such as an autoplay one. Its <see cref="ScoreInfo.BeatmapInfo"/> must be imported.
+        /// </summary>
+        public void PresentRender(Score score)
+        {
+            var beatmap = score.ScoreInfo.BeatmapInfo;
+            Debug.Assert(beatmap != null);
+
+            PerformFromScreen(screen =>
+            {
+                if (!Ruleset.Value.Equals(score.ScoreInfo.Ruleset))
+                    Ruleset.Value = score.ScoreInfo.Ruleset;
+
+                if (!Beatmap.Value.BeatmapInfo.Equals(beatmap))
+                    Beatmap.Value = BeatmapManager.GetWorkingBeatmap(beatmap);
+
+                var renderScreen = CreateReplayRenderScreen(score);
+                if (renderScreen != null)
+                    screen.Push(renderScreen);
+            });
+        }
+
+        /// <summary>
         /// Present a score's replay immediately.
         /// The user should have already requested this interactively.
         /// </summary>
