@@ -32,7 +32,12 @@ jobs:
 
       - name: Zip
         shell: pwsh
-        run: Compress-Archive -Path publish\* -DestinationPath oily-engine-win-x64.zip
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          # The companion's setup wizard downloads the zip directly, so the zip says which version it is.
+          Set-Content -Path publish\oily-engine-version.txt -Value $env:TAG -NoNewline
+          Compress-Archive -Path publish\* -DestinationPath oily-engine-win-x64.zip
 
       - name: Release
         shell: pwsh
