@@ -76,6 +76,11 @@ namespace Oily.Rendering
         /// </summary>
         public int? PlayerGlobalRank { get; init; }
 
+        /// <summary>
+        /// The map's top scores from osu!, looked up by the companion app, for the HUD's leaderboard. Empty shows only the player.
+        /// </summary>
+        public RenderLeaderboardEntry[]? Leaderboard { get; init; }
+
         /// <summary>Overall volume of the video's audio, 0 to 100.</summary>
         public int MasterVolume { get; init; } = 100;
 
@@ -253,6 +258,7 @@ namespace Oily.Rendering
             RecordAudio = Audio && !HudPreview,
             AkatsukiPp = AkatsukiPp,
             PlayerGlobalRank = PlayerGlobalRank,
+            Leaderboard = Leaderboard ?? Array.Empty<RenderLeaderboardEntry>(),
             CaptureSize = new System.Drawing.Size(Width, Height),
             GpuColourConversion = ColourConversion == "gpu",
             Duration = DurationSeconds is double seconds ? TimeSpan.FromSeconds(seconds) : null,

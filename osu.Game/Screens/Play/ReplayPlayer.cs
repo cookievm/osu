@@ -34,8 +34,9 @@ namespace osu.Game.Screens.Play
 
         private readonly Func<IBeatmap, IReadOnlyList<Mod>, Score> createScore;
 
+        // oily: renders bring their own leaderboard. See CreateLeaderboardProvider().
         [Cached(typeof(IGameplayLeaderboardProvider))]
-        private readonly SoloGameplayLeaderboardProvider leaderboardProvider = new SoloGameplayLeaderboardProvider();
+        protected readonly Drawable LeaderboardProvider;
 
         protected override UserActivity? InitialActivity =>
             // score may be null if LoadedBeatmapSuccessfully is false.
@@ -79,7 +80,14 @@ namespace osu.Game.Screens.Play
         {
             this.createScore = createScore;
             Configuration.ShowLeaderboard = true;
+            LeaderboardProvider = CreateLeaderboardProvider();
         }
+
+        /// <summary>
+        /// oily: the leaderboard shown during the replay. Must be a <see cref="Drawable"/> that is an <see cref="IGameplayLeaderboardProvider"/>.
+        /// Called from the constructor, so it can't use anything set up by a subclass's constructor.
+        /// </summary>
+        protected virtual Drawable CreateLeaderboardProvider() => new SoloGameplayLeaderboardProvider();
 
         /// <summary>
         /// Add a settings group to the HUD overlay. Intended to be used by rulesets to add replay-specific settings.
@@ -93,7 +101,7 @@ namespace osu.Game.Screens.Play
             if (!LoadedBeatmapSuccessfully)
                 return;
 
-            AddInternal(leaderboardProvider);
+            AddInternal(LeaderboardProvider);
 
             GameplayClockContainer.Add(ReplayOverlay = new ReplayOverlay());
 

@@ -60,6 +60,10 @@ namespace osu.Game.Screens.Play.HUD
         public Bindable<int?> ScorePosition { get; } = new Bindable<int?>();
         public Bindable<long> DisplayOrder { get; } = new Bindable<long>();
 
+        // oily: leaderboards sorted by pp show it instead of the score.
+        public BindableDouble PerformancePoints { get; } = new BindableDouble();
+        public BindableBool ShowPerformancePoints { get; } = new BindableBool();
+
         private Func<ScoringMode, long>? getDisplayScoreFunction;
 
         public Func<ScoringMode, long> GetDisplayScore
@@ -116,6 +120,8 @@ namespace osu.Game.Screens.Play.HUD
             HasQuit.BindTo(score.HasQuit);
             ScorePosition.BindTo(score.Position);
             DisplayOrder.BindTo(score.DisplayOrder);
+            PerformancePoints.BindTo(score.PerformancePoints);
+            ShowPerformancePoints.BindTo(score.ShowPerformancePoints);
             GetDisplayScore = score.GetDisplayScore;
 
             if (score.TeamColour != null)
@@ -308,6 +314,8 @@ namespace osu.Game.Screens.Play.HUD
             scoreDisplayMode = config.GetBindable<ScoringMode>(OsuSetting.ScoreDisplayMode);
             scoreDisplayMode.BindValueChanged(_ => updateScore());
             TotalScore.BindValueChanged(_ => updateScore(), true);
+            PerformancePoints.BindValueChanged(_ => updateScore());
+            ShowPerformancePoints.BindValueChanged(_ => updateScore(), true);
 
             Accuracy.BindValueChanged(v => accuracyText.Text = v.NewValue.FormatAccuracy(), true);
 
@@ -321,7 +329,9 @@ namespace osu.Game.Screens.Play.HUD
             FinishTransforms(true);
         }
 
-        private void updateScore() => scoreText.Text = (getDisplayScoreFunction?.Invoke(scoreDisplayMode.Value) ?? TotalScore.Value).ToString("N0");
+        private void updateScore() => scoreText.Text = ShowPerformancePoints.Value
+            ? $@"{Math.Round(PerformancePoints.Value):N0}pp"
+            : (getDisplayScoreFunction?.Invoke(scoreDisplayMode.Value) ?? TotalScore.Value).ToString("N0");
 
         private void onExpanded(ValueChangedEvent<bool> expanded)
         {

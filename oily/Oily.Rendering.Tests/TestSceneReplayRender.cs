@@ -14,6 +14,7 @@ using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Screens.Play.HUD;
+using osu.Game.Screens.Play.Leaderboards;
 using osu.Game.Skinning.Components;
 using osu.Game.Tests.Visual;
 using osuTK.Input;
@@ -110,6 +111,34 @@ namespace Oily.Rendering.Tests
             AddAssert("rank shows", () => rank.ChildrenOfType<OsuSpriteText>().Single().Text.ToString(), () => Is.EqualTo("#12,345"));
             AddUntilStep("wait for render to finish", () => renderScreen.Completed);
             AddAssert("rank cleared after the render", () => PlayerGlobalRank.Current, () => Is.Null);
+        }
+
+        [Test]
+        public void TestLeaderboardSortsByScoreOrPp()
+        {
+            RenderLeaderboardProvider provider = null!;
+
+            startRender(new RenderSettings
+            {
+                FramesPerSecond = 30,
+                Duration = TimeSpan.FromSeconds(4),
+                Leaderboard = new[]
+                {
+                    new RenderLeaderboardEntry { Username = "high score", UserId = 2, TotalScore = 2_000_000, Pp = 1, Accuracy = 0.9, MaxCombo = 10 },
+                    new RenderLeaderboardEntry { Username = "high pp", UserId = 3, TotalScore = 1, Pp = 5000, Accuracy = 1, MaxCombo = 10 },
+                },
+            });
+
+            AddUntilStep("wait for leaderboard", () => (provider = renderScreen.Player?.ChildrenOfType<RenderLeaderboardProvider>().SingleOrDefault()!) != null && provider.IsLoaded);
+            AddAssert("player is on it", () => provider.Scores.Count, () => Is.EqualTo(3));
+            AddUntilStep("player has pp", () => provider.Scores.Single(s => s.Tracked).PerformancePoints.Value, () => Is.GreaterThan(0));
+
+            AddStep("sort by score", () => provider.Sort());
+            AddAssert("high score first", () => provider.Scores.Single(s => s.DisplayOrder.Value == 1).User.Username, () => Is.EqualTo("high score"));
+
+            AddStep("sort by pp", () => provider.SortBy.Value = GameplayLeaderboardSort.PerformancePoints);
+            AddAssert("high pp first", () => provider.Scores.Single(s => s.DisplayOrder.Value == 1).User.Username, () => Is.EqualTo("high pp"));
+            AddAssert("pp shown", () => provider.Scores.All(s => s.ShowPerformancePoints.Value));
         }
 
         private void render(RenderSettings settings, params Mod[] extraMods)

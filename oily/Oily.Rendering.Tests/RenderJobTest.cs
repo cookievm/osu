@@ -92,6 +92,9 @@ namespace Oily.Rendering.Tests
             var job = RenderJob.Parse("""{ "replay": "a.osr", "output": "a.mp4", "playerGlobalRank": 12345 }""");
 
             Assert.That(job.ToRenderSettings().PlayerGlobalRank, Is.EqualTo(12345));
+
+            var withLeaderboard = RenderJob.Parse("""{ "replay": "a.osr", "output": "a.mp4", "leaderboard": [ { "username": "peppy", "userId": 2, "totalScore": 900000, "pp": 727.5, "accuracy": 0.99, "maxCombo": 1234 } ] }""");
+            Assert.That(withLeaderboard.ToRenderSettings().Leaderboard.Single(), Is.EqualTo(new RenderLeaderboardEntry { Username = "peppy", UserId = 2, TotalScore = 900000, Pp = 727.5, Accuracy = 0.99, MaxCombo = 1234 }));
             Assert.That(RenderJob.Parse("""{ "replay": "a.osr", "output": "a.mp4" }""").ToRenderSettings().PlayerGlobalRank, Is.Null);
         }
 

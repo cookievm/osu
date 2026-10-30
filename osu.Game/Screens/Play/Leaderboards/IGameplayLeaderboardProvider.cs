@@ -19,6 +19,25 @@ namespace osu.Game.Screens.Play.Leaderboards
         IBindableList<GameplayLeaderboardScore> Scores { get; }
     }
 
+    /// <summary>
+    /// oily: a leaderboard that can be sorted by something other than score, set by the leaderboard's "Sort by" setting.
+    /// </summary>
+    public interface ISortableGameplayLeaderboardProvider : IGameplayLeaderboardProvider
+    {
+        Bindable<GameplayLeaderboardSort> SortBy { get; }
+    }
+
+    /// <summary>
+    /// oily: what a gameplay leaderboard is sorted by.
+    /// </summary>
+    public enum GameplayLeaderboardSort
+    {
+        Score,
+
+        [System.ComponentModel.Description("pp")]
+        PerformancePoints,
+    }
+
     public class EmptyGameplayLeaderboardProvider : IGameplayLeaderboardProvider
     {
         public IBindableList<GameplayLeaderboardScore> Scores { get; } = new BindableList<GameplayLeaderboardScore>();

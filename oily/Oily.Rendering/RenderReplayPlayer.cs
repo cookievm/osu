@@ -3,6 +3,7 @@
 
 using System;
 using System.Linq;
+using osu.Framework.Graphics;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Scoring;
@@ -53,7 +54,10 @@ namespace Oily.Rendering
             })
         {
             this.settings = settings;
+            ((RenderLeaderboardProvider)LeaderboardProvider).Entries = settings.Leaderboard;
         }
+
+        protected override Drawable CreateLeaderboardProvider() => new RenderLeaderboardProvider();
 
         protected override GameplayClockContainer CreateGameplayClockContainer(WorkingBeatmap beatmap, double gameplayStart)
         {
