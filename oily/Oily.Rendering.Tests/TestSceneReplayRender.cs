@@ -99,7 +99,8 @@ namespace Oily.Rendering.Tests
             ArgonIfFcPerformancePointsCounter ifFc = null!;
             GlobalRankDisplay rank = null!;
 
-            startRender(new RenderSettings { FramesPerSecond = 30, Duration = TimeSpan.FromSeconds(4), PlayerGlobalRank = 12345 });
+            // No set length: on a fast runner a short render can finish before the pp counter has a value.
+            startRender(new RenderSettings { FramesPerSecond = 30, Duration = null, PlayerGlobalRank = 12345 });
             AddUntilStep("wait for gameplay", () => renderScreen.Player?.Hud?.IsLoaded == true);
 
             AddStep("add pieces", () => renderScreen.Player.Hud.AddRange(new Drawable[]
@@ -110,7 +111,8 @@ namespace Oily.Rendering.Tests
 
             AddUntilStep("pp if FC counts", () => ifFc.Current.Value, () => Is.GreaterThan(0));
             AddAssert("rank shows", () => rank.ChildrenOfType<OsuSpriteText>().Single().Text.ToString(), () => Is.EqualTo("#12,345"));
-            AddUntilStep("wait for render to finish", () => renderScreen.Completed);
+            AddStep("stop render", () => InputManager.Key(Key.Escape));
+            AddUntilStep("render screen exited", () => !renderScreen.IsCurrentScreen());
             AddAssert("rank cleared after the render", () => PlayerGlobalRank.Current, () => Is.Null);
         }
 
