@@ -22,9 +22,9 @@ namespace Oily.Rendering
     /// </summary>
     public class HudPreviewCapturer : IFrameCapturer
     {
-        private static readonly JsonSerializerOptions index_json = new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-
         public const string INDEX_FILE = "hud.json";
+
+        private static readonly JsonSerializerOptions json_options = new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
         private readonly ReplayRenderScreen screen;
         private readonly string folder;
@@ -145,7 +145,7 @@ namespace Oily.Rendering
                 }
             }
 
-            File.WriteAllText(Path.Combine(folder, INDEX_FILE), JsonSerializer.Serialize(hud, index_json));
+            File.WriteAllText(Path.Combine(folder, INDEX_FILE), JsonSerializer.Serialize(hud, json_options));
         }
 
         /// <summary>

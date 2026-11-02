@@ -100,20 +100,30 @@ namespace Oily.Rendering.Tests
             ArgonIfFcPerformancePointsCounter ifFc = null!;
             GlobalRankDisplay rank = null!;
 
-            // No set length: on a fast runner a short render can finish before the pp counter has a value.
-            startRender(new RenderSettings { FramesPerSecond = 30, Duration = null, PlayerGlobalRank = 12345 });
+            int highestIfFc = 0;
+            string? rankText = null;
+
+            // Renders run faster than real time (a 4 s one can be over in under a second), and pp is worked out in the background,
+            // so the render covers plenty of gameplay (at a low frame rate, to stay quick) for that to catch up,
+            // and the values are kept as they show, not read after the render ends.
+            startRender(new RenderSettings { FramesPerSecond = 5, Duration = TimeSpan.FromSeconds(20), PlayerGlobalRank = 12345 });
             AddUntilStep("wait for gameplay", () => renderScreen.Player?.Hud?.IsLoaded == true);
 
-            AddStep("add pieces", () => renderScreen.Player.Hud.AddRange(new Drawable[]
+            AddStep("add pieces", () =>
             {
-                ifFc = new ArgonIfFcPerformancePointsCounter(),
-                rank = new GlobalRankDisplay(),
-            }));
+                renderScreen.Player.Hud.AddRange(new Drawable[]
+                {
+                    ifFc = new ArgonIfFcPerformancePointsCounter(),
+                    rank = new GlobalRankDisplay(),
+                });
 
-            AddUntilStep("pp if FC counts", () => ifFc.Current.Value, () => Is.GreaterThan(0));
-            AddAssert("rank shows", () => rank.ChildrenOfType<OsuSpriteText>().Single().Text.ToString(), () => Is.EqualTo("#12,345"));
-            AddStep("stop render", () => InputManager.Key(Key.Escape));
-            AddUntilStep("render screen exited", () => !renderScreen.IsCurrentScreen());
+                ifFc.Current.BindValueChanged(v => highestIfFc = Math.Max(highestIfFc, v.NewValue));
+                rankText = rank.ChildrenOfType<OsuSpriteText>().Single().Text.ToString();
+            });
+
+            AddUntilStep("wait for render to finish", () => renderScreen.Completed);
+            AddAssert("pp if FC counted", () => highestIfFc, () => Is.GreaterThan(0));
+            AddAssert("rank showed", () => rankText, () => Is.EqualTo("#12,345"));
             AddAssert("rank cleared after the render", () => PlayerGlobalRank.Current, () => Is.Null);
         }
 
