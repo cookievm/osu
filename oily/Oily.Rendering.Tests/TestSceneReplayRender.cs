@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Shapes;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
 using osu.Game.Graphics.Sprites;
@@ -45,9 +46,9 @@ namespace Oily.Rendering.Tests
         [Test]
         public void TestDoubleTimeAdvancesFaster()
         {
-            render(new RenderSettings { FramesPerSecond = 60, Duration = TimeSpan.FromSeconds(3) }, new OsuModDoubleTime());
+            render(new RenderSettings { FramesPerSecond = 60, Duration = TimeSpan.FromSeconds(1.5) }, new OsuModDoubleTime());
 
-            AddAssert("all frames captured", () => capturer.Frames, () => Has.Count.EqualTo(180));
+            AddAssert("all frames captured", () => capturer.Frames, () => Has.Count.EqualTo(90));
             assertGameplayAdvancesBy(60, 1.5);
             AddAssert("replay hit objects", () => renderScreen.Player.GameplayState.ScoreProcessor.TotalScore.Value, () => Is.GreaterThan(0));
         }
@@ -99,7 +100,8 @@ namespace Oily.Rendering.Tests
             ArgonIfFcPerformancePointsCounter ifFc = null!;
             GlobalRankDisplay rank = null!;
 
-            startRender(new RenderSettings { FramesPerSecond = 30, Duration = TimeSpan.FromSeconds(4), PlayerGlobalRank = 12345 });
+            // No set length: on a fast runner a short render can finish before the pp counter has a value.
+            startRender(new RenderSettings { FramesPerSecond = 30, Duration = null, PlayerGlobalRank = 12345 });
             AddUntilStep("wait for gameplay", () => renderScreen.Player?.Hud?.IsLoaded == true);
 
             AddStep("add pieces", () => renderScreen.Player.Hud.AddRange(new Drawable[]
@@ -110,7 +112,8 @@ namespace Oily.Rendering.Tests
 
             AddUntilStep("pp if FC counts", () => ifFc.Current.Value, () => Is.GreaterThan(0));
             AddAssert("rank shows", () => rank.ChildrenOfType<OsuSpriteText>().Single().Text.ToString(), () => Is.EqualTo("#12,345"));
-            AddUntilStep("wait for render to finish", () => renderScreen.Completed);
+            AddStep("stop render", () => InputManager.Key(Key.Escape));
+            AddUntilStep("render screen exited", () => !renderScreen.IsCurrentScreen());
             AddAssert("rank cleared after the render", () => PlayerGlobalRank.Current, () => Is.Null);
         }
 
@@ -169,6 +172,7 @@ namespace Oily.Rendering.Tests
                 BackgroundColour = { Value = Colour4.Purple },
                 PlayerColour = { Value = Colour4.Red },
                 BackgroundOpacity = { Value = 1 },
+                PlayerHighlightOpacity = { Value = 0.5f },
             }));
 
             AddUntilStep("rows shown", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().Count(), () => Is.EqualTo(2));
@@ -178,6 +182,11 @@ namespace Oily.Rendering.Tests
                                                                          .ChildrenOfType<ModIcon>().Count(), () => Is.EqualTo(2));
             AddAssert("player's autoplay isn't shown as a mod", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().Single(r => r.Tracked)
                                                                                    .ChildrenOfType<ModIcon>().Count(), () => Is.Zero);
+            AddAssert("only the player's row has the highlight bar", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>()
+                                                                                    .Select(r => r.ChildrenOfType<Box>().Any(b => b.Width == 5 && b.Alpha == 0.5f)),
+                () => Is.EquivalentTo(new[] { true, false }));
+            AddStep("hide the highlight", () => leaderboard.PlayerHighlightOpacity.Value = 0);
+            AddAssert("no row has it", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().All(r => !r.ChildrenOfType<Box>().Any(b => b.Width == 5 && b.Alpha > 0)));
             AddStep("back to lazer's look", () => leaderboard.UseCustomColours.Value = false);
             AddAssert("rows follow", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().All(r => !r.UseCustomColours.Value));
         }
@@ -185,6 +194,9 @@ namespace Oily.Rendering.Tests
         private void render(RenderSettings settings, params Mod[] extraMods)
         {
             startRender(settings, extraMods);
+
+            // Each wait gets the framework's 10 s on its own, so a cold load on a slow CI runner doesn't eat into the render's time.
+            AddUntilStep("wait for render to start", () => renderScreen.Completed || renderScreen.FramesCaptured > 0);
             AddUntilStep("wait for render to finish", () => renderScreen.Completed);
         }
 

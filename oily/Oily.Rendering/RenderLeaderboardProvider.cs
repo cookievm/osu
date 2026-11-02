@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
-using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Game.Online.API.Requests.Responses;
 using osu.Game.Rulesets.Mods;
@@ -47,7 +46,7 @@ namespace Oily.Rendering
         /// <summary>
         /// How many scores the companion app sends: the top of the map's leaderboard. A player below all of them has no known position.
         /// </summary>
-        public const int MAX_ENTRIES = 50;
+        public const int MAX_ENTRIES = 100;
 
         public IBindableList<GameplayLeaderboardScore> Scores => scores;
         private readonly BindableList<GameplayLeaderboardScore> scores = new BindableList<GameplayLeaderboardScore>();

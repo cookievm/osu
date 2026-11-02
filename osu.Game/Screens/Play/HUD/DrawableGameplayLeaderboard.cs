@@ -71,6 +71,20 @@ namespace osu.Game.Screens.Play.HUD
             Precision = 0.01f,
         };
 
+        /// <summary>
+        /// oily: the bar down the left edge of the player's own row.
+        /// </summary>
+        [SettingSource("Player highlight colour", "The colour of the bar marking the player's own row.")]
+        public BindableColour4 PlayerHighlightColour { get; } = new BindableColour4(Colour4.FromHex(@"ff66ab"));
+
+        [SettingSource("Player highlight opacity", "How solid the bar marking the player's own row is. 0 hides it.")]
+        public BindableFloat PlayerHighlightOpacity { get; } = new BindableFloat(1)
+        {
+            MinValue = 0,
+            MaxValue = 1,
+            Precision = 0.01f,
+        };
+
         private readonly Bindable<bool> expanded = new BindableBool();
 
         [Resolved]
@@ -186,6 +200,8 @@ namespace osu.Game.Screens.Play.HUD
             drawable.CustomColour.BindTo(BackgroundColour);
             drawable.CustomPlayerColour.BindTo(PlayerColour);
             drawable.BackgroundOpacity.BindTo(BackgroundOpacity);
+            drawable.HighlightColour.BindTo(PlayerHighlightColour);
+            drawable.HighlightOpacity.BindTo(PlayerHighlightOpacity);
 
             Flow.Add(drawable);
             drawable.ScorePosition.BindValueChanged(_ => Scheduler.AddOnce(sort));
