@@ -24,6 +24,8 @@ namespace Oily.Rendering
     {
         public const string INDEX_FILE = "hud.json";
 
+        private static readonly JsonSerializerOptions json_options = new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
         private readonly ReplayRenderScreen screen;
         private readonly string folder;
         private readonly int frameCount;
@@ -143,7 +145,7 @@ namespace Oily.Rendering
                 }
             }
 
-            File.WriteAllText(Path.Combine(folder, INDEX_FILE), JsonSerializer.Serialize(hud, new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+            File.WriteAllText(Path.Combine(folder, INDEX_FILE), JsonSerializer.Serialize(hud, json_options));
         }
 
         /// <summary>
