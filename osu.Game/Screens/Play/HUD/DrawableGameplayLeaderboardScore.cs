@@ -89,6 +89,17 @@ namespace osu.Game.Screens.Play.HUD
         public BindableColour4 CustomPlayerColour { get; } = new BindableColour4();
         public BindableFloat BackgroundOpacity { get; } = new BindableFloat(DEFAULT_BACKGROUND_OPACITY);
 
+        // oily: the coloured bar down the left edge of the player's own row.
+        public BindableColour4 HighlightColour { get; } = new BindableColour4();
+        public BindableFloat HighlightOpacity { get; } = new BindableFloat();
+
+        /// <summary>
+        /// oily: how wide the bar marking the player's own row is.
+        /// </summary>
+        private const float highlight_width = 5;
+
+        private Box highlightBar = null!;
+
         // oily: each score's pp, shown over its accuracy. ShowPerformancePoints only says the leaderboard is sorted by pp.
         public BindableDouble PerformancePoints { get; } = new BindableDouble();
         public BindableBool ShowPerformancePoints { get; } = new BindableBool();
@@ -214,6 +225,12 @@ namespace osu.Game.Screens.Play.HUD
                             leftLayerGradient = new Box
                             {
                                 RelativeSizeAxes = Axes.Both,
+                            },
+                            highlightBar = new Box
+                            {
+                                RelativeSizeAxes = Axes.Y,
+                                Width = highlight_width,
+                                Alpha = 0,
                             },
                             new Container
                             {
@@ -381,6 +398,9 @@ namespace osu.Game.Screens.Play.HUD
             CustomPlayerColour.BindValueChanged(_ => updatePanelState());
             BackgroundOpacity.BindValueChanged(_ => updatePanelState(), true);
 
+            HighlightColour.BindValueChanged(_ => updateHighlight());
+            HighlightOpacity.BindValueChanged(_ => updateHighlight(), true);
+
             FinishTransforms(true);
         }
 
@@ -410,7 +430,6 @@ namespace osu.Game.Screens.Play.HUD
             positionText.Text = ScorePosition.Value.HasValue ? $"#{ScorePosition.Value.Value.FormatRank()}" : "-";
 
             Color4 usernameColour = Color4.White;
-            bool widthExtension = false;
 
             if (HasQuit.Value)
             {
@@ -419,18 +438,15 @@ namespace osu.Game.Screens.Play.HUD
             }
             else if (UseCustomColours.Value)
             {
-                // oily: the leaderboard's own colours. First place keeps its wider panel.
-                widthExtension = Tracked || ScorePosition.Value == 1;
+                // oily: the leaderboard's own colours.
                 setPanelColour(Tracked ? CustomPlayerColour.Value : CustomColour.Value);
             }
             else if (ScorePosition.Value == 1)
             {
-                widthExtension = true;
                 setPanelColour(BackgroundColour ?? colours.Lime2);
             }
             else if (Tracked)
             {
-                widthExtension = true;
                 setPanelColour(BackgroundColour ?? colours.Orange2);
             }
             else if (isFriend)
@@ -443,8 +459,15 @@ namespace osu.Game.Screens.Play.HUD
 
             usernameText.FadeColour(usernameColour, text_transition_duration, Easing.OutQuint);
 
-            scorePanel.MoveToX(widthExtension ? 0 : left_panel_extension_width, panel_transition_duration, Easing.OutElastic);
-            leftLayer.ResizeWidthTo(widthExtension ? extended_left_panel_width : regular_left_panel_width, panel_transition_duration, Easing.OutElastic);
+            // oily: every row lines up instead of first place and the player sticking out; the player's row has its highlight bar.
+            scorePanel.MoveToX(left_panel_extension_width, panel_transition_duration, Easing.OutElastic);
+            leftLayer.ResizeWidthTo(regular_left_panel_width, panel_transition_duration, Easing.OutElastic);
+        }
+
+        private void updateHighlight()
+        {
+            highlightBar.Colour = HighlightColour.Value;
+            highlightBar.Alpha = Tracked ? Math.Clamp(HighlightOpacity.Value, 0, 1) : 0;
         }
 
         private void setPanelColour(Color4 baseColour)
