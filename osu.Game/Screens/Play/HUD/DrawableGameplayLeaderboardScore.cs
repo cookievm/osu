@@ -267,7 +267,7 @@ namespace osu.Game.Screens.Play.HUD
                             scoreComponents = new Container
                             {
                                 RelativeSizeAxes = Axes.Both,
-                                Padding = new MarginPadding { Left = avatar_size / 2 + 4, Right = 5, Vertical = 5 },
+                                Padding = new MarginPadding { Left = avatar_size / 2 - 2, Right = 13, Vertical = 5 },
                                 Shear = -OsuGame.SHEAR,
                                 Children = new Drawable[]
                                 {
