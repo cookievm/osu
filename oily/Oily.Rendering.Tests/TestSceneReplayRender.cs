@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Shapes;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
 using osu.Game.Graphics.Sprites;
@@ -181,6 +182,7 @@ namespace Oily.Rendering.Tests
                 BackgroundColour = { Value = Colour4.Purple },
                 PlayerColour = { Value = Colour4.Red },
                 BackgroundOpacity = { Value = 1 },
+                PlayerHighlightOpacity = { Value = 0.5f },
             }));
 
             AddUntilStep("rows shown", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().Count(), () => Is.EqualTo(2));
@@ -190,6 +192,11 @@ namespace Oily.Rendering.Tests
                                                                          .ChildrenOfType<ModIcon>().Count(), () => Is.EqualTo(2));
             AddAssert("player's autoplay isn't shown as a mod", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().Single(r => r.Tracked)
                                                                                    .ChildrenOfType<ModIcon>().Count(), () => Is.Zero);
+            AddAssert("only the player's row has the highlight bar", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>()
+                                                                                    .Select(r => r.ChildrenOfType<Box>().Any(b => b.Width == 5 && b.Alpha == 0.5f)),
+                () => Is.EquivalentTo(new[] { true, false }));
+            AddStep("hide the highlight", () => leaderboard.PlayerHighlightOpacity.Value = 0);
+            AddAssert("no row has it", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().All(r => !r.ChildrenOfType<Box>().Any(b => b.Width == 5 && b.Alpha > 0)));
             AddStep("back to lazer's look", () => leaderboard.UseCustomColours.Value = false);
             AddAssert("rows follow", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().All(r => !r.UseCustomColours.Value));
         }

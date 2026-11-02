@@ -73,7 +73,10 @@ namespace osu.Game.Screens.Play.HUD
         /// </summary>
         public const float MODS_WIDTH = 76;
 
-        private const float MOD_ICON_SCALE = 0.22f;
+        private const float mod_icon_scale = 0.3f;
+
+        // oily: how far each mod icon slides under the one before it.
+        private const float mod_icon_overlap = -9;
 
         // oily: the score's mods, shown when the leaderboard's "Show mods" setting is on.
         public IReadOnlyList<Mod> Mods { get; }
@@ -86,7 +89,18 @@ namespace osu.Game.Screens.Play.HUD
         public BindableColour4 CustomPlayerColour { get; } = new BindableColour4();
         public BindableFloat BackgroundOpacity { get; } = new BindableFloat(DEFAULT_BACKGROUND_OPACITY);
 
-        // oily: leaderboards sorted by pp show it instead of the score.
+        // oily: the coloured bar down the left edge of the player's own row.
+        public BindableColour4 HighlightColour { get; } = new BindableColour4();
+        public BindableFloat HighlightOpacity { get; } = new BindableFloat();
+
+        /// <summary>
+        /// oily: how wide the bar marking the player's own row is.
+        /// </summary>
+        private const float highlight_width = 5;
+
+        private Box highlightBar = null!;
+
+        // oily: each score's pp, shown over its accuracy. ShowPerformancePoints only says the leaderboard is sorted by pp.
         public BindableDouble PerformancePoints { get; } = new BindableDouble();
         public BindableBool ShowPerformancePoints { get; } = new BindableBool();
 
@@ -117,6 +131,7 @@ namespace osu.Game.Screens.Play.HUD
         private OsuSpriteText accuracyText = null!;
         private OsuSpriteText scoreText = null!;
         private OsuSpriteText comboText = null!;
+        private OsuSpriteText ppText = null!;
 
         private IBindable<ScoringMode> scoreDisplayMode = null!;
 
@@ -171,17 +186,19 @@ namespace osu.Game.Screens.Play.HUD
 
             AddInternal(modsFlow = new FillFlowContainer
             {
-                // oily: the score's mods as lazer's own icons, in the column right of the panel (see MODS_WIDTH).
+                // oily: the score's mods as lazer's own icons, right against the panel's edge (see MODS_WIDTH),
+                // overlapping a little with the first one in front.
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreLeft,
-                X = -MODS_WIDTH + 4,
+                X = -MODS_WIDTH - avatar_size / 2 + 2,
                 AutoSizeAxes = Axes.Both,
                 Direction = FillDirection.Horizontal,
-                Spacing = new Vector2(1),
+                Spacing = new Vector2(mod_icon_overlap, 0),
                 Shear = -OsuGame.SHEAR,
-                ChildrenEnumerable = Mods.Select(m => new ModIcon(m, showTooltip: false, showExtendedInformation: false)
+                ChildrenEnumerable = Mods.Select((m, i) => new ModIcon(m, showTooltip: false, showExtendedInformation: false)
                 {
-                    Scale = new Vector2(MOD_ICON_SCALE),
+                    Scale = new Vector2(mod_icon_scale),
+                    Depth = i,
                 }),
             });
 
@@ -208,6 +225,12 @@ namespace osu.Game.Screens.Play.HUD
                             leftLayerGradient = new Box
                             {
                                 RelativeSizeAxes = Axes.Both,
+                            },
+                            highlightBar = new Box
+                            {
+                                RelativeSizeAxes = Axes.Y,
+                                Width = highlight_width,
+                                Alpha = 0,
                             },
                             new Container
                             {
@@ -266,75 +289,70 @@ namespace osu.Game.Screens.Play.HUD
                             scoreComponents = new Container
                             {
                                 RelativeSizeAxes = Axes.Both,
-                                Padding = new MarginPadding { Left = avatar_size / 2 + 4, Right = 20, Vertical = 5 },
+                                Padding = new MarginPadding { Left = avatar_size / 2 + 1, Right = 13, Vertical = 5 },
                                 Shear = -OsuGame.SHEAR,
                                 Children = new Drawable[]
                                 {
+                                    // oily: name over score, then combo, then pp over accuracy (the mods sit right of the panel).
                                     new GridContainer
                                     {
-                                        RelativeSizeAxes = Axes.X,
-                                        AutoSizeAxes = Axes.Y,
+                                        RelativeSizeAxes = Axes.Both,
                                         ColumnDimensions = new[]
                                         {
                                             new Dimension(),
                                             new Dimension(GridSizeMode.AutoSize),
-                                        },
-                                        RowDimensions = new[]
-                                        {
                                             new Dimension(GridSizeMode.AutoSize),
                                         },
                                         Content = new[]
                                         {
-                                            new[]
+                                            new Drawable[]
                                             {
-                                                usernameText = new TruncatingSpriteText
+                                                new Container
                                                 {
-                                                    Anchor = Anchor.BottomLeft,
-                                                    Origin = Anchor.BottomLeft,
-                                                    Text = User?.Username ?? string.Empty,
-                                                    Font = OsuFont.Style.Caption1.With(weight: FontWeight.SemiBold),
-                                                    RelativeSizeAxes = Axes.X,
-                                                },
-                                                accuracyText = new OsuSpriteText
-                                                {
-                                                    Anchor = Anchor.BottomLeft,
-                                                    Origin = Anchor.BottomLeft,
-                                                    Font = OsuFont.Style.Caption2.With(weight: FontWeight.SemiBold),
-                                                },
-                                            }
-                                        },
-                                    },
-                                    new GridContainer
-                                    {
-                                        Anchor = Anchor.BottomLeft,
-                                        Origin = Anchor.BottomLeft,
-                                        RelativeSizeAxes = Axes.X,
-                                        AutoSizeAxes = Axes.Y,
-                                        ColumnDimensions = new[]
-                                        {
-                                            new Dimension(),
-                                            new Dimension(GridSizeMode.AutoSize),
-                                        },
-                                        RowDimensions = new[]
-                                        {
-                                            new Dimension(GridSizeMode.AutoSize),
-                                        },
-                                        Content = new[]
-                                        {
-                                            new[]
-                                            {
-                                                scoreText = new TruncatingSpriteText
-                                                {
-                                                    Anchor = Anchor.BottomLeft,
-                                                    Origin = Anchor.BottomLeft,
-                                                    Font = OsuFont.Style.Body.With(weight: FontWeight.Regular),
-                                                    RelativeSizeAxes = Axes.X,
+                                                    RelativeSizeAxes = Axes.Both,
+                                                    Children = new Drawable[]
+                                                    {
+                                                        usernameText = new TruncatingSpriteText
+                                                        {
+                                                            Text = User?.Username ?? string.Empty,
+                                                            Font = OsuFont.Style.Caption1.With(weight: FontWeight.SemiBold),
+                                                            RelativeSizeAxes = Axes.X,
+                                                        },
+                                                        scoreText = new TruncatingSpriteText
+                                                        {
+                                                            Anchor = Anchor.BottomLeft,
+                                                            Origin = Anchor.BottomLeft,
+                                                            Font = OsuFont.Style.Caption2.With(weight: FontWeight.Regular),
+                                                            RelativeSizeAxes = Axes.X,
+                                                        },
+                                                    },
                                                 },
                                                 comboText = new OsuSpriteText
                                                 {
-                                                    Anchor = Anchor.BottomRight,
-                                                    Origin = Anchor.BottomRight,
+                                                    Anchor = Anchor.CentreLeft,
+                                                    Origin = Anchor.CentreLeft,
+                                                    Margin = new MarginPadding { Horizontal = 6 },
                                                     Font = OsuFont.Style.Caption2.With(weight: FontWeight.SemiBold),
+                                                },
+                                                new Container
+                                                {
+                                                    AutoSizeAxes = Axes.X,
+                                                    RelativeSizeAxes = Axes.Y,
+                                                    Children = new Drawable[]
+                                                    {
+                                                        ppText = new OsuSpriteText
+                                                        {
+                                                            Anchor = Anchor.TopRight,
+                                                            Origin = Anchor.TopRight,
+                                                            Font = OsuFont.Style.Caption1.With(weight: FontWeight.SemiBold),
+                                                        },
+                                                        accuracyText = new OsuSpriteText
+                                                        {
+                                                            Anchor = Anchor.BottomRight,
+                                                            Origin = Anchor.BottomRight,
+                                                            Font = OsuFont.Style.Caption2.With(weight: FontWeight.Regular),
+                                                        },
+                                                    },
                                                 },
                                             }
                                         },
@@ -380,12 +398,18 @@ namespace osu.Game.Screens.Play.HUD
             CustomPlayerColour.BindValueChanged(_ => updatePanelState());
             BackgroundOpacity.BindValueChanged(_ => updatePanelState(), true);
 
+            HighlightColour.BindValueChanged(_ => updateHighlight());
+            HighlightOpacity.BindValueChanged(_ => updateHighlight(), true);
+
             FinishTransforms(true);
         }
 
-        private void updateScore() => scoreText.Text = ShowPerformancePoints.Value
-            ? $@"{Math.Round(PerformancePoints.Value):N0}pp"
-            : (getDisplayScoreFunction?.Invoke(scoreDisplayMode.Value) ?? TotalScore.Value).ToString("N0");
+        private void updateScore()
+        {
+            // oily: pp has its own place now, so the score always shows under the name.
+            scoreText.Text = (getDisplayScoreFunction?.Invoke(scoreDisplayMode.Value) ?? TotalScore.Value).ToString("N0");
+            ppText.Text = PerformancePoints.Value > 0 ? $@"{Math.Round(PerformancePoints.Value):N0}pp" : "-";
+        }
 
         private void onExpanded(ValueChangedEvent<bool> expanded)
         {
@@ -406,7 +430,6 @@ namespace osu.Game.Screens.Play.HUD
             positionText.Text = ScorePosition.Value.HasValue ? $"#{ScorePosition.Value.Value.FormatRank()}" : "-";
 
             Color4 usernameColour = Color4.White;
-            bool widthExtension = false;
 
             if (HasQuit.Value)
             {
@@ -415,18 +438,15 @@ namespace osu.Game.Screens.Play.HUD
             }
             else if (UseCustomColours.Value)
             {
-                // oily: the leaderboard's own colours. First place keeps its wider panel.
-                widthExtension = Tracked || ScorePosition.Value == 1;
+                // oily: the leaderboard's own colours.
                 setPanelColour(Tracked ? CustomPlayerColour.Value : CustomColour.Value);
             }
             else if (ScorePosition.Value == 1)
             {
-                widthExtension = true;
                 setPanelColour(BackgroundColour ?? colours.Lime2);
             }
             else if (Tracked)
             {
-                widthExtension = true;
                 setPanelColour(BackgroundColour ?? colours.Orange2);
             }
             else if (isFriend)
@@ -439,8 +459,15 @@ namespace osu.Game.Screens.Play.HUD
 
             usernameText.FadeColour(usernameColour, text_transition_duration, Easing.OutQuint);
 
-            scorePanel.MoveToX(widthExtension ? 0 : left_panel_extension_width, panel_transition_duration, Easing.OutElastic);
-            leftLayer.ResizeWidthTo(widthExtension ? extended_left_panel_width : regular_left_panel_width, panel_transition_duration, Easing.OutElastic);
+            // oily: every row lines up instead of first place and the player sticking out; the player's row has its highlight bar.
+            scorePanel.MoveToX(left_panel_extension_width, panel_transition_duration, Easing.OutElastic);
+            leftLayer.ResizeWidthTo(regular_left_panel_width, panel_transition_duration, Easing.OutElastic);
+        }
+
+        private void updateHighlight()
+        {
+            highlightBar.Colour = HighlightColour.Value;
+            highlightBar.Alpha = Tracked ? Math.Clamp(HighlightOpacity.Value, 0, 1) : 0;
         }
 
         private void setPanelColour(Color4 baseColour)
@@ -472,6 +499,7 @@ namespace osu.Game.Screens.Play.HUD
             bool showAccuracyAndCombo = rightLayer.Width >= accuracy_combo_width_cutoff;
 
             accuracyText.Alpha = showAccuracyAndCombo ? 1 : 0;
+            ppText.Alpha = showAccuracyAndCombo ? 1 : 0;
             comboText.Alpha = showAccuracyAndCombo ? 1 : 0;
 
             bool showUsernameAndScore = rightLayer.Width >= username_score_width_cutoff;
