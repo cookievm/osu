@@ -73,7 +73,10 @@ namespace osu.Game.Screens.Play.HUD
         /// </summary>
         public const float MODS_WIDTH = 76;
 
-        private const float mod_icon_scale = 0.22f;
+        private const float mod_icon_scale = 0.3f;
+
+        // oily: how far each mod icon slides under the one before it.
+        private const float mod_icon_overlap = -9;
 
         // oily: the score's mods, shown when the leaderboard's "Show mods" setting is on.
         public IReadOnlyList<Mod> Mods { get; }
@@ -172,17 +175,19 @@ namespace osu.Game.Screens.Play.HUD
 
             AddInternal(modsFlow = new FillFlowContainer
             {
-                // oily: the score's mods as lazer's own icons, in the column right of the panel (see MODS_WIDTH).
+                // oily: the score's mods as lazer's own icons, right against the panel's edge (see MODS_WIDTH),
+                // overlapping a little with the first one in front.
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreLeft,
-                X = -MODS_WIDTH - 2,
+                X = -MODS_WIDTH - avatar_size / 2 + 2,
                 AutoSizeAxes = Axes.Both,
                 Direction = FillDirection.Horizontal,
-                Spacing = new Vector2(1),
+                Spacing = new Vector2(mod_icon_overlap, 0),
                 Shear = -OsuGame.SHEAR,
-                ChildrenEnumerable = Mods.Select(m => new ModIcon(m, showTooltip: false, showExtendedInformation: false)
+                ChildrenEnumerable = Mods.Select((m, i) => new ModIcon(m, showTooltip: false, showExtendedInformation: false)
                 {
                     Scale = new Vector2(mod_icon_scale),
+                    Depth = i,
                 }),
             });
 
