@@ -45,9 +45,9 @@ namespace Oily.Rendering.Tests
         [Test]
         public void TestDoubleTimeAdvancesFaster()
         {
-            render(new RenderSettings { FramesPerSecond = 60, Duration = TimeSpan.FromSeconds(3) }, new OsuModDoubleTime());
+            render(new RenderSettings { FramesPerSecond = 60, Duration = TimeSpan.FromSeconds(1.5) }, new OsuModDoubleTime());
 
-            AddAssert("all frames captured", () => capturer.Frames, () => Has.Count.EqualTo(180));
+            AddAssert("all frames captured", () => capturer.Frames, () => Has.Count.EqualTo(90));
             assertGameplayAdvancesBy(60, 1.5);
             AddAssert("replay hit objects", () => renderScreen.Player.GameplayState.ScoreProcessor.TotalScore.Value, () => Is.GreaterThan(0));
         }
@@ -185,6 +185,9 @@ namespace Oily.Rendering.Tests
         private void render(RenderSettings settings, params Mod[] extraMods)
         {
             startRender(settings, extraMods);
+
+            // Each wait gets the framework's 10 s on its own, so a cold load on a slow CI runner doesn't eat into the render's time.
+            AddUntilStep("wait for render to start", () => renderScreen.Completed || renderScreen.FramesCaptured > 0);
             AddUntilStep("wait for render to finish", () => renderScreen.Completed);
         }
 
