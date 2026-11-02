@@ -85,6 +85,8 @@ namespace osu.Game.Tests.Skins
             "Archives/modified-argon-20250308.osk",
             // Covers legacy bar hit error meter
             "Archives/modified-classic-20260806.osk",
+            // oily: covers the "pp if FC" counters (classic, Argon, Triangles) and the global rank display.
+            "Archives/modified-classic-20261102.osk",
         };
 
         /// <summary>
