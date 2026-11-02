@@ -175,7 +175,7 @@ namespace osu.Game.Screens.Play.HUD
                 // oily: the score's mods as lazer's own icons, in the column right of the panel (see MODS_WIDTH).
                 Anchor = Anchor.CentreRight,
                 Origin = Anchor.CentreLeft,
-                X = -MODS_WIDTH + 4,
+                X = -MODS_WIDTH + 1,
                 AutoSizeAxes = Axes.Both,
                 Direction = FillDirection.Horizontal,
                 Spacing = new Vector2(1),
@@ -267,7 +267,7 @@ namespace osu.Game.Screens.Play.HUD
                             scoreComponents = new Container
                             {
                                 RelativeSizeAxes = Axes.Both,
-                                Padding = new MarginPadding { Left = avatar_size / 2 + 4, Right = 20, Vertical = 5 },
+                                Padding = new MarginPadding { Left = avatar_size / 2 + 4, Right = 8, Vertical = 5 },
                                 Shear = -OsuGame.SHEAR,
                                 Children = new Drawable[]
                                 {
