@@ -11,9 +11,13 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
 using osu.Game.Graphics.Sprites;
+using osu.Game.Rulesets;
+using osu.Game.Rulesets.Catch;
+using osu.Game.Rulesets.Mania;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu;
 using osu.Game.Rulesets.Osu.Mods;
+using osu.Game.Rulesets.Taiko;
 using osu.Game.Rulesets.UI;
 using osu.Game.Screens.Play.HUD;
 using osu.Game.Screens.Play.Leaderboards;
@@ -51,6 +55,25 @@ namespace Oily.Rendering.Tests
             AddAssert("all frames captured", () => capturer.Frames, () => Has.Count.EqualTo(90));
             assertGameplayAdvancesBy(60, 1.5);
             AddAssert("replay hit objects", () => renderScreen.Player.GameplayState.ScoreProcessor.TotalScore.Value, () => Is.GreaterThan(0));
+        }
+
+        [TestCase("taiko")]
+        [TestCase("fruits")]
+        [TestCase("mania")]
+        public void TestRendersEveryGameMode(string mode)
+        {
+            Ruleset ruleset = mode switch
+            {
+                "taiko" => new TaikoRuleset(),
+                "fruits" => new CatchRuleset(),
+                _ => new ManiaRuleset(),
+            };
+
+            render(new RenderSettings { FramesPerSecond = 60, Duration = TimeSpan.FromSeconds(1) }, ruleset);
+
+            AddAssert("all frames captured", () => capturer.Frames, () => Has.Count.EqualTo(60));
+            AddAssert("played that mode", () => renderScreen.Player.GameplayState.Ruleset.RulesetInfo.ShortName, () => Is.EqualTo(mode));
+            assertGameplayAdvancesBy(60, 1);
         }
 
         [Test]
@@ -201,16 +224,20 @@ namespace Oily.Rendering.Tests
             AddAssert("rows follow", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().All(r => !r.UseCustomColours.Value));
         }
 
-        private void render(RenderSettings settings, params Mod[] extraMods)
+        private void render(RenderSettings settings, params Mod[] extraMods) => render(settings, null, extraMods);
+
+        private void render(RenderSettings settings, Ruleset? ruleset, params Mod[] extraMods)
         {
-            startRender(settings, extraMods);
+            startRender(settings, ruleset, extraMods);
 
             // Each wait gets the framework's 10 s on its own, so a cold load on a slow CI runner doesn't eat into the render's time.
             AddUntilStep("wait for render to start", () => renderScreen.Completed || renderScreen.FramesCaptured > 0);
             AddUntilStep("wait for render to finish", () => renderScreen.Completed);
         }
 
-        private void startRender(RenderSettings settings, params Mod[] extraMods)
+        private void startRender(RenderSettings settings, params Mod[] extraMods) => startRender(settings, null, extraMods);
+
+        private void startRender(RenderSettings settings, Ruleset? playedRuleset, params Mod[] extraMods)
         {
             AddStep("exit previous render", () =>
             {
@@ -220,7 +247,7 @@ namespace Oily.Rendering.Tests
 
             AddStep("start render", () =>
             {
-                var ruleset = new OsuRuleset();
+                var ruleset = playedRuleset ?? new OsuRuleset();
                 var autoplay = ruleset.GetAutoplayMod()!;
                 var mods = extraMods.Prepend(autoplay).ToArray();
                 var working = CreateWorkingBeatmap(ruleset.RulesetInfo);
