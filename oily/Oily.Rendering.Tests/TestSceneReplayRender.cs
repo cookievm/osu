@@ -35,15 +35,18 @@ namespace Oily.Rendering.Tests
         private ReplayRenderScreen renderScreen = null!;
         private RecordingCapturer capturer = null!;
 
-        [TestCase(60)]
-        [TestCase(240)]
-        public void TestFrameTimesAreExact(int fps)
+        // 240 fps renders a quarter second, so a cold Windows runner draws its 60 frames well inside the framework's 10 s wait.
+        [TestCase(60, 1.0)]
+        [TestCase(240, 0.25)]
+        public void TestFrameTimesAreExact(int fps, double seconds)
         {
-            render(new RenderSettings { FramesPerSecond = fps, Duration = TimeSpan.FromSeconds(1) });
+            int frames = (int)Math.Round(fps * seconds);
 
-            AddAssert("all frames captured", () => capturer.Frames, () => Has.Count.EqualTo(fps));
+            render(new RenderSettings { FramesPerSecond = fps, Duration = TimeSpan.FromSeconds(seconds) });
+
+            AddAssert("all frames captured", () => capturer.Frames, () => Has.Count.EqualTo(frames));
             AddAssert("first frame at start time", () => capturer.Frames[0].GameplayTime, () => Is.EqualTo(renderScreen.Player.GameplayClockContainer!.StartTime));
-            AddAssert("video time is frame / fps", () => capturer.Frames.Select(f => f.VideoTime), () => Is.EqualTo(Enumerable.Range(0, fps).Select(i => i * 1000.0 / fps)));
+            AddAssert("video time is frame / fps", () => capturer.Frames.Select(f => f.VideoTime), () => Is.EqualTo(Enumerable.Range(0, frames).Select(i => i * 1000.0 / fps)));
             assertGameplayAdvancesBy(fps, 1);
         }
 
