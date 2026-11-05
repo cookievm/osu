@@ -11,9 +11,13 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
 using osu.Game.Graphics.Sprites;
+using osu.Game.Rulesets;
+using osu.Game.Rulesets.Catch;
+using osu.Game.Rulesets.Mania;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu;
 using osu.Game.Rulesets.Osu.Mods;
+using osu.Game.Rulesets.Taiko;
 using osu.Game.Rulesets.UI;
 using osu.Game.Screens.Play.HUD;
 using osu.Game.Screens.Play.Leaderboards;
@@ -31,15 +35,18 @@ namespace Oily.Rendering.Tests
         private ReplayRenderScreen renderScreen = null!;
         private RecordingCapturer capturer = null!;
 
-        [TestCase(60)]
-        [TestCase(240)]
-        public void TestFrameTimesAreExact(int fps)
+        // 240 fps renders a quarter second, so a cold Windows runner draws its 60 frames well inside the framework's 10 s wait.
+        [TestCase(60, 1.0)]
+        [TestCase(240, 0.25)]
+        public void TestFrameTimesAreExact(int fps, double seconds)
         {
-            render(new RenderSettings { FramesPerSecond = fps, Duration = TimeSpan.FromSeconds(1) });
+            int frames = (int)Math.Round(fps * seconds);
 
-            AddAssert("all frames captured", () => capturer.Frames, () => Has.Count.EqualTo(fps));
+            render(new RenderSettings { FramesPerSecond = fps, Duration = TimeSpan.FromSeconds(seconds) });
+
+            AddAssert("all frames captured", () => capturer.Frames, () => Has.Count.EqualTo(frames));
             AddAssert("first frame at start time", () => capturer.Frames[0].GameplayTime, () => Is.EqualTo(renderScreen.Player.GameplayClockContainer!.StartTime));
-            AddAssert("video time is frame / fps", () => capturer.Frames.Select(f => f.VideoTime), () => Is.EqualTo(Enumerable.Range(0, fps).Select(i => i * 1000.0 / fps)));
+            AddAssert("video time is frame / fps", () => capturer.Frames.Select(f => f.VideoTime), () => Is.EqualTo(Enumerable.Range(0, frames).Select(i => i * 1000.0 / fps)));
             assertGameplayAdvancesBy(fps, 1);
         }
 
@@ -51,6 +58,25 @@ namespace Oily.Rendering.Tests
             AddAssert("all frames captured", () => capturer.Frames, () => Has.Count.EqualTo(90));
             assertGameplayAdvancesBy(60, 1.5);
             AddAssert("replay hit objects", () => renderScreen.Player.GameplayState.ScoreProcessor.TotalScore.Value, () => Is.GreaterThan(0));
+        }
+
+        [TestCase("taiko")]
+        [TestCase("fruits")]
+        [TestCase("mania")]
+        public void TestRendersEveryGameMode(string mode)
+        {
+            Ruleset ruleset = mode switch
+            {
+                "taiko" => new TaikoRuleset(),
+                "fruits" => new CatchRuleset(),
+                _ => new ManiaRuleset(),
+            };
+
+            render(new RenderSettings { FramesPerSecond = 60, Duration = TimeSpan.FromSeconds(1) }, ruleset);
+
+            AddAssert("all frames captured", () => capturer.Frames, () => Has.Count.EqualTo(60));
+            AddAssert("played that mode", () => renderScreen.Player.GameplayState.Ruleset.RulesetInfo.ShortName, () => Is.EqualTo(mode));
+            assertGameplayAdvancesBy(60, 1);
         }
 
         [Test]
@@ -201,16 +227,20 @@ namespace Oily.Rendering.Tests
             AddAssert("rows follow", () => leaderboard.ChildrenOfType<DrawableGameplayLeaderboardScore>().All(r => !r.UseCustomColours.Value));
         }
 
-        private void render(RenderSettings settings, params Mod[] extraMods)
+        private void render(RenderSettings settings, params Mod[] extraMods) => render(settings, null, extraMods);
+
+        private void render(RenderSettings settings, Ruleset? ruleset, params Mod[] extraMods)
         {
-            startRender(settings, extraMods);
+            startRender(settings, ruleset, extraMods);
 
             // Each wait gets the framework's 10 s on its own, so a cold load on a slow CI runner doesn't eat into the render's time.
             AddUntilStep("wait for render to start", () => renderScreen.Completed || renderScreen.FramesCaptured > 0);
             AddUntilStep("wait for render to finish", () => renderScreen.Completed);
         }
 
-        private void startRender(RenderSettings settings, params Mod[] extraMods)
+        private void startRender(RenderSettings settings, params Mod[] extraMods) => startRender(settings, null, extraMods);
+
+        private void startRender(RenderSettings settings, Ruleset? playedRuleset, params Mod[] extraMods)
         {
             AddStep("exit previous render", () =>
             {
@@ -220,7 +250,7 @@ namespace Oily.Rendering.Tests
 
             AddStep("start render", () =>
             {
-                var ruleset = new OsuRuleset();
+                var ruleset = playedRuleset ?? new OsuRuleset();
                 var autoplay = ruleset.GetAutoplayMod()!;
                 var mods = extraMods.Prepend(autoplay).ToArray();
                 var working = CreateWorkingBeatmap(ruleset.RulesetInfo);
