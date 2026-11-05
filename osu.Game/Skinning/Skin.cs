@@ -235,7 +235,9 @@ namespace osu.Game.Skinning
                             // It is important to return null if the user has not configured this yet.
                             // This allows skin transformers the opportunity to provide default components.
                             if (!LayoutInfos.TryGetValue(containerLookup.Lookup, out var layoutInfo)) return null;
-                            if (!layoutInfo.TryGetDrawableInfo(containerLookup.Ruleset, out var drawableInfos)) return null;
+                            if (!layoutInfo.TryGetDrawableInfo(containerLookup.Ruleset, out var drawableInfos)
+                                // oily: other game modes borrow the osu! layout when the skin has none of their own.
+                                && !layoutInfo.TryGetOsuLayoutFor(containerLookup.Ruleset, out drawableInfos)) return null;
 
                             return new Container
                             {

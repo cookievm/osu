@@ -42,6 +42,24 @@ namespace osu.Game.Skinning
         public bool TryGetDrawableInfo(RulesetInfo? ruleset, [NotNullWhen(true)] out SerialisedDrawableInfo[]? components) =>
             DrawableInfo.TryGetValue(ruleset?.ShortName ?? global_identifier, out components);
 
+        /// <summary>
+        /// oily: for a game mode the skin has no layout for, the skin's osu! layout, so taiko, catch and mania renders get the HUD the user designed
+        /// instead of lazer's default. Pieces from the osu! ruleset itself are left out, since they can't work in another mode.
+        /// </summary>
+        public bool TryGetOsuLayoutFor(RulesetInfo? ruleset, [NotNullWhen(true)] out SerialisedDrawableInfo[]? components)
+        {
+            components = null;
+
+            if (ruleset == null || ruleset.ShortName == osu_identifier || DrawableInfo.ContainsKey(ruleset.ShortName)
+                || !DrawableInfo.TryGetValue(osu_identifier, out var osuLayout))
+                return false;
+
+            components = osuLayout.Where(c => c.Type.Assembly == typeof(SkinLayoutInfo).Assembly).ToArray();
+            return true;
+        }
+
+        private const string osu_identifier = @"osu";
+
         public void Reset(RulesetInfo? ruleset) =>
             DrawableInfo.Remove(ruleset?.ShortName ?? global_identifier);
 
