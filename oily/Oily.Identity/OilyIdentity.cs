@@ -53,6 +53,30 @@ namespace Oily.Identity
         public static bool LegacyIpcEnabled => System.Environment.GetEnvironmentVariable("OILY_ENABLE_LEGACY_IPC") == "1";
 
         /// <summary>
+        /// The o!ily server's domain. The website lives here and the lazer API on the "lazer." subdomain.
+        /// </summary>
+        public const string SERVER_DOMAIN = "oily.ilystudios.net";
+
+        /// <summary>
+        /// The website, used for profile and beatmap links.
+        /// </summary>
+        public const string WEBSITE_URL = "https://" + SERVER_DOMAIN;
+
+        /// <summary>
+        /// The o!ily lazer server. Can be pointed elsewhere for testing with the OILY_API_URL environment variable.
+        /// </summary>
+        public static string ApiUrl => System.Environment.GetEnvironmentVariable("OILY_API_URL") is string url && url.Length > 0
+            ? url.TrimEnd('/')
+            : "https://lazer." + SERVER_DOMAIN;
+
+        /// <summary>
+        /// Whether a web address belongs to the o!ily server (so its images may be loaded, like avatars).
+        /// </summary>
+        public static bool IsOilyHost(string host) =>
+            host.Equals(SERVER_DOMAIN, System.StringComparison.OrdinalIgnoreCase)
+            || host.EndsWith("." + SERVER_DOMAIN, System.StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
         /// Discord Rich Presence uses ppy's Discord application, which would show o!ily as "osu!".
         /// Off until o!ily has its own Discord application.
         /// </summary>

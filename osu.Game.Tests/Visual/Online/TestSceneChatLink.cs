@@ -9,6 +9,7 @@ using osu.Framework.Bindables;
 using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Testing;
 using osu.Game.Graphics;
 using osu.Game.Online.API.Requests.Responses;
 using osu.Game.Online.Chat;
@@ -48,11 +49,31 @@ namespace osu.Game.Tests.Visual.Online
             Add(chatManager);
         }
 
+        private string? originalWebsiteRootUrl;
+
         [SetUp]
         public void Setup() => Schedule(() =>
         {
             textContainer.Clear();
         });
+
+        [SetUpSteps]
+        public void SetUpSteps()
+        {
+            // oily: the game points at the o!ily website, but these cases are written against osu!'s dev site.
+            AddStep("use dev site for links", () =>
+            {
+                originalWebsiteRootUrl ??= MessageFormatter.WebsiteRootUrl;
+                MessageFormatter.WebsiteRootUrl = "dev.ppy.sh";
+            });
+        }
+
+        [OneTimeTearDown]
+        public void RestoreWebsiteRootUrl()
+        {
+            if (originalWebsiteRootUrl != null)
+                MessageFormatter.WebsiteRootUrl = originalWebsiteRootUrl;
+        }
 
         [TestCase("test!")]
         [TestCase("dev.ppy.sh!")]
