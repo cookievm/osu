@@ -11,7 +11,8 @@ namespace osu.Game.Online
     {
         protected override string GetLookupUrl(string url)
         {
-            if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) || !uri.Host.EndsWith(@".ppy.sh", StringComparison.OrdinalIgnoreCase))
+            // oily: also allow the o!ily server (avatars, banners).
+            if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) || (!uri.Host.EndsWith(@".ppy.sh", StringComparison.OrdinalIgnoreCase) && !Oily.Identity.OilyIdentity.IsOilyHost(uri.Host)))
             {
                 Logger.Log($@"Blocking resource lookup from external website: {url}", LoggingTarget.Network, LogLevel.Important);
                 return string.Empty;
