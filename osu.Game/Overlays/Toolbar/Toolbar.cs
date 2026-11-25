@@ -335,6 +335,12 @@ namespace osu.Game.Overlays.Toolbar
             private readonly FillFlowContainer endFlow;
             private readonly CompositeDrawable content;
 
+            // oily: the boxes behind the start/end buttons and the fade over scrolled buttons follow the toolbar background colour too.
+            private Box startBox;
+            private Box endBox;
+            private Box fadeBox;
+            private IBindable<string> panelSetting;
+
             public ToolbarStrip(ToolbarEdge edge, int index)
             {
                 Edge = edge;
@@ -408,7 +414,7 @@ namespace osu.Game.Overlays.Toolbar
                                         Depth = float.MinValue,
                                         Children = new Drawable[]
                                         {
-                                            new Box
+                                            startBox = new Box
                                             {
                                                 Colour = OsuColour.Gray(0.1f),
                                                 RelativeSizeAxes = Axes.Both,
@@ -429,7 +435,7 @@ namespace osu.Game.Overlays.Toolbar
                                                 Masking = false,
                                                 Child = middleFlow,
                                             },
-                                            new Box
+                                            fadeBox = new Box
                                             {
                                                 Colour = ColourInfo.GradientHorizontal(OsuColour.Gray(0.1f).Opacity(0), OsuColour.Gray(0.1f)),
                                                 Width = 50,
@@ -448,7 +454,7 @@ namespace osu.Game.Overlays.Toolbar
                                         Origin = Anchor.TopRight,
                                         Children = new Drawable[]
                                         {
-                                            new Box
+                                            endBox = new Box
                                             {
                                                 Colour = OsuColour.Gray(0.1f),
                                                 RelativeSizeAxes = Axes.Both,
@@ -464,6 +470,33 @@ namespace osu.Game.Overlays.Toolbar
                 }
 
                 ((IBindable<bool>)background.ShowGradient).BindTo(interceptor.ReceivedHover);
+            }
+
+            [BackgroundDependencyLoader(true)]
+            private void load(OsuConfigManager config)
+            {
+                if (config == null)
+                    return;
+
+                panelSetting = OilyPanelColours.Track(config, OilyPanel.Toolbar, style =>
+                {
+                    Colour4 colour = style.CustomColour ?? OsuColour.Gray(0.1f);
+                    float alpha = Math.Clamp(style.Opacity, 0, 1);
+
+                    foreach (var box in new[] { startBox, endBox })
+                    {
+                        if (box == null) continue;
+
+                        box.Colour = colour;
+                        box.Alpha = alpha;
+                    }
+
+                    if (fadeBox != null)
+                    {
+                        fadeBox.Colour = ColourInfo.GradientHorizontal(colour.Opacity(0), colour);
+                        fadeBox.Alpha = alpha;
+                    }
+                });
             }
 
             /// <summary>

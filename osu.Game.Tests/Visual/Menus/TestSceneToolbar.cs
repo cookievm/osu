@@ -328,6 +328,26 @@ namespace osu.Game.Tests.Visual.Menus
         }
 
         [Test]
+        public void TestTransparentToolbar()
+        {
+            AddStep("toolbar background 0%", () =>
+            {
+                var colours = new OilyPanelColours();
+                colours.Panels[OilyPanel.Toolbar] = new OilyPanelStyle { Opacity = 0 };
+                config.SetValue(OsuSetting.OilyPanelColours, colours.Serialise());
+            });
+
+            // Every background box of the bar (not the buttons' own hover boxes) is see-through.
+            AddUntilStep("no background shows", () => toolbar.Strips.SelectMany(s => s.ChildrenOfType<Box>())
+                                                              .Where(b => b.FindClosestParent<ToolbarButton>() == null && b.FindClosestParent<ToolbarRulesetSelector>() == null
+                                                                          && b.FindClosestParent<ToolbarClock>() == null && b.Parent?.GetType().Name != "OsuScrollbar" && b.Alpha != 0)
+                                                              .Select(b => $"{b.Parent?.Name} {b.Parent?.GetType().Name}/{b.Parent?.Parent?.GetType().Name}"),
+                () => Is.Empty);
+
+            AddStep("reset colours", () => config.SetValue(OsuSetting.OilyPanelColours, string.Empty));
+        }
+
+        [Test]
         public void TestToolbarColours()
         {
             AddStep("red icons, half see-through bar, gold gamemode", () =>
