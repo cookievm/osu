@@ -415,6 +415,16 @@ namespace osu.Game.Overlays.SkinEditor
             {
                 preferredTarget = null;
                 selectedTarget.Value = target.Lookup;
+
+                // A layer that only holds settings opens them straight away.
+                Schedule(() =>
+                {
+                    if (target.Components.OfType<ISettingsOnlySkinComponent>().FirstOrDefault() is ISerialisableDrawable settings)
+                    {
+                        SelectedComponents.Clear();
+                        SelectedComponents.Add(settings);
+                    }
+                });
                 return;
             }
 
@@ -490,6 +500,14 @@ namespace osu.Game.Overlays.SkinEditor
 
             void requestPlacement(Type type)
             {
+                // oily: a settings-only component is kept once per layer; picking it opens its settings.
+                if (typeof(ISettingsOnlySkinComponent).IsAssignableFrom(type) && getTarget(selectedTarget.Value)?.Components.FirstOrDefault(c => c.GetType() == type) is ISerialisableDrawable existing)
+                {
+                    SelectedComponents.Clear();
+                    SelectedComponents.Add(existing);
+                    return;
+                }
+
                 if (!(Activator.CreateInstance(type) is ISerialisableDrawable component))
                     throw new InvalidOperationException($"Attempted to instantiate a component for placement which was not an {typeof(ISerialisableDrawable)}.");
 

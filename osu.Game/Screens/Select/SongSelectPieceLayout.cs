@@ -2,6 +2,12 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using osu.Framework.Testing;
+using osu.Framework.Graphics.UserInterface;
+using osu.Game.Graphics.UserInterface;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -44,6 +50,34 @@ namespace osu.Game.Screens.Select
 
         [SettingSource("Colour", "Tints this part of song select. White keeps lazer's colours.")]
         public BindableColour4 Tint { get; } = new BindableColour4(Colour4.White);
+
+        [SettingSource("Background colour", "The panel behind this part. White keeps lazer's colour.")]
+        public BindableColour4 BackgroundTint { get; } = new BindableColour4(Colour4.White);
+
+        [SettingSource("Background opacity", "How see-through the panel behind this part is.", SettingControlType = typeof(SettingsPercentageSlider<float>))]
+        public BindableFloat BackgroundOpacity { get; } = new BindableFloat(1)
+        {
+            MinValue = 0,
+            MaxValue = 1,
+            Precision = 0.01f,
+        };
+
+        [SettingSource("Text colour", "Every text and icon in this part. White keeps lazer's colour.")]
+        public BindableColour4 TextColour { get; } = new BindableColour4(Colour4.White);
+
+        [SettingSource("Buttons colour", "Buttons, dropdowns, tabs, sliders and text boxes in this part. White keeps lazer's colour.")]
+        public BindableColour4 ControlsColour { get; } = new BindableColour4(Colour4.White);
+
+        [SettingSource("Buttons opacity", "How see-through the buttons, dropdowns, tabs, sliders and text boxes are.", SettingControlType = typeof(SettingsPercentageSlider<float>))]
+        public BindableFloat ControlsOpacity { get; } = new BindableFloat(1)
+        {
+            MinValue = 0,
+            MaxValue = 1,
+            Precision = 0.01f,
+        };
+
+        [SettingSource("Buttons text colour", "Text and icons on the buttons, dropdowns, tabs, sliders and text boxes. White keeps lazer's colour.")]
+        public BindableColour4 ControlsText { get; } = new BindableColour4(Colour4.White);
 
         [Resolved]
         protected SongSelectPieceRegistry Registry { get; private set; } = null!;
@@ -89,7 +123,10 @@ namespace osu.Game.Screens.Select
                 return;
 
             if (InControl)
+            {
                 UpdatePieceStyle();
+                updateRecolour();
+            }
 
             if (FollowLazer.Value)
             {
@@ -108,6 +145,114 @@ namespace osu.Game.Screens.Select
             if (width > 0 && height > 0)
                 Size = new Vector2(width, height);
         }
+
+        private bool recolourIsDefault = true;
+        private double lastRecolour = double.MinValue;
+
+        /// <summary>
+        /// Applies the background, text and part colours. Big pieces (the beatmap list) are only redone a few times a second.
+        /// </summary>
+        private void updateRecolour()
+        {
+            if (piece == null)
+                return;
+
+            bool isDefault = !HasCustomColours;
+
+            if (isDefault && recolourIsDefault)
+                return;
+
+            if (!isDefault && !recolourIsDefault && Time.Current - lastRecolour < 100)
+                return;
+
+            OilyRecolour.Apply(piece, RecolourZones(piece, false).ToList());
+            recolourIsDefault = isDefault;
+            lastRecolour = Time.Current;
+        }
+
+        /// <summary>
+        /// The parts of this piece that get their own colours. <paramref name="reset"/> asks for lazer's colours everywhere.
+        /// </summary>
+        protected virtual IEnumerable<OilyRecolourZone> RecolourZones(SongSelectPieceContainer root, bool reset)
+        {
+            yield return new OilyRecolourZone
+            {
+                Root = root,
+                Text = reset ? null : OilyRecolour.Custom(TextColour.Value),
+            };
+
+            // Parts with their own settings come first, so they win over the shared "Buttons" settings.
+            foreach (var zone in PartZones(root, reset))
+                yield return zone;
+
+            foreach (var control in root.ChildrenOfType<Drawable>().Where(isControl))
+            {
+                if (control.FindClosestParent<SongSelectPieceContainer>() != root)
+                    continue;
+
+                yield return Zone(control, ControlsColour.Value, ControlsOpacity.Value, ControlsText.Value, reset);
+            }
+
+            foreach (var wedge in root.ChildrenOfType<WedgeBackground>())
+            {
+                if (wedge.FindClosestParent<SongSelectPieceContainer>() != root)
+                    continue;
+
+                yield return new OilyRecolourZone
+                {
+                    Root = wedge,
+                    Colour = reset ? null : OilyRecolour.Custom(BackgroundTint.Value),
+                    Opacity = reset ? 1 : BackgroundOpacity.Value,
+                };
+            }
+        }
+
+        /// <summary>
+        /// Whether any colour setting differs from lazer's look (checked every frame, so it must be cheap).
+        /// </summary>
+        protected virtual bool HasCustomColours =>
+            !BackgroundTint.IsDefault || !BackgroundOpacity.IsDefault || !TextColour.IsDefault
+            || !ControlsColour.IsDefault || !ControlsOpacity.IsDefault || !ControlsText.IsDefault;
+
+        /// <summary>
+        /// Parts of this piece with their own settings (the search bar's search box, dropdowns...).
+        /// </summary>
+        protected virtual IEnumerable<OilyRecolourZone> PartZones(SongSelectPieceContainer root, bool reset) => Enumerable.Empty<OilyRecolourZone>();
+
+        private static readonly ConcurrentDictionary<Type, bool> control_types = new ConcurrentDictionary<Type, bool>();
+
+        private static bool isControl(Drawable d) => control_types.GetOrAdd(d.GetType(), isControlType);
+
+        private static bool isControlType(Type type)
+        {
+            if (typeof(ShearedButton).IsAssignableFrom(type) || typeof(ShearedSearchTextBox).IsAssignableFrom(type)
+                                                             || typeof(ShearedRangeSlider).IsAssignableFrom(type) || typeof(OsuTextBox).IsAssignableFrom(type))
+                return true;
+
+            for (var t = type; t != null && t != typeof(object); t = t.BaseType)
+            {
+                if (!t.IsGenericType)
+                    continue;
+
+                var definition = t.GetGenericTypeDefinition();
+
+                if (definition == typeof(Dropdown<>) || definition == typeof(TabControl<>) || definition == typeof(SliderBar<>))
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// A part with its own colour, opacity and text colour settings. Settings left at lazer's look fall back to the "Buttons" settings.
+        /// </summary>
+        protected OilyRecolourZone Zone(Drawable? part, Colour4 colour, float opacity, Colour4 text, bool reset) => new OilyRecolourZone
+        {
+            Root = part ?? new Container(),
+            Colour = reset ? null : OilyRecolour.Custom(colour) ?? OilyRecolour.Custom(ControlsColour.Value),
+            Opacity = reset ? 1 : opacity < 1 ? opacity : ControlsOpacity.Value,
+            Text = reset ? null : OilyRecolour.Custom(text) ?? OilyRecolour.Custom(ControlsText.Value),
+        };
 
         private bool hasFollowed;
         private Vector2 followedPosition;
@@ -190,6 +335,9 @@ namespace osu.Game.Screens.Select
             {
                 piece.Layout = null;
                 ResetPieceStyle();
+
+                if (!recolourIsDefault)
+                    OilyRecolour.Apply(piece, RecolourZones(piece, true).ToList());
             }
 
             base.Dispose(isDisposing);
@@ -283,6 +431,90 @@ namespace osu.Game.Screens.Select
     public partial class SongSelectSearchBarLayout : SongSelectPieceLayout
     {
         public override SongSelectPiece Piece => SongSelectPiece.SearchBar;
+
+        [SettingSource("Search box colour", "White keeps lazer's colour.")]
+        public BindableColour4 SearchBoxColour { get; } = new BindableColour4(Colour4.White);
+
+        [SettingSource("Search box opacity", "How see-through it is.", SettingControlType = typeof(SettingsPercentageSlider<float>))]
+        public BindableFloat SearchBoxOpacity { get; } = opacity();
+
+        [SettingSource("Search box text colour", "White keeps lazer's colour.")]
+        public BindableColour4 SearchBoxText { get; } = new BindableColour4(Colour4.White);
+
+        [SettingSource("Star rating bar colour", "White keeps lazer's colour.")]
+        public BindableColour4 StarRatingColour { get; } = new BindableColour4(Colour4.White);
+
+        [SettingSource("Star rating bar opacity", "How see-through it is.", SettingControlType = typeof(SettingsPercentageSlider<float>))]
+        public BindableFloat StarRatingOpacity { get; } = opacity();
+
+        [SettingSource("Star rating bar text colour", "White keeps lazer's colour.")]
+        public BindableColour4 StarRatingText { get; } = new BindableColour4(Colour4.White);
+
+        [SettingSource("Show converts button colour", "White keeps lazer's colour.")]
+        public BindableColour4 ShowConvertsColour { get; } = new BindableColour4(Colour4.White);
+
+        [SettingSource("Show converts button opacity", "How see-through it is.", SettingControlType = typeof(SettingsPercentageSlider<float>))]
+        public BindableFloat ShowConvertsOpacity { get; } = opacity();
+
+        [SettingSource("Show converts button text colour", "White keeps lazer's colour.")]
+        public BindableColour4 ShowConvertsText { get; } = new BindableColour4(Colour4.White);
+
+        [SettingSource("Sort dropdown colour", "White keeps lazer's colour.")]
+        public BindableColour4 SortColour { get; } = new BindableColour4(Colour4.White);
+
+        [SettingSource("Sort dropdown opacity", "How see-through it is.", SettingControlType = typeof(SettingsPercentageSlider<float>))]
+        public BindableFloat SortOpacity { get; } = opacity();
+
+        [SettingSource("Sort dropdown text colour", "White keeps lazer's colour.")]
+        public BindableColour4 SortText { get; } = new BindableColour4(Colour4.White);
+
+        [SettingSource("Group dropdown colour", "White keeps lazer's colour.")]
+        public BindableColour4 GroupColour { get; } = new BindableColour4(Colour4.White);
+
+        [SettingSource("Group dropdown opacity", "How see-through it is.", SettingControlType = typeof(SettingsPercentageSlider<float>))]
+        public BindableFloat GroupOpacity { get; } = opacity();
+
+        [SettingSource("Group dropdown text colour", "White keeps lazer's colour.")]
+        public BindableColour4 GroupText { get; } = new BindableColour4(Colour4.White);
+
+        [SettingSource("Collection dropdown colour", "White keeps lazer's colour.")]
+        public BindableColour4 CollectionColour { get; } = new BindableColour4(Colour4.White);
+
+        [SettingSource("Collection dropdown opacity", "How see-through it is.", SettingControlType = typeof(SettingsPercentageSlider<float>))]
+        public BindableFloat CollectionOpacity { get; } = opacity();
+
+        [SettingSource("Collection dropdown text colour", "White keeps lazer's colour.")]
+        public BindableColour4 CollectionText { get; } = new BindableColour4(Colour4.White);
+
+        protected override bool HasCustomColours => base.HasCustomColours
+                                                    || new IHasDefaultValue[]
+                                                    {
+                                                        SearchBoxColour, SearchBoxOpacity, SearchBoxText, StarRatingColour, StarRatingOpacity, StarRatingText,
+                                                        ShowConvertsColour, ShowConvertsOpacity, ShowConvertsText, SortColour, SortOpacity, SortText,
+                                                        GroupColour, GroupOpacity, GroupText, CollectionColour, CollectionOpacity, CollectionText,
+                                                    }.Any(b => !b.IsDefault);
+
+        private static BindableFloat opacity() => new BindableFloat(1)
+        {
+            MinValue = 0,
+            MaxValue = 1,
+            Precision = 0.01f,
+        };
+
+        protected override IEnumerable<OilyRecolourZone> PartZones(SongSelectPieceContainer root, bool reset)
+        {
+            var filter = root.ChildrenOfType<FilterControl>().FirstOrDefault();
+
+            if (filter == null)
+                yield break;
+
+            yield return Zone(filter.SearchBox, SearchBoxColour.Value, SearchBoxOpacity.Value, SearchBoxText.Value, reset);
+            yield return Zone(filter.StarRatingBar, StarRatingColour.Value, StarRatingOpacity.Value, StarRatingText.Value, reset);
+            yield return Zone(filter.ShowConvertsButton, ShowConvertsColour.Value, ShowConvertsOpacity.Value, ShowConvertsText.Value, reset);
+            yield return Zone(filter.SortDropdown, SortColour.Value, SortOpacity.Value, SortText.Value, reset);
+            yield return Zone(filter.GroupDropdown, GroupColour.Value, GroupOpacity.Value, GroupText.Value, reset);
+            yield return Zone(filter.CollectionDropdown, CollectionColour.Value, CollectionOpacity.Value, CollectionText.Value, reset);
+        }
     }
 
     public partial class SongSelectMapStatisticsLayout : SongSelectPieceLayout

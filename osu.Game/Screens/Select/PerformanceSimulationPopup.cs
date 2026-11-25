@@ -170,8 +170,8 @@ namespace osu.Game.Screens.Select
             {
                 panelColourSetting = OilyPanelColours.Track(config, OilyPanel.PpSimulator, style =>
                 {
-                    panelBackground.Colour = style.CustomColour ?? panelDefaultColour;
-                    panelBackground.Alpha = style.Opacity;
+                    settingsPanelStyle = style;
+                    updatePanel();
                 });
             }
 
@@ -179,6 +179,8 @@ namespace osu.Game.Screens.Select
             if (registry != null)
             {
                 var style = registry.SimulatorStyle;
+                style.Box.BindValueChanged(_ => updatePanel());
+                style.BoxOpacity.BindValueChanged(_ => updatePanel(), true);
                 style.AccuracyBar.BindValueChanged(c => accuracySlider.FillColour = PerformanceSimulatorStyle.Custom(c.NewValue), true);
                 style.MissesBar.BindValueChanged(c => missesSlider.FillColour = PerformanceSimulatorStyle.Custom(c.NewValue), true);
                 bindButton(style.SaveButton, saveButton);
@@ -186,6 +188,18 @@ namespace osu.Game.Screens.Select
                 bindButton(style.DefaultButton, defaultButton);
                 bindButton(style.CancelButton, cancelButton);
             }
+        }
+
+        private OilyPanelStyle settingsPanelStyle = new OilyPanelStyle();
+
+        /// <summary>
+        /// The box's colour: the skin's if it sets one, else Settings > Colours, else lazer's.
+        /// </summary>
+        private void updatePanel()
+        {
+            var skin = registry?.SimulatorStyle;
+            panelBackground.Colour = (skin == null ? null : PerformanceSimulatorStyle.Custom(skin.Box.Value)) ?? settingsPanelStyle.CustomColour ?? panelDefaultColour;
+            panelBackground.Alpha = settingsPanelStyle.Opacity * (skin?.BoxOpacity.Value ?? 1);
         }
 
         private Colour4? defaultButtonColour;

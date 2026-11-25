@@ -17,7 +17,6 @@ using osu.Game.Graphics.Sprites;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Mods;
-using osu.Game.Scoring;
 
 namespace osu.Game.Skinning.Components
 {

@@ -9,6 +9,7 @@ using osu.Framework.Graphics.Shapes;
 using osu.Game.Configuration;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
+using osu.Game.Overlays.Settings;
 using osu.Game.Skinning;
 
 namespace osu.Game.Screens.Select
@@ -18,6 +19,8 @@ namespace osu.Game.Screens.Select
     /// </summary>
     public class PerformanceSimulatorStyle
     {
+        public readonly Bindable<Colour4> Box = new Bindable<Colour4>(Colour4.White);
+        public readonly BindableFloat BoxOpacity = new BindableFloat(1);
         public readonly Bindable<Colour4> AccuracyBar = new Bindable<Colour4>(Colour4.White);
         public readonly Bindable<Colour4> MissesBar = new Bindable<Colour4>(Colour4.White);
         public readonly Bindable<Colour4> SaveButton = new Bindable<Colour4>(Colour4.White);
@@ -32,6 +35,8 @@ namespace osu.Game.Screens.Select
 
         public void Reset()
         {
+            Box.SetDefault();
+            BoxOpacity.SetDefault();
             AccuracyBar.SetDefault();
             MissesBar.SetDefault();
             SaveButton.SetDefault();
@@ -42,12 +47,23 @@ namespace osu.Game.Screens.Select
     }
 
     /// <summary>
-    /// oily: skin editor component (song select only) that colours the Universal PP Simulator's sliders and its four buttons.
-    /// It shows as a small label in the skin editor and in song select only while editing the skin.
+    /// oily: skin component on the skin editor's "PP Simulator" layer that colours the Universal PP Simulator's box, sliders and four buttons.
+    /// It draws nothing on screen; picking it in the skin editor's component list opens its settings.
     /// </summary>
-    public partial class PpSimulatorColours : CompositeDrawable, ISerialisableDrawable
+    public partial class PpSimulatorColours : CompositeDrawable, ISettingsOnlySkinComponent
     {
         public bool UsesFixedAnchor { get; set; }
+
+        [SettingSource("Box colour", "The simulator's box. White keeps lazer's colour (or the one from Settings > Colours).")]
+        public BindableColour4 Box { get; } = new BindableColour4(Colour4.White);
+
+        [SettingSource("Box opacity", "How see-through the simulator's box is.", SettingControlType = typeof(SettingsPercentageSlider<float>))]
+        public BindableFloat BoxOpacity { get; } = new BindableFloat(1)
+        {
+            MinValue = 0,
+            MaxValue = 1,
+            Precision = 0.01f,
+        };
 
         [SettingSource("Accuracy bar colour", "The accuracy slider. White keeps lazer's colour.")]
         public BindableColour4 AccuracyBar { get; } = new BindableColour4(Colour4.White);
@@ -75,7 +91,6 @@ namespace osu.Game.Screens.Select
         public PpSimulatorColours()
         {
             AutoSizeAxes = Axes.Both;
-            AlwaysPresent = true;
         }
 
         [BackgroundDependencyLoader]
@@ -92,14 +107,13 @@ namespace osu.Game.Screens.Select
                     {
                         RelativeSizeAxes = Axes.Both,
                         Colour = colours.Gray2,
-                        Alpha = 0.8f,
                     },
                     new OsuSpriteText
                     {
                         Margin = new MarginPadding { Horizontal = 10, Vertical = 5 },
                         Text = "PP Simulator colours",
                         Font = OsuFont.Torus.With(size: 14, weight: FontWeight.Bold),
-                        Colour = colours.Yellow,
+                        Colour = Colour4.White,
                     },
                 }
             };
@@ -118,6 +132,13 @@ namespace osu.Game.Screens.Select
                     break;
                 }
             }
+
+            // On the screen it is only settings; the label is for the skin editor's component list.
+            if (inControl)
+            {
+                Alpha = 0;
+                AlwaysPresent = true;
+            }
         }
 
         protected override void Update()
@@ -127,10 +148,9 @@ namespace osu.Game.Screens.Select
             if (!inControl)
                 return;
 
-            // Only visible while editing the skin; it is a settings holder, not part of the screen.
-            Alpha = skinEditor?.State.Value == Visibility.Visible ? 1 : 0;
-
             var style = registry.SimulatorStyle;
+            style.Box.Value = Box.Value;
+            style.BoxOpacity.Value = BoxOpacity.Value;
             style.AccuracyBar.Value = AccuracyBar.Value;
             style.MissesBar.Value = MissesBar.Value;
             style.SaveButton.Value = SaveButton.Value;
@@ -138,9 +158,6 @@ namespace osu.Game.Screens.Select
             style.DefaultButton.Value = DefaultButton.Value;
             style.CancelButton.Value = CancelButton.Value;
         }
-
-        [Resolved(CanBeNull = true)]
-        private Overlays.SkinEditor.SkinEditorOverlay? skinEditor { get; set; }
 
         protected override void Dispose(bool isDisposing)
         {

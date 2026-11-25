@@ -114,6 +114,32 @@ namespace osu.Game.Tests.Visual.SongSelect
         }
 
         [Test]
+        public void TestRecolourParts()
+        {
+            SongSelectSearchBarLayout searchLayout = null!;
+
+            AddUntilStep("search bar layout added", () => (searchLayout = skinLayer.Components.OfType<SongSelectSearchBarLayout>().FirstOrDefault()!) != null);
+
+            AddStep("red search box text", () => searchLayout.SearchBoxText.Value = Colour4.Red);
+            AddUntilStep("search box text is red", () => SongSelect.ChildrenOfType<FilterControl>().Single().SearchBox.ChildrenOfType<OsuSpriteText>()
+                                                                   .Where(t => t.Alpha > 0).All(t => t.Colour.TopLeft.SRGB.G < 0.01f && t.Colour.TopLeft.SRGB.R > 0.99f));
+            AddAssert("sort dropdown text untouched", () => SongSelect.ChildrenOfType<FilterControl>().Single().SortDropdown.ChildrenOfType<OsuSpriteText>()
+                                                                      .Any(t => t.Colour.TopLeft.SRGB.G > 0.5f));
+
+            AddStep("half see-through sort dropdown", () => searchLayout.SortOpacity.Value = 0.5f);
+            AddUntilStep("sort dropdown faded", () => SongSelect.ChildrenOfType<FilterControl>().Single().SortDropdown.Alpha, () => Is.EqualTo(0.5f).Within(0.01f));
+
+            AddStep("back to lazer's look", () =>
+            {
+                searchLayout.SearchBoxText.Value = Colour4.White;
+                searchLayout.SortOpacity.Value = 1;
+            });
+            AddUntilStep("sort dropdown back", () => SongSelect.ChildrenOfType<FilterControl>().Single().SortDropdown.Alpha, () => Is.EqualTo(1));
+            AddUntilStep("search box text back", () => SongSelect.ChildrenOfType<FilterControl>().Single().SearchBox.ChildrenOfType<OsuSpriteText>()
+                                                                 .Any(t => t.Colour.TopLeft.SRGB.G > 0.5f));
+        }
+
+        [Test]
         public void TestPpSimulatorScene()
         {
             AddUntilStep("simulator layer has its colours", () => SongSelect.ChildrenOfType<SkinnableContainer>().Single(c => c.Lookup.Lookup == GlobalSkinnableContainers.PpSimulator)

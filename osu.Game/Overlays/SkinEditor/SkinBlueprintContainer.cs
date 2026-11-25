@@ -79,6 +79,10 @@ namespace osu.Game.Overlays.SkinEditor
             if (!item.IsEditable)
                 return;
 
+            // oily: settings-only components have nothing on screen to pick.
+            if (item is ISettingsOnlySkinComponent)
+                return;
+
             base.AddBlueprintFor(item);
         }
 

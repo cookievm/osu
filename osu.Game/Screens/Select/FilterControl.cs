@@ -47,6 +47,15 @@ namespace osu.Game.Screens.Select
         private DifficultyRangeSlider difficultyRangeSlider = null!;
         private ShearedDropdown<SortMode> sortDropdown = null!;
         private ShearedDropdown<GroupModeDropdownItem> groupDropdown = null!;
+        private Drawable collectionDropdown = null!;
+
+        // oily: the parts a skin can colour one by one.
+        public Drawable SearchBox => searchTextBox;
+        public Drawable StarRatingBar => difficultyRangeSlider;
+        public Drawable ShowConvertsButton => showConvertedBeatmapsButton;
+        public Drawable SortDropdown => sortDropdown;
+        public Drawable GroupDropdown => groupDropdown;
+        public Drawable CollectionDropdown => collectionDropdown;
         private readonly Bindable<string> configCollectionFilter = new Bindable<string>();
 
         /// <summary>
@@ -198,7 +207,7 @@ namespace osu.Game.Screens.Select
                                                 RelativeSizeAxes = Axes.X,
                                             },
                                             Empty(),
-                                            new CollectionDropdown
+                                            collectionDropdown = new CollectionDropdown
                                             {
                                                 RelativeSizeAxes = Axes.X,
                                             },
