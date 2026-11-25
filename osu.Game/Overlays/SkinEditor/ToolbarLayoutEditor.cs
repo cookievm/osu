@@ -10,21 +10,21 @@ using osu.Framework.Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
-using osu.Framework.Localisation;
 using osu.Game.Configuration;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Graphics.UserInterfaceV2;
+using osu.Game.Overlays.Settings;
 using osu.Game.Overlays.Toolbar;
 using osuTK;
 
-namespace osu.Game.Overlays.Settings.Sections.UserInterface
+namespace osu.Game.Overlays.SkinEditor
 {
     /// <summary>
     /// oily: how many toolbars there are, which edge of the screen each sits on, and where each button goes (see <see cref="ToolbarLayout"/>).
+    /// Shown in the skin editor's "Toolbars" tab.
     /// </summary>
-    public partial class ToolbarSettings : SettingsSubsection
+    public partial class ToolbarLayoutEditor : FillFlowContainer
     {
-        protected override LocalisableString Header => "Toolbars";
 
         private readonly Bindable<string> layoutSetting = new Bindable<string>();
         private readonly BindableInt barCount = new BindableInt { MinValue = 0, MaxValue = ToolbarLayout.MAX_BARS };
@@ -32,6 +32,14 @@ namespace osu.Game.Overlays.Settings.Sections.UserInterface
         private ToolbarLayout layout = ToolbarLayout.CreateDefault();
         private FillFlowContainer barsFlow = null!;
         private FillFlowContainer buttonsFlow = null!;
+
+        public ToolbarLayoutEditor()
+        {
+            RelativeSizeAxes = Axes.X;
+            AutoSizeAxes = Axes.Y;
+            Direction = FillDirection.Vertical;
+            Spacing = new Vector2(5);
+        }
 
         [BackgroundDependencyLoader]
         private void load(OsuConfigManager config)
@@ -173,7 +181,7 @@ namespace osu.Game.Overlays.Settings.Sections.UserInterface
 
         private partial class ButtonRow : CompositeDrawable
         {
-            public ButtonRow(ToolbarSettings settings, ToolbarItem item)
+            public ButtonRow(ToolbarLayoutEditor settings, ToolbarItem item)
             {
                 RelativeSizeAxes = Axes.X;
                 AutoSizeAxes = Axes.Y;

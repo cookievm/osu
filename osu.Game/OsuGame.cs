@@ -22,6 +22,7 @@ using osu.Framework.Extensions.IEnumerableExtensions;
 using osu.Framework.Extensions.TypeExtensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Primitives;
 using osu.Framework.Graphics.Cursor;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input;
@@ -1144,43 +1145,47 @@ namespace osu.Game
 
             AddRange(new Drawable[]
             {
-                ScreenOffsetContainer = new Container
+                // oily: the skin editor shrinks the screen and the toolbars together, evenly (see SetSkinEditorPreview).
+                screenPreview = new EditorPreviewContainer
                 {
-                    RelativeSizeAxes = Axes.Both,
-                    Children = new Drawable[]
+                    Child = ScreenOffsetContainer = new Container
                     {
-                        ScreenContainer = new ScalingContainer(ScalingMode.ExcludeOverlays)
+                        RelativeSizeAxes = Axes.Both,
+                        Children = new Drawable[]
                         {
-                            RelativeSizeAxes = Axes.Both,
-                            Anchor = Anchor.Centre,
-                            Origin = Anchor.Centre,
-                            Children = new Drawable[]
+                            ScreenContainer = new ScalingContainer(ScalingMode.ExcludeOverlays)
                             {
-                                backReceptor = new ScreenFooter.BackReceptor(),
-                                ScreenStack = new OsuScreenStack { RelativeSizeAxes = Axes.Both },
-                                logoContainer = new Container { RelativeSizeAxes = Axes.Both },
-                                // TODO: what is this? why is this?
-                                // TODO: this is being screen scaled even though it's probably AN OVERLAY.
-                                footerBasedOverlayContent = new Container
+                                RelativeSizeAxes = Axes.Both,
+                                Anchor = Anchor.Centre,
+                                Origin = Anchor.Centre,
+                                Children = new Drawable[]
                                 {
-                                    Depth = -1,
-                                    RelativeSizeAxes = Axes.Both,
-                                },
-                                new PopoverContainer
-                                {
-                                    // Ensure the footer is displayed above any content and/or overlays.
-                                    Depth = -1,
-                                    RelativeSizeAxes = Axes.Both,
-                                    Child = screenStackFooter = new ScreenStackFooter(ScreenStack, backReceptor)
+                                    backReceptor = new ScreenFooter.BackReceptor(),
+                                    ScreenStack = new OsuScreenStack { RelativeSizeAxes = Axes.Both },
+                                    logoContainer = new Container { RelativeSizeAxes = Axes.Both },
+                                    // TODO: what is this? why is this?
+                                    // TODO: this is being screen scaled even though it's probably AN OVERLAY.
+                                    footerBasedOverlayContent = new Container
                                     {
-                                        // TODO: this is really really weird and should not exist.
-                                        RequestLogoInFront = inFront => ScreenContainer.ChangeChildDepth(logoContainer, inFront ? float.MinValue : 0),
-                                        BackButtonPressed = handleBackButton
+                                        Depth = -1,
+                                        RelativeSizeAxes = Axes.Both,
                                     },
-                                },
-                            }
-                        },
-                    }
+                                    new PopoverContainer
+                                    {
+                                        // Ensure the footer is displayed above any content and/or overlays.
+                                        Depth = -1,
+                                        RelativeSizeAxes = Axes.Both,
+                                        Child = screenStackFooter = new ScreenStackFooter(ScreenStack, backReceptor)
+                                        {
+                                            // TODO: this is really really weird and should not exist.
+                                            RequestLogoInFront = inFront => ScreenContainer.ChangeChildDepth(logoContainer, inFront ? float.MinValue : 0),
+                                            BackButtonPressed = handleBackButton
+                                        },
+                                    },
+                                }
+                            },
+                        }
+                    },
                 },
                 overlayOffsetContainer = new Container
                 {
@@ -1192,7 +1197,12 @@ namespace osu.Game
                         rightFloatingOverlayContent = new Container { RelativeSizeAxes = Axes.Both },
                     }
                 },
-                topMostOverlayContent = new Container { RelativeSizeAxes = Axes.Both },
+                topMostOverlayContent = new Container
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    // oily: toolbars always sit above everything else.
+                    Child = toolbarPreview = new EditorPreviewContainer { Depth = float.MinValue },
+                },
                 idleTracker,
                 new ConfineMouseTracker(),
             });
@@ -1231,8 +1241,6 @@ namespace osu.Game
             loadComponentSingleFile(new UserStatisticsWatcher(statisticsProvider), Add, true);
             loadComponentSingleFile(Toolbar = new Toolbar
             {
-                // oily: toolbars always sit above everything else.
-                Depth = float.MinValue,
                 OnHome = delegate
                 {
                     CloseAllOverlays(false);
@@ -1240,7 +1248,7 @@ namespace osu.Game
                     if (menuScreen?.GetChildScreen() != null)
                         menuScreen.MakeCurrent();
                 },
-            }, topMostOverlayContent.Add);
+            }, toolbarPreview.Add);
 
             onScreenDisplay = new OnScreenDisplay();
 
@@ -1277,7 +1285,7 @@ namespace osu.Game
             loadComponentSingleFile(userProfile = new UserProfileOverlay(), overlayContent.Add, true);
             loadComponentSingleFile(beatmapSetOverlay = new BeatmapSetOverlay(), overlayContent.Add, true);
             loadComponentSingleFile(wikiOverlay = new WikiOverlay(), overlayContent.Add, true);
-            loadComponentSingleFile(skinEditor = new SkinEditorOverlay(ScreenContainer), overlayContent.Add, true);
+            loadComponentSingleFile(skinEditor = new SkinEditorOverlay(), overlayContent.Add, true);
 
             loadComponentSingleFile(loginOverlay = new LoginOverlay
             {
@@ -1790,7 +1798,8 @@ namespace osu.Game
             // oily: toolbars can be on any edge (see ToolbarLayout), so screens and overlays keep clear of all of them.
             var toolbarPadding = Toolbar?.ScreenPadding ?? new MarginPadding();
             ScreenOffsetContainer.Padding = toolbarPadding;
-            overlayOffsetContainer.Padding = toolbarPadding;
+            // oily: the skin editor shows the toolbars inside its shrunk screen, so it keeps the whole window itself.
+            overlayOffsetContainer.Padding = skinEditor?.State.Value == Visibility.Visible ? new MarginPadding() : toolbarPadding;
 
             placeToolbarPanel(loginOverlay, ToolbarItem.User);
             placeToolbarPanel(nowPlayingOverlay, ToolbarItem.Music);
@@ -1863,6 +1872,20 @@ namespace osu.Game
         }
 
         private float horizontalOffsetAdjust;
+
+        private EditorPreviewContainer screenPreview;
+        private EditorPreviewContainer toolbarPreview;
+
+        /// <summary>
+        /// oily: shrinks the game screen and the toolbars evenly to fit <paramref name="rect"/> (relative to the window) while the skin editor is open,
+        /// or <c>null</c> to fill the window again. The toolbars can't be clicked while shrunk.
+        /// </summary>
+        public void SetSkinEditorPreview(RectangleF? rect)
+        {
+            screenPreview.SetPreviewRect(rect);
+            toolbarPreview.SetPreviewRect(rect);
+            toolbarPreview.BlockInput = rect != null;
+        }
 
         /// <summary>
         /// When a screen-edge overlay is present, we push the game content slightly in its direction to create a sense of depth.

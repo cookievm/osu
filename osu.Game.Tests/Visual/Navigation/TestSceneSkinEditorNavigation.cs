@@ -15,7 +15,9 @@ using osu.Framework.Input;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
 using osu.Framework.Threading;
+using osu.Game.Graphics.Containers;
 using osu.Game.Online.API;
+using osu.Game.Overlays.Toolbar;
 using osu.Game.Beatmaps;
 using osu.Game.Overlays.Mods;
 using osu.Game.Overlays.Settings;
@@ -24,6 +26,7 @@ using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Screens.Edit.Components;
+using osu.Game.Screens;
 using osu.Game.Screens.Play;
 using osu.Game.Screens.Play.HUD;
 using osu.Game.Screens.Select;
@@ -327,6 +330,36 @@ namespace osu.Game.Tests.Visual.Navigation
             openSkinEditor();
             AddUntilStep("mod overlay closed", () => modSelect.State.Value == Visibility.Hidden);
         }
+
+        [Test]
+        public void TestScreenShrinksEvenlyWithToolbars()
+        {
+            Vector2 screenSize = Vector2.Zero;
+
+            advanceToSongSelect();
+            AddStep("remember screen size", () => screenSize = Game.ScreenStack.DrawSize);
+            openSkinEditor();
+
+            AddUntilStep("screen shrunk", () => screenPreview.Scale.X, () => Is.LessThan(0.95f));
+            AddAssert("screen keeps its shape", () => screenPreview.Scale.X, () => Is.EqualTo(screenPreview.Scale.Y));
+            AddAssert("screen not resized", () => Game.ScreenStack.DrawSize, () => Is.EqualTo(screenSize));
+            AddAssert("toolbars still shown", () => Game.Toolbar.State.Value, () => Is.EqualTo(Visibility.Visible));
+            AddUntilStep("toolbars shrunk the same", () => toolbarPreview.ScreenSpaceDrawQuad.AlmostEquals(screenPreview.ScreenSpaceDrawQuad));
+            AddAssert("toolbars can't be clicked", () => toolbarPreview.PropagatePositionalInputSubTree, () => Is.False);
+
+            AddStep("click toolbars tab", () => skinEditor.ChildrenOfType<SkinEditorSceneLibrary.SceneButton>().Single(b => b.Text == "Toolbars").TriggerClick());
+            AddUntilStep("toolbar options shown", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Count(), () => Is.EqualTo(1));
+
+            AddStep("select a component", () => skinEditor.SelectedComponents.Add(skinEditor.ChildrenOfType<SkinBlueprint>().First().Item));
+            AddUntilStep("toolbar options gone", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Count(), () => Is.Zero);
+
+            toggleSkinEditor();
+            AddUntilStep("screen full size again", () => screenPreview.Scale.X, () => Is.EqualTo(1));
+            AddAssert("toolbars clickable again", () => toolbarPreview.PropagatePositionalInputSubTree, () => Is.True);
+        }
+
+        private EditorPreviewContainer screenPreview => Game.ChildrenOfType<EditorPreviewContainer>().First(p => p.ChildrenOfType<OsuScreenStack>().Any());
+        private EditorPreviewContainer toolbarPreview => Game.ChildrenOfType<EditorPreviewContainer>().First(p => p.ChildrenOfType<Toolbar>().Any());
 
         [Test]
         public void TestChangeToNonSkinnableScreen()

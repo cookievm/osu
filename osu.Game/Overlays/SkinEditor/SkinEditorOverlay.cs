@@ -18,7 +18,6 @@ using osu.Framework.Screens;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
 using osu.Game.Configuration;
-using osu.Game.Graphics.Containers;
 using osu.Game.Input.Bindings;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
@@ -41,8 +40,6 @@ namespace osu.Game.Overlays.SkinEditor
     /// </summary>
     public partial class SkinEditorOverlay : OverlayContainer, IKeyBindingHandler<GlobalAction>
     {
-        private readonly ScalingContainer scalingContainer;
-
         protected override bool BlockNonPositionalInput => true;
 
         private SkinEditor? skinEditor;
@@ -80,9 +77,8 @@ namespace osu.Game.Overlays.SkinEditor
 
         private readonly LayoutValue drawSizeLayout;
 
-        public SkinEditorOverlay(ScalingContainer scalingContainer)
+        public SkinEditorOverlay()
         {
-            this.scalingContainer = scalingContainer;
             RelativeSizeAxes = Axes.Both;
 
             AddLayout(drawSizeLayout = new LayoutValue(Invalidation.DrawSize));
@@ -176,6 +172,11 @@ namespace osu.Game.Overlays.SkinEditor
         /// </summary>
         public void RefreshTargets() => skinEditor?.RefreshTargets();
 
+        /// <summary>
+        /// oily: shows the toolbar options in the skin editor's settings.
+        /// </summary>
+        public void ShowToolbarSettings() => skinEditor?.ShowToolbarSettings();
+
         private void presentGameplay(bool attemptedBeatmapSwitch)
         {
             performer?.PerformFromScreen(screen =>
@@ -249,7 +250,8 @@ namespace osu.Game.Overlays.SkinEditor
                 1 - relativeSidebarWidth * 2,
                 1f - relativeToolbarHeight - padding / DrawHeight);
 
-            scalingContainer.SetCustomRect(rect, true);
+            // oily: shrink the screen (and toolbars) evenly instead of reshaping it, so parts placed here stay put once the editor closes.
+            game.SetSkinEditorPreview(rect);
         }
 
         private void updateComponentVisibility()
@@ -260,13 +262,13 @@ namespace osu.Game.Overlays.SkinEditor
             {
                 Scheduler.AddOnce(updateScreenSizing);
 
-                game.Toolbar.Hide();
+                // oily: the toolbars stay, shrunk with the screen, so the editor shows the screen as it really is.
                 if (externalEditOverlay.State.Value != Visibility.Visible)
-                    game.CloseAllOverlays();
+                    game.CloseAllOverlays(false);
             }
             else
             {
-                scalingContainer.SetCustomRect(null);
+                game.SetSkinEditorPreview(null);
 
                 if (lastTargetScreen?.HideOverlaysOnEnter != true)
                     game.Toolbar.Show();

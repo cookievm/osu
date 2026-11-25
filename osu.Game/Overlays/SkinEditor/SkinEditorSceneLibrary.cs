@@ -12,6 +12,7 @@ using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Localisation;
 using osu.Game.Screens;
+using osu.Game.Screens.Menu;
 using osu.Game.Screens.Select;
 using osu.Game.Skinning;
 using osuTK;
@@ -100,6 +101,18 @@ namespace osu.Game.Overlays.SkinEditor
                                         }, new[] { typeof(SongSelect) });
 
                                         skinEditorOverlay?.SelectTarget(GlobalSkinnableContainers.PpSimulator);
+                                    },
+                                },
+                                new SceneButton
+                                {
+                                    Text = "Toolbars",
+                                    Anchor = Anchor.CentreLeft,
+                                    Origin = Anchor.CentreLeft,
+                                    // oily: toolbars aren't shown during gameplay, so go back to a screen that has them.
+                                    Action = () =>
+                                    {
+                                        performer?.PerformFromScreen(_ => { }, new[] { typeof(MainMenu), typeof(SongSelect) });
+                                        skinEditorOverlay?.ShowToolbarSettings();
                                     },
                                 },
                                 new SceneButton
