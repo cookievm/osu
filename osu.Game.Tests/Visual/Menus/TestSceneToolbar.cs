@@ -15,6 +15,7 @@ using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Testing;
+using osu.Game.Configuration;
 using osu.Game.Graphics.Containers;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Notifications;
@@ -33,6 +34,9 @@ namespace osu.Game.Tests.Visual.Menus
 
         [Resolved]
         private IRulesetStore rulesets { get; set; }
+
+        [Resolved]
+        private OsuConfigManager config { get; set; }
 
         [Cached]
         private readonly NowPlayingOverlay nowPlayingOverlay = new NowPlayingOverlay
@@ -159,7 +163,7 @@ namespace osu.Game.Tests.Visual.Menus
                 }
             }));
 
-            AddStep("hover toolbar", () => InputManager.MoveMouseTo(toolbar));
+            AddStep("hover toolbar", () => InputManager.MoveMouseTo(toolbar.ChildrenOfType<Toolbar.ToolbarStrip>().First()));
             AddStep("perform scroll", () => InputManager.ScrollVerticalBy(500));
             AddAssert("not scrolled", () => scroll.Current == 0);
         }
@@ -223,14 +227,56 @@ namespace osu.Game.Tests.Visual.Menus
                 toolbar.RelativeSizeAxes = Axes.None;
                 toolbar.Width = 400;
             });
-            AddStep("move mouse over news toggle button", () =>
+            AddStep("move mouse over rankings toggle button", () =>
             {
-                var button = toolbar.ChildrenOfType<ToolbarNewsButton>().Single();
+                var button = toolbar.ChildrenOfType<ToolbarRankingsButton>().Single();
                 InputManager.MoveMouseTo(button);
             });
             AddAssert("no ruleset toggle buttons hovered", () => !toolbar.ChildrenOfType<ToolbarRulesetTabButton>().Any(button => button.IsHovered));
             AddUntilStep("toolbar gradient visible", () => toolbar.ChildrenOfType<Toolbar.ToolbarBackground>().Single().Children.All(d => d.Alpha > 0));
         }
+
+        [Test]
+        public void TestToolbarLayout()
+        {
+            AddStep("left sidebar and bottom bar", () =>
+            {
+                var layout = ToolbarLayout.CreateDefault();
+                layout.Bars.Clear();
+                layout.Bars.Add(new ToolbarBarLayout { Edge = ToolbarEdge.Left });
+                layout.Bars.Add(new ToolbarBarLayout { Edge = ToolbarEdge.Bottom });
+
+                foreach (var button in layout.Buttons.Where(b => b.Item is ToolbarItem.Rulesets or ToolbarItem.Clock))
+                    button.Bar = 1;
+
+                config.SetValue(OsuSetting.OilyToolbarLayout, layout.Serialise());
+            });
+
+            AddUntilStep("two bars", () => toolbar.ChildrenOfType<Toolbar.ToolbarStrip>().Count(), () => Is.EqualTo(2));
+            AddAssert("no news, changelog or wiki", () => !toolbar.ChildrenOfType<ToolbarNewsButton>().Any()
+                                                          && !toolbar.ChildrenOfType<ToolbarChangelogButton>().Any()
+                                                          && !toolbar.ChildrenOfType<ToolbarWikiButton>().Any());
+            AddUntilStep("screen kept clear on the left and bottom", () => toolbar.ScreenPadding.Left >= Toolbar.HEIGHT && toolbar.ScreenPadding.Bottom >= Toolbar.HEIGHT && toolbar.ScreenPadding.Top == 0);
+            AddAssert("profile on the sidebar", () => toolbar.Find(ToolbarItem.User)?.Edge, () => Is.EqualTo(ToolbarEdge.Left));
+            AddAssert("rulesets stacked on the bottom bar", () => toolbar.Find(ToolbarItem.Rulesets)?.Edge, () => Is.EqualTo(ToolbarEdge.Bottom));
+            AddAssert("buttons not rotated", () => toolbar.ChildrenOfType<ToolbarButton>().All(b => b.Rotation == 0));
+
+            AddStep("hide toolbar", () => toolbar.Hide());
+            AddUntilStep("screen padding gone", () => toolbar.ScreenPadding.Left < 1 && toolbar.ScreenPadding.Bottom < 1);
+
+            AddStep("show toolbar", () => toolbar.Show());
+            AddStep("no toolbars", () =>
+            {
+                var layout = ToolbarLayout.CreateDefault();
+                layout.Bars.Clear();
+                config.SetValue(OsuSetting.OilyToolbarLayout, layout.Serialise());
+            });
+            AddUntilStep("no bars", () => !toolbar.ChildrenOfType<Toolbar.ToolbarStrip>().Any());
+            AddAssert("no screen padding", () => toolbar.ScreenPadding.Left < 1 && toolbar.ScreenPadding.Top < 1);
+        }
+
+        [TearDownSteps]
+        public void TearDownSteps() => AddStep("reset toolbar layout", () => config.SetValue(OsuSetting.OilyToolbarLayout, string.Empty));
 
         public partial class TestToolbar : Toolbar
         {

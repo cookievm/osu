@@ -159,6 +159,9 @@ namespace osu.Game.Configuration
             SetDefault(OsuSetting.OilySimulationAccuracy, 98.0, 0, 100, 0.01);
             SetDefault(OsuSetting.OilySimulationMisses, 0, 0, 1000);
             SetDefault(OsuSetting.OilySimulationComboPercent, 100.0, 0, 100, 0.1);
+
+            // oily: toolbars and their buttons (see ToolbarLayout). Empty = the default layout.
+            SetDefault(OsuSetting.OilyToolbarLayout, string.Empty);
             SetDefault(OsuSetting.StarFountains, true);
 
             SetDefault(OsuSetting.HUDVisibilityMode, HUDVisibilityMode.Always);
@@ -504,5 +507,6 @@ namespace osu.Game.Configuration
         OilySimulationAccuracy,
         OilySimulationMisses,
         OilySimulationComboPercent,
+        OilyToolbarLayout,
     }
 }

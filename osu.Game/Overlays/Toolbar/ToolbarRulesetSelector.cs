@@ -35,10 +35,27 @@ namespace osu.Game.Overlays.Toolbar
 
         private ISampleStore samples;
 
+        /// <summary>
+        /// oily: whether the rulesets are stacked top to bottom (on a toolbar at the side of the screen).
+        /// </summary>
+        public readonly bool Vertical;
+
         public ToolbarRulesetSelector()
+            : this(false)
         {
-            RelativeSizeAxes = Axes.Y;
-            AutoSizeAxes = Axes.X;
+        }
+
+        public ToolbarRulesetSelector(bool vertical)
+        {
+            Vertical = vertical;
+
+            if (vertical)
+                AutoSizeAxes = Axes.Both;
+            else
+            {
+                RelativeSizeAxes = Axes.Y;
+                AutoSizeAxes = Axes.X;
+            }
         }
 
         [BackgroundDependencyLoader]
@@ -53,17 +70,18 @@ namespace osu.Game.Overlays.Toolbar
                 },
                 ModeButtonLine = new Container
                 {
-                    Size = new Vector2(Toolbar.HEIGHT, 3),
-                    Anchor = Anchor.BottomLeft,
-                    Origin = Anchor.BottomLeft,
-                    Y = -1,
+                    Size = Vertical ? new Vector2(3, Toolbar.HEIGHT) : new Vector2(Toolbar.HEIGHT, 3),
+                    Anchor = Vertical ? Anchor.TopRight : Anchor.BottomLeft,
+                    Origin = Vertical ? Anchor.TopRight : Anchor.BottomLeft,
+                    X = Vertical ? -1 : 0,
+                    Y = Vertical ? 0 : -1,
                     Children = new Drawable[]
                     {
                         new Circle
                         {
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
-                            Size = new Vector2(18, 3),
+                            Size = Vertical ? new Vector2(3, 18) : new Vector2(18, 3),
                         }
                     }
                 },
@@ -107,7 +125,10 @@ namespace osu.Game.Overlays.Toolbar
         {
             if (SelectedTab != null)
             {
-                ModeButtonLine.MoveToX(SelectedTab.DrawPosition.X, !hasInitialPosition ? 0 : 500, Easing.OutElasticQuarter);
+                if (Vertical)
+                    ModeButtonLine.MoveToY(SelectedTab.DrawPosition.Y, !hasInitialPosition ? 0 : 500, Easing.OutElasticQuarter);
+                else
+                    ModeButtonLine.MoveToX(SelectedTab.DrawPosition.X, !hasInitialPosition ? 0 : 500, Easing.OutElasticQuarter);
                 hasInitialPosition = true;
             }
         }
@@ -144,14 +165,31 @@ namespace osu.Game.Overlays.Toolbar
 
         public override bool PropagatePositionalInputSubTree => !Current.Disabled && base.PropagatePositionalInputSubTree;
 
-        protected override TabItem<RulesetInfo> CreateTabItem(RulesetInfo value) => new ToolbarRulesetTabButton(value);
-
-        protected override TabFillFlowContainer CreateTabFlow() => new TabFillFlowContainer
+        protected override TabItem<RulesetInfo> CreateTabItem(RulesetInfo value)
         {
-            RelativeSizeAxes = Axes.Y,
-            AutoSizeAxes = Axes.X,
-            Direction = FillDirection.Horizontal,
-        };
+            var item = new ToolbarRulesetTabButton(value);
+
+            if (Vertical)
+            {
+                item.RelativeSizeAxes = Axes.None;
+                item.Height = Toolbar.HEIGHT;
+            }
+
+            return item;
+        }
+
+        protected override TabFillFlowContainer CreateTabFlow() => Vertical
+            ? new TabFillFlowContainer
+            {
+                AutoSizeAxes = Axes.Both,
+                Direction = FillDirection.Vertical,
+            }
+            : new TabFillFlowContainer
+            {
+                RelativeSizeAxes = Axes.Y,
+                AutoSizeAxes = Axes.X,
+                Direction = FillDirection.Horizontal,
+            };
 
         protected override bool OnKeyDown(KeyDownEvent e)
         {

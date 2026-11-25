@@ -184,7 +184,6 @@ namespace osu.Game
 
         public virtual StableStorage GetStorageForStableInstall() => null;
 
-        private float toolbarOffset => (Toolbar?.Position.Y ?? 0) + (Toolbar?.DrawHeight ?? 0);
 
         private IdleTracker idleTracker;
 
@@ -1232,6 +1231,8 @@ namespace osu.Game
             loadComponentSingleFile(new UserStatisticsWatcher(statisticsProvider), Add, true);
             loadComponentSingleFile(Toolbar = new Toolbar
             {
+                // oily: toolbars always sit above everything else.
+                Depth = float.MinValue,
                 OnHome = delegate
                 {
                     CloseAllOverlays(false);
@@ -1786,12 +1787,79 @@ namespace osu.Game
         {
             base.UpdateAfterChildren();
 
-            ScreenOffsetContainer.Padding = new MarginPadding { Top = toolbarOffset };
-            overlayOffsetContainer.Padding = new MarginPadding { Top = toolbarOffset };
+            // oily: toolbars can be on any edge (see ToolbarLayout), so screens and overlays keep clear of all of them.
+            var toolbarPadding = Toolbar?.ScreenPadding ?? new MarginPadding();
+            ScreenOffsetContainer.Padding = toolbarPadding;
+            overlayOffsetContainer.Padding = toolbarPadding;
+
+            placeToolbarPanel(loginOverlay, ToolbarItem.User);
+            placeToolbarPanel(nowPlayingOverlay, ToolbarItem.Music);
 
             adjustGlobalScreenOffset();
 
             GlobalCursorDisplay.ShowCursor = (ScreenStack.CurrentScreen as IOsuScreen)?.CursorVisible ?? false;
+        }
+
+        private readonly Dictionary<OverlayContainer, float> toolbarPanelSlide = new Dictionary<OverlayContainer, float>();
+
+        /// <summary>
+        /// oily: puts a panel that opens from a toolbar button (like the profile) next to that button, on the side of the screen its toolbar is on,
+        /// and slides it in from there. The panel itself is never flipped or rotated.
+        /// </summary>
+        private void placeToolbarPanel(OverlayContainer panel, ToolbarItem item)
+        {
+            if (panel?.IsLoaded != true || Toolbar?.IsLoaded != true || panel.Parent == null)
+                return;
+
+            var found = Toolbar.Find(item);
+            var edge = found?.Edge ?? ToolbarEdge.Top;
+
+            // Slides from 0 (just opened) to 1.
+            float slide = toolbarPanelSlide.GetValueOrDefault(panel, 1);
+            slide = panel.State.Value == Visibility.Visible ? (float)Interpolation.DampContinuously(slide, 1, 60, Time.Elapsed) : panel.Alpha <= 0 ? 0 : slide;
+            toolbarPanelSlide[panel] = slide;
+
+            var parentSize = panel.Parent.ChildSize;
+            var size = panel.DrawSize;
+
+            Vector2 buttonCentre = parentSize / 2;
+
+            if (found?.Button is Drawable button && button.IsLoaded)
+                buttonCentre = panel.Parent.ToLocalSpace(button.ScreenSpaceDrawQuad.Centre) - panel.Parent.ChildOffset;
+
+            panel.Anchor = Anchor.TopLeft;
+            panel.Origin = Anchor.TopLeft;
+
+            Vector2 position;
+            Vector2 slideFrom;
+
+            switch (edge)
+            {
+                case ToolbarEdge.Bottom:
+                    position = new Vector2(Math.Clamp(buttonCentre.X - size.X / 2, 0, Math.Max(0, parentSize.X - size.X)), parentSize.Y - size.Y);
+                    slideFrom = new Vector2(0, 1);
+                    break;
+
+                case ToolbarEdge.Left:
+                    position = new Vector2(0, Math.Clamp(buttonCentre.Y - size.Y / 2, 0, Math.Max(0, parentSize.Y - size.Y)));
+                    slideFrom = new Vector2(-1, 0);
+                    break;
+
+                case ToolbarEdge.Right:
+                    position = new Vector2(parentSize.X - size.X, Math.Clamp(buttonCentre.Y - size.Y / 2, 0, Math.Max(0, parentSize.Y - size.Y)));
+                    slideFrom = new Vector2(1, 0);
+                    break;
+
+                default:
+                    // Lazer's own place (top right) unless the button is elsewhere along the top.
+                    position = found == null
+                        ? new Vector2(parentSize.X - size.X, 0)
+                        : new Vector2(Math.Clamp(buttonCentre.X - size.X / 2, 0, Math.Max(0, parentSize.X - size.X)), 0);
+                    slideFrom = new Vector2(0, -1);
+                    break;
+            }
+
+            panel.Position = position + slideFrom * 40 * (1 - slide);
         }
 
         private float horizontalOffsetAdjust;
