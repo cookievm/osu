@@ -1232,7 +1232,8 @@ namespace osu.Game.Screens.Play
             ScoreInfo = new ScoreInfo
             {
                 User = api.LocalUser.Value,
-                ClientVersion = game.Version,
+                // oily: tag scores so their replays are played back with stable notelock.
+                ClientVersion = Oily.Identity.OilyIdentity.TagClientVersion(game.Version),
             },
         };
 

@@ -582,7 +582,8 @@ namespace osu.Game.Rulesets.Osu.Tests
 
             public HitPolicyResultInterceptor(IHitPolicy policy)
             {
-                Debug.Assert(policy is StartTimeOrderedHitPolicy);
+                // oily: o!ily wraps lazer's policy; replays without the o!ily tag use lazer's StartTimeOrderedHitPolicy.
+                Debug.Assert(policy is StartTimeOrderedHitPolicy or StableNoteLockHitPolicy { Enabled: false });
                 this.policy = policy;
             }
 

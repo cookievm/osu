@@ -81,5 +81,18 @@ namespace Oily.Identity
         /// Off until o!ily has its own Discord application.
         /// </summary>
         public static bool DiscordRichPresenceEnabled => false;
+
+        /// <summary>
+        /// Added to the client version saved with every score played in o!ily.
+        /// o!ily plays osu! standard with stable's notelock, so replays carrying this tag are played back with it,
+        /// while replays from official lazer (renders) are played back without it.
+        /// </summary>
+        public const string STABLE_NOTELOCK_VERSION_TAG = "-oily-notelock";
+
+        public static string TagClientVersion(string version) =>
+            version.EndsWith(STABLE_NOTELOCK_VERSION_TAG, System.StringComparison.Ordinal) ? version : version + STABLE_NOTELOCK_VERSION_TAG;
+
+        public static bool PlayedWithStableNoteLock(string? clientVersion) =>
+            clientVersion?.EndsWith(STABLE_NOTELOCK_VERSION_TAG, System.StringComparison.Ordinal) == true;
     }
 }
