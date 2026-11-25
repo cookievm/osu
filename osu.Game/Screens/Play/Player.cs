@@ -1228,11 +1228,6 @@ namespace osu.Game.Screens.Play
         }
 
         /// <summary>
-        /// Creates the player's <see cref="Scoring.Score"/>.
-        /// </summary>
-        /// <param name="beatmap"></param>
-        /// <returns>The <see cref="Scoring.Score"/>.</returns>
-        /// <summary>
         /// oily: the gamerules this play uses.
         /// </summary>
         public OilyGameRules GameRules { get; private set; } = OilyGameRules.DEFAULT;
@@ -1242,6 +1237,11 @@ namespace osu.Game.Screens.Play
         /// </summary>
         protected virtual OilyGameRules CreateGameRules(IBeatmap playableBeatmap, OsuConfigManager config) => OilyGameRules.FromConfig(config);
 
+        /// <summary>
+        /// Creates the player's <see cref="Scoring.Score"/>.
+        /// </summary>
+        /// <param name="beatmap"></param>
+        /// <returns>The <see cref="Scoring.Score"/>.</returns>
         protected virtual Score CreateScore(IBeatmap beatmap) => new Score
         {
             ScoreInfo = new ScoreInfo
