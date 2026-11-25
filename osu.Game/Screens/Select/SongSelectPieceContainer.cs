@@ -85,6 +85,10 @@ namespace osu.Game.Screens.Select
 
         private readonly Container inner;
 
+        // oily: a hidden piece (like the beatmap info before it first fades in) has no height. Without this, an empty piece sitting exactly
+        // on the edge of the screen counts as "masked away" and stops updating, so the piece inside never gets to fade in.
+        protected override bool ComputeIsMaskedAway(RectangleF maskingBounds) => false;
+
         public SongSelectPieceContainer(SongSelectPiece piece, Drawable content)
         {
             Piece = piece;
@@ -96,7 +100,7 @@ namespace osu.Game.Screens.Select
             content.Anchor = Anchor.TopLeft;
             content.Origin = Anchor.TopLeft;
 
-            InternalChild = inner = new Container
+            InternalChild = inner = new NeverMaskedAwayContainer
             {
                 RelativeSizeAxes = content.RelativeSizeAxes,
                 AutoSizeAxes = Axes.Both & ~content.RelativeSizeAxes,
@@ -153,6 +157,11 @@ namespace osu.Game.Screens.Select
             inner.Rotation = MathHelper.RadiansToDegrees(MathF.Atan2(targetX.Y, targetX.X) - MathF.Atan2(xAxis.Y, xAxis.X));
             inner.Alpha = layout.Hidden.Value ? 0 : layout.PieceOpacity.Value;
             inner.Colour = layout.Tint.Value;
+        }
+
+        private partial class NeverMaskedAwayContainer : Container
+        {
+            protected override bool ComputeIsMaskedAway(RectangleF maskingBounds) => false;
         }
 
         private void resetInner()

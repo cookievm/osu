@@ -335,6 +335,26 @@ namespace osu.Game.Tests.Visual.Navigation
         }
 
         [Test]
+        public void TestInfoBoxShownWithDraggedToolbar()
+        {
+            // A dragged toolbar doesn't push the screen down, so the hidden info box starts exactly on the screen's top edge.
+            AddStep("drag the toolbar", () =>
+            {
+                var layout = ToolbarLayout.CreateDefault();
+                layout.Bars[0].OffsetY = 0.9f;
+                Game.LocalConfig.SetValue(OsuSetting.OilyToolbarLayout, layout.Serialise());
+            });
+
+            AddStep("import beatmap", () => BeatmapImportHelper.LoadQuickOszIntoOsu(Game).WaitSafely());
+            advanceToSongSelect();
+
+            AddUntilStep("info box shown", () => Game.ChildrenOfType<BeatmapTitleWedge>().Single().Alpha, () => Is.EqualTo(1));
+            AddUntilStep("details shown", () => Game.ChildrenOfType<BeatmapDetailsArea>().Single().Alpha, () => Is.EqualTo(1));
+
+            AddStep("put the toolbar back", () => Game.LocalConfig.SetValue(OsuSetting.OilyToolbarLayout, string.Empty));
+        }
+
+        [Test]
         public void TestScreenShrinksEvenlyWithToolbars()
         {
             Vector2 screenSize = Vector2.Zero;
