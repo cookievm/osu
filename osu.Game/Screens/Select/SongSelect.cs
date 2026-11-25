@@ -111,6 +111,10 @@ namespace osu.Game.Screens.Select
         // Blue is the most neutral choice, so I'm using that for now.
         // Purple makes the most sense to match the "gameplay" flow, but it's a bit too strong for the current design.
         // TODO: Colour scheme choice should probably be customisable by the user.
+        // oily: lets skins move, resize and colour song select's pieces (see SongSelectPieceLayout).
+        [Cached]
+        private readonly SongSelectPieceRegistry pieceRegistry = new SongSelectPieceRegistry();
+
         [Cached]
         private readonly OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Blue);
 
@@ -168,6 +172,16 @@ namespace osu.Game.Screens.Select
         private Bindable<bool> showConvertedBeatmaps = null!;
 
         private IDisposable? modSelectOverlayRegistration;
+
+        /// <summary>
+        /// oily: wraps a piece of song select so skins can move and style it.
+        /// </summary>
+        private SongSelectPieceContainer piece(SongSelectPiece piece, Drawable content)
+        {
+            var container = new SongSelectPieceContainer(piece, content);
+            pieceRegistry.Register(container);
+            return container;
+        }
 
         protected SongSelect()
         {
@@ -241,16 +255,16 @@ namespace osu.Game.Screens.Select
                                                         Direction = FillDirection.Vertical,
                                                         Children = new Drawable[]
                                                         {
-                                                            new ShearAligningWrapper(titleWedge = new BeatmapTitleWedge
+                                                            new ShearAligningWrapper(piece(SongSelectPiece.BeatmapInfo, titleWedge = new BeatmapTitleWedge
                                                             {
                                                                 TopPadding = TopPadding,
-                                                            }),
+                                                            })),
                                                             new InputBlockingContainer
                                                             {
                                                                 RelativeSizeAxes = Axes.X,
                                                                 Height = 4
                                                             },
-                                                            new ShearAligningWrapper(detailsArea = new BeatmapDetailsArea()),
+                                                            new ShearAligningWrapper(piece(SongSelectPiece.BeatmapDetails, detailsArea = new BeatmapDetailsArea())),
                                                         },
                                                     },
                                                 }
@@ -268,7 +282,7 @@ namespace osu.Game.Screens.Select
                                                         Colour = ColourInfo.GradientHorizontal(Color4.Black.Opacity(0.0f), Color4.Black.Opacity(0.5f)),
                                                         RelativeSizeAxes = Axes.Both,
                                                     },
-                                                    new Container
+                                                    piece(SongSelectPiece.BeatmapList, new Container
                                                     {
                                                         RelativeSizeAxes = Axes.Both,
                                                         Padding = new MarginPadding
@@ -293,14 +307,14 @@ namespace osu.Game.Screens.Select
                                                                 RequestClearFilterText = () => FilterControl.Search(string.Empty)
                                                             }
                                                         }
-                                                    },
-                                                    FilterControl = new FilterControl
+                                                    }),
+                                                    piece(SongSelectPiece.SearchBar, FilterControl = new FilterControl
                                                     {
                                                         Anchor = Anchor.TopRight,
                                                         Origin = Anchor.TopRight,
                                                         RelativeSizeAxes = Axes.X,
                                                         ScopedBeatmapSet = { BindTarget = ScopedBeatmapSet },
-                                                    },
+                                                    }),
                                                 }
                                             },
                                         },
