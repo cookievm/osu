@@ -115,6 +115,10 @@ namespace osu.Game.Screens.Select
         [Cached]
         private readonly SongSelectPieceRegistry pieceRegistry = new SongSelectPieceRegistry();
 
+        // oily: SS pp for sorting and grouping by pp.
+        [Cached]
+        private readonly SSPerformanceStore performanceStore = new SSPerformanceStore();
+
         [Cached]
         private readonly OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Blue);
 
@@ -176,12 +180,7 @@ namespace osu.Game.Screens.Select
         /// <summary>
         /// oily: wraps a piece of song select so skins can move and style it.
         /// </summary>
-        private SongSelectPieceContainer piece(SongSelectPiece piece, Drawable content)
-        {
-            var container = new SongSelectPieceContainer(piece, content);
-            pieceRegistry.Register(container);
-            return container;
-        }
+        private SongSelectPieceContainer piece(SongSelectPiece piece, Drawable content) => SongSelectPieceRegistry.Wrap(pieceRegistry, piece, content);
 
         protected SongSelect()
         {
@@ -196,6 +195,7 @@ namespace osu.Game.Screens.Select
             AddRangeInternal(new Drawable[]
             {
                 new ScrollAdjustsVolume(),
+                performanceStore,
                 onlineLookupSource,
                 mainContent = new Container
                 {

@@ -67,6 +67,10 @@ namespace osu.Game.Overlays.SkinEditor
 
         private void attemptAddComponent(Type type)
         {
+            // oily: song select only offers pieces that make sense there (no gameplay pieces).
+            if (target.Lookup.Lookup == GlobalSkinnableContainers.SongSelect && !Screens.Select.SongSelectSkinComponents.IsAllowed(type))
+                return;
+
             try
             {
                 Drawable instance = (Drawable)Activator.CreateInstance(type)!;

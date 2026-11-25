@@ -414,7 +414,8 @@ namespace osu.Game.Overlays.SkinEditor
             };
 
             // If the new target has a ruleset, let's show ruleset-specific items at the top, and the rest below.
-            if (target.NewValue.Ruleset != null)
+            // oily: song select has no ruleset-specific (playfield) pieces.
+            if (target.NewValue.Ruleset != null && target.NewValue.Lookup != GlobalSkinnableContainers.SongSelect)
             {
                 componentsSidebar.Add(new SkinComponentToolbox(skinComponentsContainer, target.NewValue.Ruleset)
                 {

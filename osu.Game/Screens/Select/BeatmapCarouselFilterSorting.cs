@@ -24,6 +24,11 @@ namespace osu.Game.Screens.Select
             this.getCriteria = getCriteria;
         }
 
+        /// <summary>
+        /// oily: the SS pp of a beatmap with the selected mods, or <c>null</c> while it is being worked out.
+        /// </summary>
+        public Func<BeatmapInfo, double?>? GetPerformance { get; set; }
+
         public async Task<List<CarouselItem>> Run(IEnumerable<CarouselItem> items, CancellationToken cancellationToken) => await Task.Run(() =>
         {
             var criteria = getCriteria();
@@ -31,6 +36,17 @@ namespace osu.Game.Screens.Select
             bool groupedSets = BeatmapCarouselFilterGrouping.ShouldGroupBeatmapsTogether(criteria);
 
             BeatmapItemsCount = items.Count();
+
+            // oily: sort by SS pp (difficulties are shown on their own, like the difficulty sort). Maps still being worked out go last.
+            if (criteria.Sort == SortMode.PerformanceSS)
+            {
+                var lookup = GetPerformance;
+
+                return items.OrderBy(i => lookup?.Invoke((BeatmapInfo)i.Model) ?? double.MaxValue)
+                            .ThenBy(i => ((BeatmapInfo)i.Model).StarRating)
+                            .ThenBy(i => ((BeatmapInfo)i.Model).ID)
+                            .ToList();
+            }
 
             return items.Order(Comparer<CarouselItem>.Create((a, b) =>
             {

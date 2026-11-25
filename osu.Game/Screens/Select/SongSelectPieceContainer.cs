@@ -20,6 +20,10 @@ namespace osu.Game.Screens.Select
         BeatmapDetails,
         BeatmapList,
         SearchBar,
+        MapStatistics,
+        DifficultyCard,
+        DifficultyStats,
+        ObjectCounts,
     }
 
     /// <summary>
@@ -32,6 +36,21 @@ namespace osu.Game.Screens.Select
         public void Register(SongSelectPieceContainer container) => pieces[container.Piece] = container;
 
         public SongSelectPieceContainer? Get(SongSelectPiece piece) => pieces.GetValueOrDefault(piece);
+
+        /// <summary>
+        /// How the beatmap cards look (set by the "Beatmap List" skin component).
+        /// </summary>
+        public readonly SongSelectCardStyle CardStyle = new SongSelectCardStyle();
+
+        /// <summary>
+        /// Wraps a piece of song select so skins can move and style it. Without a registry (outside song select) the piece is still wrapped, but nothing controls it.
+        /// </summary>
+        public static SongSelectPieceContainer Wrap(SongSelectPieceRegistry? registry, SongSelectPiece piece, Drawable content)
+        {
+            var container = new SongSelectPieceContainer(piece, content);
+            registry?.Register(container);
+            return container;
+        }
     }
 
     /// <summary>

@@ -95,6 +95,13 @@ namespace osu.Game.Screens.Select
         [Resolved]
         private BeatmapCarousel? carousel { get; set; }
 
+        // oily: card look set by the skin (see SongSelectCardStyle).
+        [Resolved]
+        private SongSelectPieceRegistry? pieceRegistry { get; set; }
+
+        private float baseHeight;
+        private bool? appliedFlip;
+
         [BackgroundDependencyLoader]
         private void load(OverlayColourProvider colourProvider, OsuColour colours)
         {
@@ -255,6 +262,8 @@ namespace osu.Game.Screens.Select
         {
             base.LoadComplete();
 
+            baseHeight = Height;
+
             Expanded.BindValueChanged(_ =>
             {
                 updateSelectedState();
@@ -362,6 +371,8 @@ namespace osu.Game.Screens.Select
                 selectionLayer.FadeOut(200, Easing.OutQuint);
         }
 
+        private bool flipped => pieceRegistry?.CardStyle.Flip.Value == true;
+
         private void updateXOffset(bool animated = true)
         {
             float x = PanelXOffset + CORNER_RADIUS;
@@ -376,6 +387,10 @@ namespace osu.Game.Screens.Select
 
             if (!KeyboardSelected.Value)
                 x += active_x_offset;
+
+            // oily: flipped cards come in from the left.
+            if (flipped)
+                x = -x;
 
             TopLevelContent.MoveToX(x, animated ? DURATION : 0, Easing.OutQuint);
         }
@@ -396,6 +411,38 @@ namespace osu.Game.Screens.Select
         {
             base.Update();
             contentPaddingContainer.Padding = contentPaddingContainer.Padding with { Left = iconContainer.DrawWidth };
+
+            applyCardStyle();
+        }
+
+        /// <summary>
+        /// oily: applies the skin's card look (flip, rotation, size, corners, picture opacity, colour).
+        /// </summary>
+        private void applyCardStyle()
+        {
+            if (pieceRegistry == null)
+                return;
+
+            var style = pieceRegistry.CardStyle;
+
+            if (appliedFlip != style.Flip.Value)
+            {
+                appliedFlip = style.Flip.Value;
+                Anchor = Origin = appliedFlip.Value ? Anchor.TopLeft : Anchor.TopRight;
+                selectionLayer.Anchor = selectionLayer.Origin = appliedFlip.Value ? Anchor.TopLeft : Anchor.TopRight;
+                updateXOffset(animated: false);
+            }
+
+            Rotation = style.Rotation.Value;
+            Width = style.Width.Value;
+
+            if (baseHeight > 0)
+                Height = baseHeight * style.Height.Value;
+
+            TopLevelContent.CornerRadius = style.CornerRadius.Value;
+            Content.CornerRadius = style.CornerRadius.Value;
+            backgroundContainer.Alpha = style.BackgroundOpacity.Value;
+            TopLevelContent.Colour = style.Tint.Value;
         }
 
         public abstract MenuItem[]? ContextMenuItems { get; }

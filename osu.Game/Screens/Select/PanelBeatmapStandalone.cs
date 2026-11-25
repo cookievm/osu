@@ -62,6 +62,7 @@ namespace osu.Game.Screens.Select
 
         private ConstrainedIconContainer difficultyIcon = null!;
         private StarRatingDisplay starRatingDisplay = null!;
+        private PanelPerformanceDisplay performanceDisplay = null!;
         private SpreadDisplay spreadDisplay = null!;
         private PanelLocalRankDisplay localRank = null!;
         private OsuSpriteText keyCountText = null!;
@@ -190,6 +191,8 @@ namespace osu.Game.Screens.Select
                                             Anchor = Anchor.CentreLeft,
                                             Scale = new Vector2(0.875f),
                                         },
+                                        // oily: SS pp with the selected mods.
+                                        performanceDisplay = new PanelPerformanceDisplay(),
                                         spreadDisplay = new SpreadDisplay
                                         {
                                             Origin = Anchor.CentreLeft,
@@ -270,6 +273,7 @@ namespace osu.Game.Screens.Select
             starDifficultyBindable.BindValueChanged(starDifficulty =>
             {
                 starRatingDisplay.Current.Value = starDifficulty.NewValue;
+                performanceDisplay.Difficulty = starDifficulty.NewValue;
                 spreadDisplay.StarDifficulty.Value = starDifficulty.NewValue;
             }, true);
         }

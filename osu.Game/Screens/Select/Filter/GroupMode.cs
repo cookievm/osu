@@ -58,5 +58,9 @@ namespace osu.Game.Screens.Select.Filter
 
         // purposefully unlocalised - `Ruleset.VariantDescription` is the intended localisation insertion point
         Variant,
+
+        // oily: pp an SS gives, with the selected mods.
+        [System.ComponentModel.Description("pp (SS)")]
+        PerformanceSS,
     }
 }

@@ -44,5 +44,9 @@ namespace osu.Game.Screens.Select.Filter
 
         [LocalisableDescription(typeof(SongSelectStrings), nameof(SongSelectStrings.Title))]
         Title,
+
+        // oily: pp an SS gives, with the selected mods.
+        [System.ComponentModel.Description("pp (SS)")]
+        PerformanceSS,
     }
 }

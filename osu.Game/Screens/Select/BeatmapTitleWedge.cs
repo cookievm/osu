@@ -83,6 +83,10 @@ namespace osu.Game.Screens.Select
             AutoSizeAxes = Axes.Y;
         }
 
+        // oily: lets skins move pieces of this card (see SongSelectPieceLayout).
+        [Resolved]
+        private SongSelectPieceRegistry? pieceRegistry { get; set; }
+
         [BackgroundDependencyLoader]
         private void load()
         {
@@ -144,7 +148,7 @@ namespace osu.Game.Screens.Select
                                 }
                             }
                         }),
-                        new ShearAligningWrapper(statisticsFlow = new FillFlowContainer
+                        new ShearAligningWrapper(SongSelectPieceRegistry.Wrap(pieceRegistry, SongSelectPiece.MapStatistics, statisticsFlow = new FillFlowContainer
                         {
                             Shear = -OsuGame.SHEAR,
                             AutoSizeAxes = Axes.X,
@@ -165,7 +169,7 @@ namespace osu.Game.Screens.Select
                                     Margin = new MarginPadding { Left = 5f },
                                 },
                             },
-                        }),
+                        })),
                         new ShearAligningWrapper(new Container
                         {
                             Shear = -OsuGame.SHEAR,
@@ -173,7 +177,7 @@ namespace osu.Game.Screens.Select
                             AutoSizeAxes = Axes.Y,
                             Margin = new MarginPadding { Left = -SongSelect.WEDGE_CONTENT_MARGIN },
                             Padding = new MarginPadding { Right = -SongSelect.WEDGE_CONTENT_MARGIN },
-                            Child = new DifficultyDisplay(),
+                            Child = SongSelectPieceRegistry.Wrap(pieceRegistry, SongSelectPiece.DifficultyCard, new DifficultyDisplay()),
                         }),
                     },
                 }

@@ -67,6 +67,10 @@ namespace osu.Game.Screens.Select
                 AutoSizeAxes = Axes.Y;
             }
 
+            // oily: lets skins move pieces of this card (see SongSelectPieceLayout).
+            [Resolved]
+            private SongSelectPieceRegistry? pieceRegistry { get; set; }
+
             [BackgroundDependencyLoader]
             private void load(OverlayColourProvider colourProvider)
             {
@@ -185,12 +189,12 @@ namespace osu.Game.Screens.Select
                                             {
                                                 new[]
                                                 {
-                                                    countStatisticsDisplay = new DifficultyStatisticsDisplay
+                                                    SongSelectPieceRegistry.Wrap(pieceRegistry, SongSelectPiece.ObjectCounts, countStatisticsDisplay = new DifficultyStatisticsDisplay
                                                     {
                                                         RelativeSizeAxes = Axes.X,
-                                                    },
+                                                    }),
                                                     Empty(),
-                                                    difficultyStatisticsDisplay = new DifficultyStatisticsDisplay(autoSize: true),
+                                                    SongSelectPieceRegistry.Wrap(pieceRegistry, SongSelectPiece.DifficultyStats, difficultyStatisticsDisplay = new DifficultyStatisticsDisplay(autoSize: true)),
                                                 }
                                             },
                                         }

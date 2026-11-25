@@ -31,6 +31,7 @@ using osu.Game.Graphics.UserInterface;
 using osu.Game.Online.API;
 using osu.Game.Rulesets;
 using osu.Game.Scoring;
+using osu.Game.Screens.Select.Filter;
 using Realms;
 
 namespace osu.Game.Screens.Select
@@ -103,7 +104,7 @@ namespace osu.Game.Screens.Select
             Filters = new ICarouselFilter[]
             {
                 new BeatmapCarouselFilterMatching(() => Criteria!),
-                new BeatmapCarouselFilterSorting(() => Criteria!),
+                sorting = new BeatmapCarouselFilterSorting(() => Criteria!),
                 grouping = new BeatmapCarouselFilterGrouping
                 {
                     GetCriteria = () => Criteria!,
@@ -126,10 +127,46 @@ namespace osu.Game.Screens.Select
             config.BindWith(OsuSetting.RandomSelectAlgorithm, randomAlgorithm);
         }
 
+        // oily: card look set by the skin (see SongSelectCardStyle).
+        [Resolved]
+        private SongSelectPieceRegistry? pieceRegistry { get; set; }
+
+        private readonly BindableFloat cardHeight = new BindableFloat(1);
+
+        // oily: SS pp for sorting and grouping by pp.
+        [Resolved]
+        private SSPerformanceStore? performanceStore { get; set; }
+
+        private readonly BeatmapCarouselFilterSorting sorting;
+
+        private bool usesPerformance => Criteria?.Sort == SortMode.PerformanceSS || Criteria?.Group == GroupMode.PerformanceSS;
+
         protected override void LoadComplete()
         {
             base.LoadComplete();
             detachedBeatmaps.BindCollectionChanged(beatmapSetsChanged, true);
+
+            if (performanceStore != null)
+            {
+                sorting.GetPerformance = grouping.GetPerformance = performanceStore.Get;
+                performanceStore.Updated += () =>
+                {
+                    if (usesPerformance)
+                        FilterAsync();
+                };
+            }
+
+            if (pieceRegistry != null)
+            {
+                cardHeight.BindTo(pieceRegistry.CardStyle.Height);
+                grouping.HeightScale = cardHeight.Value;
+                cardHeight.BindValueChanged(h =>
+                {
+                    // Card heights decide where each card sits, so the list is laid out again.
+                    grouping.HeightScale = h.NewValue;
+                    FilterAsync();
+                });
+            }
         }
 
         #region Beatmap source hookup
@@ -774,7 +811,10 @@ namespace osu.Game.Screens.Select
 
         protected override float GetPanelXOffset(Drawable panel)
         {
-            return base.GetPanelXOffset(panel) + (((ICarouselPanel)panel).Selected.Value ? 0 : selectionFocusOffset);
+            float offset = base.GetPanelXOffset(panel) + (((ICarouselPanel)panel).Selected.Value ? 0 : selectionFocusOffset);
+
+            // oily: flipped cards come in from the left, so they curve the other way.
+            return pieceRegistry?.CardStyle.Flip.Value == true ? -offset : offset;
         }
 
         #endregion
@@ -790,6 +830,10 @@ namespace osu.Game.Screens.Select
             bool resetDisplay = grouping.BeatmapSetsGroupedTogether != BeatmapCarouselFilterGrouping.ShouldGroupBeatmapsTogether(criteria);
 
             Criteria = criteria;
+
+            // oily: sorting or grouping by pp needs every beatmap's SS pp.
+            if (usesPerformance)
+                performanceStore?.Request(detachedBeatmaps.SelectMany(s => s.Beatmaps));
 
             loadingDebounce ??= Scheduler.AddDelayed(() =>
             {

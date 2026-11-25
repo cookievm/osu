@@ -21,6 +21,16 @@ namespace osu.Game.Screens.Select
 {
     public class BeatmapCarouselFilterGrouping : ICarouselFilter
     {
+        /// <summary>
+        /// oily: card height from the skin (see SongSelectCardStyle). 1 is lazer's height.
+        /// </summary>
+        public float HeightScale { get; set; } = 1;
+
+        /// <summary>
+        /// oily: the SS pp of a beatmap with the selected mods, or <c>null</c> while it is being worked out.
+        /// </summary>
+        public Func<BeatmapInfo, double?>? GetPerformance { get; set; }
+
         public bool BeatmapSetsGroupedTogether { get; private set; }
 
         /// <summary>
@@ -81,7 +91,7 @@ namespace osu.Game.Screens.Select
 
                         addItem(groupItem = new CarouselItem(group)
                         {
-                            DrawHeight = PanelGroup.HEIGHT,
+                            DrawHeight = HeightScale * PanelGroup.HEIGHT,
                             DepthLayer = -2,
                         });
                     }
@@ -110,7 +120,7 @@ namespace osu.Game.Screens.Select
 
                                 addItem(new CarouselItem(groupedBeatmapSet)
                                 {
-                                    DrawHeight = PanelBeatmapSet.HEIGHT,
+                                    DrawHeight = HeightScale * PanelBeatmapSet.HEIGHT,
                                     DepthLayer = -1
                                 });
                             }
@@ -123,7 +133,7 @@ namespace osu.Game.Screens.Select
 
                         addItem(new CarouselItem(new GroupedBeatmap(group, beatmap))
                         {
-                            DrawHeight = BeatmapSetsGroupedTogether ? PanelBeatmap.HEIGHT : PanelBeatmapStandalone.HEIGHT,
+                            DrawHeight = HeightScale * (BeatmapSetsGroupedTogether ? PanelBeatmap.HEIGHT : PanelBeatmapStandalone.HEIGHT),
                         });
                         lastBeatmap = beatmap;
                         displayedBeatmapsCount++;
@@ -156,6 +166,9 @@ namespace osu.Game.Screens.Select
             // In certain cases, we intentionally split out difficulties
             // where it's more relevant or convenient to view them as individual items.
             if (criteria.Sort == SortMode.Difficulty || criteria.Group == GroupMode.Difficulty)
+                return false;
+            // oily: pp belongs to each difficulty, not the set.
+            if (criteria.Sort == SortMode.PerformanceSS || criteria.Group == GroupMode.PerformanceSS)
                 return false;
             if (criteria.Sort == SortMode.LastPlayed && criteria.Group == GroupMode.LastPlayed)
                 return false;
@@ -207,6 +220,12 @@ namespace osu.Game.Screens.Select
 
                 case GroupMode.Difficulty:
                     return getGroupsBy(b => defineGroupByStars(b.StarRating), items);
+
+                case GroupMode.PerformanceSS:
+                {
+                    var lookup = GetPerformance;
+                    return getGroupsBy(b => DefineGroupByPerformance(lookup?.Invoke(b)).Yield(), items);
+                }
 
                 case GroupMode.Length:
                     return getGroupsBy(b => defineGroupByLength(b.Length), items);
@@ -364,6 +383,29 @@ namespace osu.Game.Screens.Select
             }
 
             return new GroupDefinition(301, BeatmapCarouselFilterGroupingStrings.OverBPM(300)).Yield();
+        }
+
+        /// <summary>
+        /// oily: SS pp groups: 0-50, 51-100, then every 100 up to 3000, then 3000+.
+        /// </summary>
+        public static GroupDefinition DefineGroupByPerformance(double? pp)
+        {
+            if (pp == null)
+                return new GroupDefinition(int.MaxValue, "Working out pp...");
+
+            if (pp <= 50)
+                return new GroupDefinition(0, "0-50pp");
+
+            if (pp <= 100)
+                return new GroupDefinition(51, "51-100pp");
+
+            for (int upper = 200; upper <= 3000; upper += 100)
+            {
+                if (pp <= upper)
+                    return new GroupDefinition(upper - 100, $"{upper - 100}-{upper}pp");
+            }
+
+            return new GroupDefinition(3001, "3000+pp");
         }
 
         private IEnumerable<GroupDefinition> defineGroupByStars(double stars)

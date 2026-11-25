@@ -43,7 +43,12 @@ namespace osu.Game.Screens.Select
         public BindableColour4 Tint { get; } = new BindableColour4(Colour4.White);
 
         [Resolved]
-        private SongSelectPieceRegistry registry { get; set; } = null!;
+        protected SongSelectPieceRegistry Registry { get; private set; } = null!;
+
+        /// <summary>
+        /// Whether this component is in control of its piece.
+        /// </summary>
+        protected bool InControl => piece?.Layout == this;
 
         private SongSelectPieceContainer? piece;
 
@@ -62,7 +67,7 @@ namespace osu.Game.Screens.Select
             if (findSkinnableContainer() == null)
                 return;
 
-            piece = registry.Get(Piece);
+            piece = Registry.Get(Piece);
 
             if (piece == null)
                 return;
@@ -80,6 +85,9 @@ namespace osu.Game.Screens.Select
             if (piece == null || Parent == null)
                 return;
 
+            if (InControl)
+                UpdatePieceStyle();
+
             // Keep the same size as lazer's piece, in this component's own space. The skin editor resizes using Scale.
             Quad natural = piece.NaturalScreenSpaceQuad;
             Vector2 topLeft = Parent.ToLocalSpace(natural.TopLeft);
@@ -88,6 +96,20 @@ namespace osu.Game.Screens.Select
 
             if (width > 0 && height > 0)
                 Size = new Vector2(width, height);
+        }
+
+        /// <summary>
+        /// Applies settings that change how the piece itself looks. Called every frame while in control.
+        /// </summary>
+        protected virtual void UpdatePieceStyle()
+        {
+        }
+
+        /// <summary>
+        /// Undoes <see cref="UpdatePieceStyle"/> when this component stops controlling its piece.
+        /// </summary>
+        protected virtual void ResetPieceStyle()
+        {
         }
 
         /// <summary>
@@ -129,7 +151,10 @@ namespace osu.Game.Screens.Select
         protected override void Dispose(bool isDisposing)
         {
             if (piece?.Layout == this)
+            {
                 piece.Layout = null;
+                ResetPieceStyle();
+            }
 
             base.Dispose(isDisposing);
         }
@@ -148,10 +173,95 @@ namespace osu.Game.Screens.Select
     public partial class SongSelectBeatmapListLayout : SongSelectPieceLayout
     {
         protected override SongSelectPiece Piece => SongSelectPiece.BeatmapList;
+
+        [SettingSource("Flip cards", "Cards come in from the left side instead of the right.")]
+        public BindableBool FlipCards { get; } = new BindableBool();
+
+        [SettingSource("Card rotation", "Tilts every card, in degrees.")]
+        public BindableFloat CardRotation { get; } = new BindableFloat
+        {
+            MinValue = -45,
+            MaxValue = 45,
+            Precision = 0.5f,
+        };
+
+        [SettingSource("Card width", "How wide the cards are, compared to the list.", SettingControlType = typeof(SettingsPercentageSlider<float>))]
+        public BindableFloat CardWidth { get; } = new BindableFloat(1)
+        {
+            MinValue = 0.3f,
+            MaxValue = 1.5f,
+            Precision = 0.01f,
+        };
+
+        [SettingSource("Card height", "How tall the cards are, compared to lazer's cards.", SettingControlType = typeof(SettingsPercentageSlider<float>))]
+        public BindableFloat CardHeight { get; } = new BindableFloat(1)
+        {
+            MinValue = 0.5f,
+            MaxValue = 2,
+            Precision = 0.01f,
+        };
+
+        [SettingSource("Card corner radius", "How round the card corners are.")]
+        public BindableFloat CardCornerRadius { get; } = new BindableFloat(SongSelectCardStyle.DEFAULT_CORNER_RADIUS)
+        {
+            MinValue = 0,
+            MaxValue = 30,
+            Precision = 0.5f,
+        };
+
+        [SettingSource("Card picture opacity", "How visible the beatmap's background picture is on each card.", SettingControlType = typeof(SettingsPercentageSlider<float>))]
+        public BindableFloat CardBackgroundOpacity { get; } = new BindableFloat(1)
+        {
+            MinValue = 0,
+            MaxValue = 1,
+            Precision = 0.01f,
+        };
+
+        [SettingSource("Show pp on cards", "Shows the pp an SS gives (with your mods) on each difficulty card.")]
+        public BindableBool ShowPerformance { get; } = new BindableBool(true);
+
+        [SettingSource("Card colour", "Tints every card. White keeps lazer's colours.")]
+        public BindableColour4 CardTint { get; } = new BindableColour4(Colour4.White);
+
+        protected override void UpdatePieceStyle()
+        {
+            var style = Registry.CardStyle;
+
+            style.Flip.Value = FlipCards.Value;
+            style.Rotation.Value = CardRotation.Value;
+            style.Width.Value = CardWidth.Value;
+            style.Height.Value = CardHeight.Value;
+            style.CornerRadius.Value = CardCornerRadius.Value;
+            style.BackgroundOpacity.Value = CardBackgroundOpacity.Value;
+            style.Tint.Value = CardTint.Value;
+            style.ShowPerformance.Value = ShowPerformance.Value;
+        }
+
+        protected override void ResetPieceStyle() => Registry.CardStyle.Reset();
     }
 
     public partial class SongSelectSearchBarLayout : SongSelectPieceLayout
     {
         protected override SongSelectPiece Piece => SongSelectPiece.SearchBar;
+    }
+
+    public partial class SongSelectMapStatisticsLayout : SongSelectPieceLayout
+    {
+        protected override SongSelectPiece Piece => SongSelectPiece.MapStatistics;
+    }
+
+    public partial class SongSelectDifficultyCardLayout : SongSelectPieceLayout
+    {
+        protected override SongSelectPiece Piece => SongSelectPiece.DifficultyCard;
+    }
+
+    public partial class SongSelectDifficultyStatsLayout : SongSelectPieceLayout
+    {
+        protected override SongSelectPiece Piece => SongSelectPiece.DifficultyStats;
+    }
+
+    public partial class SongSelectObjectCountsLayout : SongSelectPieceLayout
+    {
+        protected override SongSelectPiece Piece => SongSelectPiece.ObjectCounts;
     }
 }
