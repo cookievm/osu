@@ -629,7 +629,10 @@ namespace osu.Game.Overlays.SkinEditor
                 showingToolbarSettings = false;
 
             if (showingToolbarSettings)
+            {
                 settingsSidebar.Add(new EditorSidebarSection("Toolbars") { Child = new ToolbarLayoutEditor() });
+                settingsSidebar.Add(new EditorSidebarSection("Bottom bar") { Child = new BottomBarLayoutEditor() });
+            }
 
             foreach (var component in SelectedComponents.OfType<Drawable>())
                 settingsSidebar.Add(new SkinSettingsToolbox(component));

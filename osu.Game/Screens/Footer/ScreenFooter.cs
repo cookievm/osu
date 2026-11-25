@@ -223,6 +223,10 @@ namespace osu.Game.Screens.Footer
 
             updateBackground(0);
 
+            // oily: the bar and its buttons grow or shrink together, still filling the screen's width.
+            Scale = new Vector2(Layout.Size);
+            Width = 1 / Layout.Size;
+
             bool backOnRight = Layout.BackButton == FooterBackSide.Right;
             float backSpace = ScreenBackButton.BUTTON_WIDTH + padding;
 
@@ -279,7 +283,7 @@ namespace osu.Game.Screens.Footer
         {
             if (BarHidden)
             {
-                this.MoveToY(ScreenFooterButton.HEIGHT, transition_duration, Easing.OutQuint)
+                this.MoveToY(ScreenFooterButton.HEIGHT * Layout.Size, transition_duration, Easing.OutQuint)
                     .Then()
                     .FadeOut();
                 return;
@@ -297,7 +301,7 @@ namespace osu.Game.Screens.Footer
             // (see FooterButtonMods).
             leftButtonsFlow.FadeOut(transition_duration, Easing.OutQuint);
 
-            this.MoveToY(ScreenFooterButton.HEIGHT, transition_duration, Easing.OutQuint)
+            this.MoveToY(ScreenFooterButton.HEIGHT * Layout.Size, transition_duration, Easing.OutQuint)
                 .Then()
                 .FadeOut();
         }

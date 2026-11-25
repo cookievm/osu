@@ -7,29 +7,44 @@ using osu.Framework.Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
-using osu.Framework.Localisation;
 using osu.Game.Configuration;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Graphics.UserInterfaceV2;
+using osu.Game.Overlays.Settings;
 using osu.Game.Screens.Footer;
 using osuTK;
 
-namespace osu.Game.Overlays.Settings.Sections.UserInterface
+namespace osu.Game.Overlays.SkinEditor
 {
     /// <summary>
     /// oily: the song select bottom bar: shown, buttons only or hidden, which side the back button is on,
-    /// and which buttons it has in what order (see <see cref="FooterLayout"/>).
+    /// how big it is, and which buttons it has in what order (see <see cref="FooterLayout"/>).
+    /// Shown in the skin editor's "Toolbars" tab, next to the toolbars.
     /// </summary>
-    public partial class BottomBarSettings : SettingsSubsection
+    public partial class BottomBarLayoutEditor : FillFlowContainer
     {
-        protected override LocalisableString Header => "Song select bottom bar";
 
         private readonly Bindable<string> layoutSetting = new Bindable<string>();
         private readonly Bindable<FooterBarMode> barMode = new Bindable<FooterBarMode>();
         private readonly Bindable<FooterBackSide> backSide = new Bindable<FooterBackSide>();
 
+        private readonly BindableFloat size = new BindableFloat(1)
+        {
+            MinValue = FooterLayout.MIN_SIZE,
+            MaxValue = FooterLayout.MAX_SIZE,
+            Precision = 0.05f,
+        };
+
         private FooterLayout layout = FooterLayout.CreateDefault();
         private FillFlowContainer buttonsFlow = null!;
+
+        public BottomBarLayoutEditor()
+        {
+            RelativeSizeAxes = Axes.X;
+            AutoSizeAxes = Axes.Y;
+            Direction = FillDirection.Vertical;
+            Spacing = new Vector2(5);
+        }
 
         [BackgroundDependencyLoader]
         private void load(OsuConfigManager config)
@@ -38,6 +53,7 @@ namespace osu.Game.Overlays.Settings.Sections.UserInterface
             layout = FooterLayout.Parse(layoutSetting.Value);
             barMode.Value = layout.Bar;
             backSide.Value = layout.BackButton;
+            size.Value = layout.Size;
 
             Children = new Drawable[]
             {
@@ -58,6 +74,16 @@ namespace osu.Game.Overlays.Settings.Sections.UserInterface
                 {
                     Keywords = new[] { "footer", "back" },
                 },
+                new SettingsItemV2(new FormSliderBar<float>
+                {
+                    Caption = "Bottom bar size",
+                    HintText = "Makes the bar and all its buttons (back, mods, random and so on) bigger or smaller.",
+                    Current = size,
+                    DisplayAsPercentage = true,
+                })
+                {
+                    Keywords = new[] { "footer", "bottom bar", "size", "scale", "resize" },
+                },
                 buttonsFlow = new FillFlowContainer
                 {
                     RelativeSizeAxes = Axes.X,
@@ -73,6 +99,7 @@ namespace osu.Game.Overlays.Settings.Sections.UserInterface
                         layout = FooterLayout.CreateDefault();
                         barMode.Value = layout.Bar;
                         backSide.Value = layout.BackButton;
+                        size.Value = layout.Size;
                         save();
                         refresh();
                     },
@@ -88,6 +115,12 @@ namespace osu.Game.Overlays.Settings.Sections.UserInterface
             backSide.BindValueChanged(s =>
             {
                 layout.BackButton = s.NewValue;
+                save();
+            });
+
+            size.BindValueChanged(s =>
+            {
+                layout.Size = s.NewValue;
                 save();
             });
 
@@ -119,7 +152,7 @@ namespace osu.Game.Overlays.Settings.Sections.UserInterface
 
         private partial class ButtonRow : CompositeDrawable
         {
-            public ButtonRow(BottomBarSettings settings, FooterButtonLayout button)
+            public ButtonRow(BottomBarLayoutEditor settings, FooterButtonLayout button)
             {
                 RelativeSizeAxes = Axes.X;
                 AutoSizeAxes = Axes.Y;

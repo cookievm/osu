@@ -90,6 +90,15 @@ namespace osu.Game.Tests.Visual.UserInterface
             AddAssert("back button right of the buttons", () => ScreenFooter.BackButton.ScreenSpaceDrawQuad.Centre.X > ScreenFooter.ChildrenOfType<FooterButtonOptions>().Single().ScreenSpaceDrawQuad.Centre.X);
             AddAssert("no background", () => ScreenFooter.ChildrenOfType<Box>().First().Alpha, () => Is.Zero);
 
+            AddStep("make the bar bigger", () =>
+            {
+                var layout = FooterLayout.Parse(config.Get<string>(OsuSetting.OilyFooterLayout));
+                layout.Size = 1.5f;
+                config.SetValue(OsuSetting.OilyFooterLayout, layout.Serialise());
+            });
+            AddUntilStep("bar bigger", () => ScreenFooter.DrawHeight * ScreenFooter.Scale.Y, () => Is.EqualTo(ScreenFooter.HEIGHT * 1.5f).Within(0.01f));
+            AddAssert("bar still fills the width", () => ScreenFooter.ScreenSpaceDrawQuad.Width, () => Is.EqualTo(ScreenFooter.Parent!.ScreenSpaceDrawQuad.Width).Within(1));
+
             AddStep("hide the bar", () =>
             {
                 var layout = FooterLayout.Parse(config.Get<string>(OsuSetting.OilyFooterLayout));

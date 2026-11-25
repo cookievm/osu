@@ -24,6 +24,14 @@ namespace osu.Game.Screens.Footer
         [JsonConverter(typeof(StringEnumConverter))]
         public FooterBackSide BackButton { get; set; } = FooterBackSide.Left;
 
+        public const float MIN_SIZE = 0.5f;
+        public const float MAX_SIZE = 1.5f;
+
+        /// <summary>
+        /// How big the bar and its buttons are (1 = lazer's size).
+        /// </summary>
+        public float Size { get; set; } = 1;
+
         /// <summary>
         /// The buttons in order. Buttons that aren't one of these keep their place.
         /// </summary>
@@ -46,6 +54,7 @@ namespace osu.Game.Screens.Footer
                 if (layout == null)
                     return CreateDefault();
 
+                layout.Size = float.IsFinite(layout.Size) ? Math.Clamp(layout.Size, MIN_SIZE, MAX_SIZE) : 1;
                 layout.Buttons = layout.Buttons.Where(b => Enum.IsDefined(b.Item)).GroupBy(b => b.Item).Select(g => g.First()).ToList();
 
                 // Buttons added in later versions go at the end.

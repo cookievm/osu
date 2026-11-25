@@ -26,8 +26,6 @@ namespace osu.Game.Overlays.Settings.Sections
                 new GeneralSettings(),
                 new MainMenuSettings(),
                 new SongSelectSettings(),
-                // oily: toolbars on any edge, and where each button goes.
-                new BottomBarSettings(),
                 new PanelColourSettings(),
             };
         }
