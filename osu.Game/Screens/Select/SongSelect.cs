@@ -357,6 +357,10 @@ namespace osu.Game.Screens.Select
             // oily: the simulator's colours are there by default, so they can be picked in the skin editor without adding them.
             simulatorSkinLayer.OnComponentsLoaded += _ =>
             {
+                // Only one can be in charge: extra ones (placed before it was settings-only) would overwrite its colours.
+                foreach (var extra in simulatorSkinLayer.Components.OfType<PpSimulatorColours>().Skip(1).ToArray())
+                    simulatorSkinLayer.Remove(extra, true);
+
                 if (simulatorSkinLayer.Components.Any(c => c is PpSimulatorColours))
                     return;
 

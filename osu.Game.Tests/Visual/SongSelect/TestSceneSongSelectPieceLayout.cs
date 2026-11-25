@@ -13,6 +13,7 @@ using osu.Game.Screens.Select.Filter;
 using osu.Game.Skinning.Components;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Primitives;
+using osu.Framework.Graphics.Shapes;
 using osu.Framework.Testing;
 using osu.Game.Screens.Select;
 using osu.Game.Skinning;
@@ -150,8 +151,19 @@ namespace osu.Game.Tests.Visual.SongSelect
             AddStep("open simulator scene", () => SongSelect.ShowPerformanceSimulatorScene());
             AddUntilStep("simulator layer offered", () => SongSelect.ChildrenOfType<SkinnableContainer>().Single(c => c.Lookup.Lookup == GlobalSkinnableContainers.PpSimulator).AvailableInEditor!());
             AddAssert("song select layer not offered", () => skinLayer.AvailableInEditor!(), () => Is.False);
+
+            AddStep("add a second colours component, like an older skin", () => simulatorLayer.Add(new PpSimulatorColours()));
+            AddStep("make the first one's save button red", () => simulatorLayer.Components.OfType<PpSimulatorColours>().First().SaveButton.Value = Colour4.Red);
+            AddUntilStep("save button red", () => SongSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().ChildrenOfType<RoundedButton>()
+                                                            .First(b => b.Text.ToString() == "Save for this beatmap").BackgroundColour, () => Is.EqualTo((Color4)Colour4.Red));
+            AddStep("make the box green", () => simulatorLayer.Components.OfType<PpSimulatorColours>().First().Box.Value = Colour4.Green);
+            AddUntilStep("box green", () => SongSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().ChildrenOfType<Box>()
+                                                    .Any(b => b.Colour.TopLeft.SRGB.G > 0.4f && b.Colour.TopLeft.SRGB.R < 0.01f && b.Colour.TopLeft.SRGB.B < 0.01f));
+            AddStep("reset", () => simulatorLayer.Components.OfType<PpSimulatorColours>().First().SaveButton.Value = Colour4.White);
             AddStep("close it", () => SongSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().Hide());
         }
+
+        private SkinnableContainer simulatorLayer => SongSelect.ChildrenOfType<SkinnableContainer>().Single(c => c.Lookup.Lookup == GlobalSkinnableContainers.PpSimulator);
 
         private SongSelectBeatmapListLayout listLayout => skinLayer.Components.OfType<SongSelectBeatmapListLayout>().First();
 

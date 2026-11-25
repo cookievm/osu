@@ -1030,7 +1030,7 @@ namespace osu.Game.Tests.Visual.Navigation
             // background -> toolbar
             AddStep("move cursor to background", () => InputManager.MoveMouseTo(Game.ScreenSpaceDrawQuad.BottomRight));
             AddStep("press left mouse button", () => InputManager.PressButton(MouseButton.Left));
-            AddStep("move cursor to toolbar", () => InputManager.MoveMouseTo(Game.Toolbar.ScreenSpaceDrawQuad.Centre));
+            AddStep("move cursor to toolbar", () => InputManager.MoveMouseTo(Game.Toolbar.ChildrenOfType<Toolbar.ToolbarStrip>().First())); // oily: the toolbar covers the screen; its bars take input
             AddStep("release left mouse button", () => InputManager.ReleaseButton(MouseButton.Left));
             AddAssert("now playing is hidden", () => nowPlayingOverlay.State.Value == Visibility.Hidden);
 
@@ -1065,7 +1065,7 @@ namespace osu.Game.Tests.Visual.Navigation
             // click tests
 
             // toolbar
-            AddStep("move cursor to toolbar", () => InputManager.MoveMouseTo(Game.Toolbar.ScreenSpaceDrawQuad.Centre));
+            AddStep("move cursor to toolbar", () => InputManager.MoveMouseTo(Game.Toolbar.ChildrenOfType<Toolbar.ToolbarStrip>().First())); // oily: the toolbar covers the screen; its bars take input
             AddStep("click left mouse button", () => InputManager.Click(MouseButton.Left));
             AddAssert("now playing is still visible", () => nowPlayingOverlay.State.Value == Visibility.Visible);
 

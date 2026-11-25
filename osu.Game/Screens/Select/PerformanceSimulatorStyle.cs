@@ -1,11 +1,13 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
+using osu.Framework.Testing;
 using osu.Game.Configuration;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
@@ -146,6 +148,10 @@ namespace osu.Game.Screens.Select
             base.Update();
 
             if (!inControl)
+                return;
+
+            // Only the first one in the layer is in charge.
+            if (Parent?.ChildrenOfType<PpSimulatorColours>().FirstOrDefault() != this)
                 return;
 
             var style = registry.SimulatorStyle;

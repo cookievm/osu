@@ -147,17 +147,19 @@ namespace osu.Game.Screens.Footer
 
     public enum FooterItem
     {
+        // The order is the default order (lazer puts the multiplayer buttons next to Mods).
         Mods,
-        Random,
-        Options,
-
-        [Description("PP Simulator")]
-        PerformanceSimulator,
 
         [Description("Free mods (multiplayer)")]
         FreeMods,
 
         [Description("Freestyle (multiplayer)")]
         Freestyle,
+
+        Random,
+        Options,
+
+        [Description("PP Simulator")]
+        PerformanceSimulator,
     }
 }
