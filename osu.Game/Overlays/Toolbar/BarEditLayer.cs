@@ -98,6 +98,27 @@ namespace osu.Game.Overlays.Toolbar
                         saved.OffsetY += local.Y;
                     }, footer.SaveLayout));
                 }
+
+                // oily: the back button, and the toolbar buttons moved onto the bar (dragged as one group).
+                if (footer.BackButton.IsPresent)
+                {
+                    targets.Add((footer.BackButton, delta =>
+                    {
+                        Vector2 local = footer.ToLocalSpace(delta) - footer.ToLocalSpace(Vector2.Zero);
+                        footer.Layout.BackOffsetX += local.X;
+                        footer.Layout.BackOffsetY += local.Y;
+                    }, footer.SaveLayout));
+                }
+
+                if (footer.ShownToolbarItems.Count > 0 && footer.ToolbarButtons.IsPresent)
+                {
+                    targets.Add((footer.ToolbarButtons, delta =>
+                    {
+                        Vector2 local = footer.ToLocalSpace(delta) - footer.ToLocalSpace(Vector2.Zero);
+                        footer.Layout.ToolbarButtonsOffsetX += local.X;
+                        footer.Layout.ToolbarButtonsOffsetY += local.Y;
+                    }, footer.SaveLayout));
+                }
             }
 
             foreach (var handle in Children.OfType<DragBox>().Where(h => targets.All(t => t.target != h.Target)).ToArray())

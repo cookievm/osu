@@ -33,6 +33,22 @@ namespace osu.Game.Screens.Footer
         public float Size { get; set; } = 1;
 
         /// <summary>
+        /// How far the back button was dragged from its place, in the bar's own units.
+        /// </summary>
+        public float BackOffsetX { get; set; }
+
+        /// <inheritdoc cref="BackOffsetX"/>
+        public float BackOffsetY { get; set; }
+
+        /// <summary>
+        /// How far the toolbar buttons moved onto the bar were dragged from their place, in the bar's own units.
+        /// </summary>
+        public float ToolbarButtonsOffsetX { get; set; }
+
+        /// <inheritdoc cref="ToolbarButtonsOffsetX"/>
+        public float ToolbarButtonsOffsetY { get; set; }
+
+        /// <summary>
         /// The buttons in order. Buttons that aren't one of these keep their place.
         /// </summary>
         public List<FooterButtonLayout> Buttons { get; set; } = new List<FooterButtonLayout>();
@@ -55,6 +71,10 @@ namespace osu.Game.Screens.Footer
                     return CreateDefault();
 
                 layout.Size = float.IsFinite(layout.Size) ? Math.Clamp(layout.Size, MIN_SIZE, MAX_SIZE) : 1;
+                layout.BackOffsetX = float.IsFinite(layout.BackOffsetX) ? layout.BackOffsetX : 0;
+                layout.BackOffsetY = float.IsFinite(layout.BackOffsetY) ? layout.BackOffsetY : 0;
+                layout.ToolbarButtonsOffsetX = float.IsFinite(layout.ToolbarButtonsOffsetX) ? layout.ToolbarButtonsOffsetX : 0;
+                layout.ToolbarButtonsOffsetY = float.IsFinite(layout.ToolbarButtonsOffsetY) ? layout.ToolbarButtonsOffsetY : 0;
                 layout.Buttons = layout.Buttons.Where(b => Enum.IsDefined(b.Item)).GroupBy(b => b.Item).Select(g => g.First()).ToList();
 
                 // Buttons added in later versions go at the end.

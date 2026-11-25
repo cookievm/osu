@@ -17,6 +17,7 @@ using osu.Framework.Testing;
 using osu.Framework.Threading;
 using osu.Game.Graphics.Containers;
 using osu.Game.Online.API;
+using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Overlays.Toolbar;
 using osu.Game.Configuration;
 using osu.Game.Screens.Footer;
@@ -353,6 +354,10 @@ namespace osu.Game.Tests.Visual.Navigation
             AddUntilStep("toolbar options shown", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Count(), () => Is.EqualTo(1));
             AddUntilStep("bottom bar options shown", () => skinEditor.ChildrenOfType<BottomBarLayoutEditor>().Count(), () => Is.EqualTo(1));
             AddUntilStep("drag boxes shown", () => Game.ChildrenOfType<BarEditLayer.DragBox>().Count(), () => Is.GreaterThan(1));
+            AddAssert("background opacity sliders shown", () => skinEditor.ChildrenOfType<PanelOpacitySlider>().Count(), () => Is.EqualTo(2));
+            AddStep("make the toolbars transparent", () => skinEditor.ChildrenOfType<PanelOpacitySlider>().First().ChildrenOfType<FormSliderBar<float>>().Single().Current.Value = 0);
+            AddUntilStep("toolbars transparent", () => OilyPanelColours.Parse(Game.LocalConfig.Get<string>(OsuSetting.OilyPanelColours)).Get(OilyPanel.Toolbar).Opacity, () => Is.Zero);
+            AddStep("toolbars back to normal", () => Game.LocalConfig.SetValue(OsuSetting.OilyPanelColours, string.Empty));
 
             AddStep("drag the toolbar down", () =>
             {
@@ -374,6 +379,36 @@ namespace osu.Game.Tests.Visual.Navigation
             });
             AddUntilStep("mods button moved and saved", () => FooterLayout.Parse(Game.LocalConfig.Get<string>(OsuSetting.OilyFooterLayout)).Buttons.Single(b => b.Item == FooterItem.Mods).OffsetY, () => Is.LessThan(0));
             AddUntilStep("mods button drawn higher", () => Game.ChildrenOfType<FooterButtonMods>().Single().Margin.Top, () => Is.LessThan(0));
+
+            AddStep("drag the back button up", () =>
+            {
+                var box = Game.ChildrenOfType<BarEditLayer.DragBox>().First(b => b.Target is ScreenBackButton);
+                InputManager.MoveMouseTo(box);
+                InputManager.PressButton(MouseButton.Left);
+                InputManager.MoveMouseTo(box.ScreenSpaceDrawQuad.Centre - new Vector2(0, 100));
+                InputManager.ReleaseButton(MouseButton.Left);
+            });
+            AddUntilStep("back button moved and saved", () => FooterLayout.Parse(Game.LocalConfig.Get<string>(OsuSetting.OilyFooterLayout)).BackOffsetY, () => Is.LessThan(0));
+            AddUntilStep("back button drawn higher", () => Game.ChildrenOfType<ScreenBackButton>().Single().Y, () => Is.LessThan(0));
+
+            AddStep("put settings button on the bottom bar", () =>
+            {
+                var layout = ToolbarLayout.Parse(Game.LocalConfig.Get<string>(OsuSetting.OilyToolbarLayout));
+                layout.Buttons.Single(b => b.Item == ToolbarItem.Settings).Bar = ToolbarLayout.BOTTOM_BAR;
+                Game.LocalConfig.SetValue(OsuSetting.OilyToolbarLayout, layout.Serialise());
+            });
+            AddUntilStep("settings button on the bottom bar", () => Game.ChildrenOfType<ScreenFooter>().Single().ChildrenOfType<ToolbarSettingsButton>().Count(), () => Is.EqualTo(1));
+            AddUntilStep("settings button not on the toolbar", () => Game.Toolbar.ChildrenOfType<ToolbarSettingsButton>().Count(), () => Is.Zero);
+            AddStep("drag the toolbar buttons left", () =>
+            {
+                var footer = Game.ChildrenOfType<ScreenFooter>().Single();
+                var box = Game.ChildrenOfType<BarEditLayer.DragBox>().First(b => b.Target == footer.ToolbarButtons);
+                InputManager.MoveMouseTo(box);
+                InputManager.PressButton(MouseButton.Left);
+                InputManager.MoveMouseTo(box.ScreenSpaceDrawQuad.Centre - new Vector2(100, 0));
+                InputManager.ReleaseButton(MouseButton.Left);
+            });
+            AddUntilStep("toolbar buttons moved and saved", () => FooterLayout.Parse(Game.LocalConfig.Get<string>(OsuSetting.OilyFooterLayout)).ToolbarButtonsOffsetX, () => Is.LessThan(0));
 
             AddStep("put things back", () =>
             {

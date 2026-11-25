@@ -74,6 +74,8 @@ namespace osu.Game.Overlays.SkinEditor
                 {
                     Keywords = new[] { "footer", "back" },
                 },
+                new PanelOpacitySlider(OilyPanel.BottomBar, "Bottom bar background",
+                    "How see-through the bottom bar's background is. 0% makes it fully transparent, so only the buttons show."),
                 new SettingsItemV2(new FormSliderBar<float>
                 {
                     Caption = "Bottom bar size",
@@ -98,6 +100,9 @@ namespace osu.Game.Overlays.SkinEditor
                     {
                         foreach (var button in layout.Buttons)
                             button.OffsetX = button.OffsetY = 0;
+
+                        layout.BackOffsetX = layout.BackOffsetY = 0;
+                        layout.ToolbarButtonsOffsetX = layout.ToolbarButtonsOffsetY = 0;
 
                         save();
                     },

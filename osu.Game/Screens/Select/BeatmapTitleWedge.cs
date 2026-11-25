@@ -55,6 +55,9 @@ namespace osu.Game.Screens.Select
         private BeatmapSetOnlineStatusPill statusPill = null!;
         private OsuHoverContainer titleLink = null!;
         private MarqueeContainer titleLabel = null!;
+
+        private Container titleRow = null!;
+        private Container artistRow = null!;
         private OsuHoverContainer artistLink = null!;
         private MarqueeContainer artistLabel = null!;
 
@@ -95,7 +98,14 @@ namespace osu.Game.Screens.Select
 
             InternalChildren = new Drawable[]
             {
-                new WedgeBackground { Panel = OilyPanel.MapTitle },
+                // oily: the background keeps its rounded corners even when the wedge stops cutting off moved pieces.
+                new Container
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Masking = true,
+                    CornerRadius = corner_radius,
+                    Child = new WedgeBackground { Panel = OilyPanel.MapTitle },
+                },
                 new FillFlowContainer
                 {
                     RelativeSizeAxes = Axes.X,
@@ -116,7 +126,7 @@ namespace osu.Game.Screens.Select
                             TextSize = OsuFont.Style.Caption1.Size,
                             TextPadding = new MarginPadding { Horizontal = 6, Vertical = 1 },
                         }),
-                        new ShearAligningWrapper(new Container
+                        new ShearAligningWrapper(titleRow = new Container
                         {
                             Shear = -OsuGame.SHEAR,
                             RelativeSizeAxes = Axes.X,
@@ -132,7 +142,7 @@ namespace osu.Game.Screens.Select
                                 }
                             }
                         }),
-                        new ShearAligningWrapper(new Container
+                        new ShearAligningWrapper(artistRow = new Container
                         {
                             Shear = -OsuGame.SHEAR,
                             RelativeSizeAxes = Axes.X,
@@ -182,6 +192,20 @@ namespace osu.Game.Screens.Select
                     },
                 }
             };
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+
+            // oily: map details a skin moved outside this box are drawn in full instead of being cut off at its edge.
+            // The scrolling title and artist are then cut off on their own rows instead.
+            bool free = SongSelectPieceContainer.AnyMoved(pieceRegistry,
+                SongSelectPiece.MapStatistics, SongSelectPiece.DifficultyCard, SongSelectPiece.DifficultyStats, SongSelectPiece.ObjectCounts);
+
+            Masking = !free;
+            titleRow.Masking = free;
+            artistRow.Masking = free;
         }
 
         protected override void LoadComplete()

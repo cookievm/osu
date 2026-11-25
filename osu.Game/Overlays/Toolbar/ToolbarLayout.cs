@@ -19,6 +19,11 @@ namespace osu.Game.Overlays.Toolbar
         public const int MAX_BARS = 4;
 
         /// <summary>
+        /// The <see cref="ToolbarButtonLayout.Bar"/> of buttons moved onto the song select bottom bar.
+        /// </summary>
+        public const int BOTTOM_BAR = -2;
+
+        /// <summary>
         /// The toolbars, in order. Can be empty (no toolbar at all).
         /// </summary>
         public List<ToolbarBarLayout> Bars { get; set; } = new List<ToolbarBarLayout>();
@@ -100,6 +105,12 @@ namespace osu.Game.Overlays.Toolbar
         /// </summary>
         public IEnumerable<ToolbarItem> ItemsOn(int bar, ToolbarSide side)
             => Buttons.Where(b => b.Bar == bar && b.Side == side).OrderBy(b => b.Order).Select(b => b.Item);
+
+        /// <summary>
+        /// The buttons moved onto the song select bottom bar, in order.
+        /// </summary>
+        public IEnumerable<ToolbarItem> ItemsOnBottomBar()
+            => Buttons.Where(b => b.Bar == BOTTOM_BAR).OrderBy(b => b.Order).Select(b => b.Item);
     }
 
     public class ToolbarBarLayout
@@ -135,7 +146,7 @@ namespace osu.Game.Overlays.Toolbar
         public ToolbarItem Item { get; set; }
 
         /// <summary>
-        /// Which toolbar (from 0), or -1 for hidden.
+        /// Which toolbar (from 0), -1 for hidden, or <see cref="ToolbarLayout.BOTTOM_BAR"/> for the song select bottom bar.
         /// </summary>
         public int Bar { get; set; }
 

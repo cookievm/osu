@@ -20,6 +20,8 @@ using osu.Game.Graphics.UserInterface;
 using osu.Game.Input.Bindings;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Mods;
+using osu.Game.Overlays.Toolbar;
+using osu.Game.Rulesets;
 using osu.Game.Screens.Menu;
 using osuTK;
 
@@ -64,6 +66,13 @@ namespace osu.Game.Screens.Footer
 
         private readonly Bindable<string> layoutSetting = new Bindable<string>();
 
+        // oily: top toolbar buttons moved onto this bar.
+        private readonly Bindable<string> toolbarLayoutSetting = new Bindable<string>();
+        private FillFlowContainer toolbarButtonsFlow = null!;
+        private ToolbarItem[] shownToolbarItems = Array.Empty<ToolbarItem>();
+        private Bindable<RulesetInfo>? ruleset;
+        private OsuGame? game;
+
         private IBindable<string>? panelSetting;
         private OilyPanelStyle panelStyle = new OilyPanelStyle();
 
@@ -102,11 +111,15 @@ namespace osu.Game.Screens.Footer
         }
 
         [BackgroundDependencyLoader(true)]
-        private void load(OsuConfigManager? config)
+        private void load(OsuConfigManager? config, Bindable<RulesetInfo>? ruleset, OsuGame? game)
         {
+            this.ruleset = ruleset;
+            this.game = game;
+
             if (config != null)
             {
                 config.BindWith(OsuSetting.OilyFooterLayout, layoutSetting);
+                config.BindWith(OsuSetting.OilyToolbarLayout, toolbarLayoutSetting);
 
                 panelSetting = OilyPanelColours.Track(config, OilyPanel.BottomBar, style =>
                 {
@@ -171,6 +184,14 @@ namespace osu.Game.Screens.Footer
                         },
                     }
                 },
+                toolbarButtonsFlow = new FillFlowContainer
+                {
+                    Name = @"Toolbar buttons",
+                    Anchor = Anchor.BottomRight,
+                    Origin = Anchor.BottomRight,
+                    Direction = FillDirection.Horizontal,
+                    AutoSizeAxes = Axes.Both,
+                },
                 BackButton = new ScreenBackButton
                 {
                     Margin = new MarginPadding { Bottom = OsuGame.SCREEN_EDGE_MARGIN, Left = OsuGame.SCREEN_EDGE_MARGIN },
@@ -212,7 +233,45 @@ namespace osu.Game.Screens.Footer
             base.LoadComplete();
 
             layoutSetting.BindValueChanged(_ => applyLayout(), true);
+            toolbarLayoutSetting.BindValueChanged(_ => updateToolbarButtons(), true);
         }
+
+        /// <summary>
+        /// oily: shows the top toolbar buttons that were moved onto this bar (in the skin editor's "Toolbars" tab).
+        /// </summary>
+        private void updateToolbarButtons()
+        {
+            var items = ToolbarLayout.Parse(toolbarLayoutSetting.Value).ItemsOnBottomBar().ToArray();
+
+            if (items.SequenceEqual(shownToolbarItems))
+                return;
+
+            shownToolbarItems = items;
+            toolbarButtonsFlow.Clear();
+
+            if (ruleset == null)
+                return;
+
+            foreach (var item in items)
+            {
+                toolbarButtonsFlow.Add(new Container
+                {
+                    AutoSizeAxes = Axes.X,
+                    Height = Toolbar.HEIGHT,
+                    Child = Toolbar.CreateItem(item, false, () => game?.Toolbar.OnHome?.Invoke(), ruleset),
+                });
+            }
+        }
+
+        /// <summary>
+        /// oily: the top toolbar buttons moved onto this bar, for dragging them in the skin editor.
+        /// </summary>
+        public Drawable ToolbarButtons => toolbarButtonsFlow;
+
+        /// <summary>
+        /// oily: which top toolbar buttons are on this bar now.
+        /// </summary>
+        public IReadOnlyList<ToolbarItem> ShownToolbarItems => shownToolbarItems;
 
         /// <summary>
         /// oily: shows or hides the bar and its background, and puts the back button on its side.
@@ -241,6 +300,12 @@ namespace osu.Game.Screens.Footer
             BackButton.Margin = backOnRight
                 ? new MarginPadding { Bottom = OsuGame.SCREEN_EDGE_MARGIN, Right = OsuGame.SCREEN_EDGE_MARGIN + logo_space }
                 : new MarginPadding { Bottom = OsuGame.SCREEN_EDGE_MARGIN, Left = OsuGame.SCREEN_EDGE_MARGIN };
+
+            toolbarButtonsFlow.Margin = new MarginPadding
+            {
+                Bottom = (HEIGHT - Toolbar.HEIGHT) / 2f,
+                Right = OsuGame.SCREEN_EDGE_MARGIN + logo_space + (backOnRight ? backSpace : 0),
+            };
 
             if (State.Value == Visibility.Visible)
                 PopIn();
@@ -278,6 +343,10 @@ namespace osu.Game.Screens.Footer
 
                 button.Margin = new MarginPadding { Left = x, Right = -x, Top = y, Bottom = -y };
             }
+
+            // oily: the back button and the toolbar buttons can be dragged too.
+            BackButton.Position = new Vector2(Layout.BackOffsetX, Layout.BackOffsetY);
+            toolbarButtonsFlow.Position = new Vector2(Layout.ToolbarButtonsOffsetX, Layout.ToolbarButtonsOffsetY);
         }
 
         /// <summary>

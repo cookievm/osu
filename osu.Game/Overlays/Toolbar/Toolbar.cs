@@ -167,13 +167,26 @@ namespace osu.Game.Overlays.Toolbar
 
         private Drawable createItem(ToolbarItem item, bool vertical)
         {
+            var drawable = CreateItem(item, vertical, () => OnHome?.Invoke(), ruleset);
+
+            if (drawable is ToolbarUserButton user)
+                userButton = user;
+
+            return drawable;
+        }
+
+        /// <summary>
+        /// oily: makes one toolbar button (also used for toolbar buttons moved onto the song select bottom bar).
+        /// </summary>
+        public static Drawable CreateItem(ToolbarItem item, bool vertical, Action onHome, Bindable<RulesetInfo> ruleset)
+        {
             switch (item)
             {
                 case ToolbarItem.Settings:
                     return new ToolbarSettingsButton();
 
                 case ToolbarItem.Home:
-                    return new ToolbarHomeButton { Action = () => OnHome?.Invoke() };
+                    return new ToolbarHomeButton { Action = onHome };
 
                 case ToolbarItem.Rulesets:
                     var selector = new ToolbarRulesetSelector(vertical);
@@ -196,7 +209,7 @@ namespace osu.Game.Overlays.Toolbar
                     return new ToolbarMusicButton();
 
                 case ToolbarItem.User:
-                    return userButton = new ToolbarUserButton();
+                    return new ToolbarUserButton();
 
                 case ToolbarItem.Clock:
                     return new ToolbarClock();
@@ -500,6 +513,7 @@ namespace osu.Game.Overlays.Toolbar
             private readonly Box gradientBackground;
             private readonly Box solidBackground;
             private IBindable<string> panelSetting;
+            private bool transparent;
 
             public ToolbarBackground()
             {
@@ -533,6 +547,10 @@ namespace osu.Game.Overlays.Toolbar
                     {
                         solidBackground.Colour = style.CustomColour ?? OsuColour.Gray(0.1f);
                         solidBackground.Alpha = Math.Clamp(style.Opacity, 0, 1);
+                        transparent = style.Opacity <= 0;
+
+                        if (IsLoaded)
+                            updateState();
                     });
                 }
             }
@@ -546,7 +564,8 @@ namespace osu.Game.Overlays.Toolbar
 
             private void updateState()
             {
-                if (ShowGradient.Value)
+                // oily: a fully transparent toolbar doesn't get the dark hover shade either.
+                if (ShowGradient.Value && !transparent)
                     gradientBackground.FadeIn(2500, Easing.OutQuint);
                 else
                     gradientBackground.FadeOut(200, Easing.OutQuint);

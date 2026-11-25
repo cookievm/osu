@@ -60,6 +60,8 @@ namespace osu.Game.Overlays.SkinEditor
                 {
                     Keywords = new[] { "toolbar", "bar", "sidebar", "top bar" },
                 },
+                new PanelOpacitySlider(OilyPanel.Toolbar, "Toolbar background",
+                    "How see-through the toolbars' background is. 0% makes it fully transparent, so only the buttons show."),
                 barsFlow = new FillFlowContainer
                 {
                     RelativeSizeAxes = Axes.X,
@@ -190,6 +192,7 @@ namespace osu.Game.Overlays.SkinEditor
         private IEnumerable<ToolbarPlace> places()
         {
             yield return ToolbarPlace.HIDDEN;
+            yield return ToolbarPlace.BOTTOM_BAR;
 
             for (int i = 0; i < layout.Bars.Count; i++)
             {
@@ -242,7 +245,9 @@ namespace osu.Game.Overlays.SkinEditor
                 AutoSizeAxes = Axes.Y;
 
                 var button = settings.getOrCreate(item);
-                var place = new Bindable<ToolbarPlace>(button.Bar >= 0 && button.Bar < settings.layout.Bars.Count ? new ToolbarPlace(button.Bar, button.Side) : ToolbarPlace.HIDDEN);
+                var place = new Bindable<ToolbarPlace>(button.Bar == ToolbarLayout.BOTTOM_BAR
+                    ? ToolbarPlace.BOTTOM_BAR
+                    : button.Bar >= 0 && button.Bar < settings.layout.Bars.Count ? new ToolbarPlace(button.Bar, button.Side) : ToolbarPlace.HIDDEN);
 
                 place.BindValueChanged(p =>
                 {
@@ -306,7 +311,12 @@ namespace osu.Game.Overlays.SkinEditor
         {
             public static readonly ToolbarPlace HIDDEN = new ToolbarPlace(-1, ToolbarSide.Start);
 
-            public override string ToString() => Bar < 0 ? "Hidden" : $"Toolbar {Bar + 1}, {Side.ToString().ToLowerInvariant()}";
+            /// <summary>
+            /// On the song select bottom bar (next to Mods, Random and so on).
+            /// </summary>
+            public static readonly ToolbarPlace BOTTOM_BAR = new ToolbarPlace(ToolbarLayout.BOTTOM_BAR, ToolbarSide.Start);
+
+            public override string ToString() => Bar == ToolbarLayout.BOTTOM_BAR ? "Bottom bar (song select)" : Bar < 0 ? "Hidden" : $"Toolbar {Bar + 1}, {Side.ToString().ToLowerInvariant()}";
         }
     }
 }

@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Primitives;
@@ -70,6 +71,17 @@ namespace osu.Game.Screens.Select
         /// The skin component currently controlling this piece, if any.
         /// </summary>
         public SongSelectPieceLayout? Layout { get; set; }
+
+        /// <summary>
+        /// Whether a skin moved this piece away from lazer's place (so the box it sits in shouldn't cut it off).
+        /// </summary>
+        public bool Moved => Layout is SongSelectPieceLayout layout && layout.IsAlive && !layout.FollowLazer.Value;
+
+        /// <summary>
+        /// Whether any of these pieces was moved by the skin.
+        /// </summary>
+        public static bool AnyMoved(SongSelectPieceRegistry? registry, params SongSelectPiece[] pieces)
+            => registry != null && pieces.Any(p => registry.Get(p)?.Moved == true);
 
         private readonly Container inner;
 

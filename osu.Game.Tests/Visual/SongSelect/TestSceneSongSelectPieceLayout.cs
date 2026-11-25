@@ -168,6 +168,21 @@ namespace osu.Game.Tests.Visual.SongSelect
         private SongSelectBeatmapListLayout listLayout => skinLayer.Components.OfType<SongSelectBeatmapListLayout>().First();
 
         [Test]
+        public void TestMovedMapDetailsNotCutOff()
+        {
+            AddUntilStep("every piece has a layout", () =>
+                SongSelect.ChildrenOfType<SongSelectPieceContainer>().All(p => skinLayer.Components.OfType<SongSelectPieceLayout>().Any(l => l.Piece == p.Piece && l.FollowLazer.Value)));
+            AddAssert("info box cuts off its content", () => SongSelect.ChildrenOfType<BeatmapTitleWedge>().Single().Masking, () => Is.True);
+
+            AddStep("move difficulty stats", () => skinLayer.Components.OfType<SongSelectDifficultyStatsLayout>().First().Y += 300);
+            AddUntilStep("info box doesn't cut off moved stats", () => SongSelect.ChildrenOfType<BeatmapTitleWedge>().Single().Masking, () => Is.False);
+            AddAssert("difficulty card doesn't either", () => SongSelect.ChildrenOfType<BeatmapTitleWedge.DifficultyDisplay>().Single().Masking, () => Is.False);
+
+            AddStep("put it back in lazer's place", () => skinLayer.Components.OfType<SongSelectDifficultyStatsLayout>().First().FollowLazer.Value = true);
+            AddUntilStep("info box cuts off again", () => SongSelect.ChildrenOfType<BeatmapTitleWedge>().Single().Masking, () => Is.True);
+        }
+
+        [Test]
         public void TestDetailPiecesRegistered()
         {
             foreach (var piece in System.Enum.GetValues<SongSelectPiece>())
