@@ -55,12 +55,26 @@ namespace osu.Game.Screens.Footer
                 buttonAccentColour = value;
                 bar.Colour = buttonAccentColour;
                 icon.Colour = buttonAccentColour;
+                iconText.Colour = buttonAccentColour;
             }
         }
 
         public IconUsage Icon
         {
             set => icon.Icon = value;
+        }
+
+        /// <summary>
+        /// oily: bold text shown in place of the icon (for example "pp").
+        /// </summary>
+        public LocalisableString IconText
+        {
+            set
+            {
+                iconText.Text = value;
+                iconText.Alpha = 1;
+                icon.Alpha = 0;
+            }
         }
 
         public LocalisableString Text
@@ -90,6 +104,7 @@ namespace osu.Game.Screens.Footer
 
         private readonly SpriteText text;
         private readonly SpriteIcon icon;
+        private readonly OsuSpriteText iconText;
 
         protected Container TextContainer;
         private readonly Box bar;
@@ -159,6 +174,14 @@ namespace osu.Game.Screens.Footer
                                     Anchor = Anchor.TopCentre,
                                     Origin = Anchor.TopCentre
                                 },
+                                iconText = new OsuSpriteText
+                                {
+                                    Y = 6,
+                                    Anchor = Anchor.TopCentre,
+                                    Origin = Anchor.TopCentre,
+                                    Font = OsuFont.Torus.With(size: 20, weight: FontWeight.Bold),
+                                    Alpha = 0,
+                                },
                             }
                         },
                         new Container
@@ -208,6 +231,7 @@ namespace osu.Game.Screens.Footer
                     FooterItem.Mods => OilyColour.ModsIcon,
                     FooterItem.Random => OilyColour.RandomIcon,
                     FooterItem.Options => OilyColour.OptionsIcon,
+                    FooterItem.PerformanceSimulator => OilyColour.PpSimulatorIcon,
                     _ => null,
                 };
                 OilyColour? barKey = item switch
@@ -215,6 +239,7 @@ namespace osu.Game.Screens.Footer
                     FooterItem.Mods => OilyColour.ModsBar,
                     FooterItem.Random => OilyColour.RandomBar,
                     FooterItem.Options => OilyColour.OptionsBar,
+                    FooterItem.PerformanceSimulator => OilyColour.PpSimulatorBar,
                     _ => null,
                 };
 
@@ -289,6 +314,7 @@ namespace osu.Game.Screens.Footer
             text.FadeColour(textColour, 150, Easing.OutQuint);
             bool open = OverlayState.Value == Visibility.Visible;
             icon.FadeColour(open ? accentColour : iconOverride ?? accentColour, 150, Easing.OutQuint);
+            iconText.FadeColour(open ? accentColour : iconOverride ?? accentColour, 150, Easing.OutQuint);
             bar.FadeColour(open ? accentColour : barOverride ?? accentColour, 150, Easing.OutQuint);
 
             glowBox.FadeColour(ColourInfo.GradientVertical(buttonAccentColour.Opacity(0f), buttonAccentColour.Opacity(0.2f)), 150, Easing.OutQuint);

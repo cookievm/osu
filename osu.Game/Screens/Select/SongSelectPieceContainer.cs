@@ -43,6 +43,11 @@ namespace osu.Game.Screens.Select
         public readonly SongSelectCardStyle CardStyle = new SongSelectCardStyle();
 
         /// <summary>
+        /// oily: colours of the Universal PP Simulator's sliders and buttons (set by the "PP Simulator colours" skin component).
+        /// </summary>
+        public readonly PerformanceSimulatorStyle SimulatorStyle = new PerformanceSimulatorStyle();
+
+        /// <summary>
         /// Wraps a piece of song select so skins can move and style it. Without a registry (outside song select) the piece is still wrapped, but nothing controls it.
         /// </summary>
         public static SongSelectPieceContainer Wrap(SongSelectPieceRegistry? registry, SongSelectPiece piece, Drawable content)

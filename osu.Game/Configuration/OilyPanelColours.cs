@@ -103,6 +103,9 @@ namespace osu.Game.Configuration
 
         [Description("Song select leaderboard")]
         Leaderboard,
+
+        [Description("PP Simulator box")]
+        PpSimulator,
     }
 
     /// <summary>
@@ -130,6 +133,12 @@ namespace osu.Game.Configuration
 
         [Description("Options button light bar")]
         OptionsBar,
+
+        [Description("PP Simulator button icon")]
+        PpSimulatorIcon,
+
+        [Description("PP Simulator button light bar")]
+        PpSimulatorBar,
 
         [Description("Toolbar icons")]
         ToolbarIcons,

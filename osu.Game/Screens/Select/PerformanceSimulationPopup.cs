@@ -11,6 +11,7 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
 using osu.Game.Beatmaps;
+using osu.Game.Configuration;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.Sprites;
@@ -24,7 +25,7 @@ using osuTK.Graphics;
 namespace osu.Game.Screens.Select
 {
     /// <summary>
-    /// oily: lets the player set a beatmap's own pretend score for simulated pp (opened by right-clicking a card in song select).
+    /// oily: the Universal PP Simulator. Lets the player set a beatmap's own pretend score for simulated pp (opened from song select's "PP Simulator" button).
     /// </summary>
     public partial class PerformanceSimulationPopup : VisibilityContainer, IKeyBindingHandler<GlobalAction>
     {
@@ -33,7 +34,25 @@ namespace osu.Game.Screens.Select
 
         private readonly BindableDouble accuracy = new BindableDouble { MinValue = 0, MaxValue = 100, Precision = 0.01 };
         private readonly BindableInt misses = new BindableInt { MinValue = 0, MaxValue = 1000 };
-        private readonly BindableDouble combo = new BindableDouble { MinValue = 0, MaxValue = 100, Precision = 0.1 };
+
+        [Resolved(CanBeNull = true)]
+        private SongSelectPieceRegistry? registry { get; set; }
+
+        [Resolved(CanBeNull = true)]
+        private OsuConfigManager? config { get; set; }
+
+        private IBindable<string>? panelColourSetting;
+
+        internal PerformanceSimulatorStyle? Style => registry?.SimulatorStyle;
+
+        private Box panelBackground = null!;
+        private FormSliderBar<double> accuracySlider = null!;
+        private FormSliderBar<int> missesSlider = null!;
+        private RoundedButton saveButton = null!;
+        private RoundedButton useForAllButton = null!;
+        private RoundedButton defaultButton = null!;
+        private RoundedButton cancelButton = null!;
+        private Colour4 panelDefaultColour;
 
         private OsuSpriteText title = null!;
         private TruncatingSpriteText subtitle = null!;
@@ -68,10 +87,10 @@ namespace osu.Game.Screens.Select
                     CornerRadius = 10,
                     Children = new Drawable[]
                     {
-                        new Box
+                        panelBackground = new Box
                         {
                             RelativeSizeAxes = Axes.Both,
-                            Colour = colourProvider.Background4,
+                            Colour = panelDefaultColour = colourProvider.Background4,
                         },
                         new FillFlowContainer
                         {
@@ -85,7 +104,7 @@ namespace osu.Game.Screens.Select
                                 title = new OsuSpriteText
                                 {
                                     Font = OsuFont.Style.Heading2,
-                                    Text = "pp simulation",
+                                    Text = "Universal PP Simulator",
                                 },
                                 subtitle = new TruncatingSpriteText
                                 {
@@ -93,43 +112,37 @@ namespace osu.Game.Screens.Select
                                     Colour = colourProvider.Content2,
                                     RelativeSizeAxes = Axes.X,
                                 },
-                                new FormSliderBar<double>
+                                accuracySlider = new FormSliderBar<double>
                                 {
                                     Caption = "Accuracy (%)",
                                     Current = accuracy,
                                     KeyboardStep = 0.1f,
                                 },
-                                new FormSliderBar<int>
+                                missesSlider = new FormSliderBar<int>
                                 {
                                     Caption = "Misses",
                                     Current = misses,
                                     KeyboardStep = 1,
                                 },
-                                new FormSliderBar<double>
-                                {
-                                    Caption = "Combo (% of max combo)",
-                                    Current = combo,
-                                    KeyboardStep = 1,
-                                },
-                                new RoundedButton
+                                saveButton = new RoundedButton
                                 {
                                     RelativeSizeAxes = Axes.X,
                                     Text = "Save for this beatmap",
                                     Action = () => finish(() => simulations.Set(beatmap!, current())),
                                 },
-                                new RoundedButton
+                                useForAllButton = new RoundedButton
                                 {
                                     RelativeSizeAxes = Axes.X,
                                     Text = "Use for all beatmaps without their own",
                                     Action = () => finish(() => simulations.SetDefault(current())),
                                 },
-                                new RoundedButton
+                                defaultButton = new RoundedButton
                                 {
                                     RelativeSizeAxes = Axes.X,
                                     Text = "Go back to the default",
                                     Action = () => finish(() => simulations.Set(beatmap!, null)),
                                 },
-                                new RoundedButton
+                                cancelButton = new RoundedButton
                                 {
                                     RelativeSizeAxes = Axes.X,
                                     Text = "Cancel",
@@ -142,6 +155,41 @@ namespace osu.Game.Screens.Select
             };
         }
 
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+
+            // oily: the box's own colour and opacity (Settings > Colours).
+            if (config != null)
+            {
+                panelColourSetting = OilyPanelColours.Track(config, OilyPanel.PpSimulator, style =>
+                {
+                    panelBackground.Colour = style.CustomColour ?? panelDefaultColour;
+                    panelBackground.Alpha = style.Opacity;
+                });
+            }
+
+            // oily: slider and button colours from the skin's "PP Simulator colours" component.
+            if (registry != null)
+            {
+                var style = registry.SimulatorStyle;
+                style.AccuracyBar.BindValueChanged(c => accuracySlider.FillColour = PerformanceSimulatorStyle.Custom(c.NewValue), true);
+                style.MissesBar.BindValueChanged(c => missesSlider.FillColour = PerformanceSimulatorStyle.Custom(c.NewValue), true);
+                bindButton(style.SaveButton, saveButton);
+                bindButton(style.UseForAllButton, useForAllButton);
+                bindButton(style.DefaultButton, defaultButton);
+                bindButton(style.CancelButton, cancelButton);
+            }
+        }
+
+        private Colour4? defaultButtonColour;
+
+        private void bindButton(IBindable<Colour4> colour, RoundedButton button)
+        {
+            defaultButtonColour ??= button.BackgroundColour;
+            colour.BindValueChanged(c => button.BackgroundColour = PerformanceSimulatorStyle.Custom(c.NewValue) ?? defaultButtonColour.Value, true);
+        }
+
         /// <summary>
         /// Opens the popup for a beatmap, filled in with its current pretend score.
         /// </summary>
@@ -152,15 +200,15 @@ namespace osu.Game.Screens.Select
             var simulation = simulations.Get(beatmap);
             accuracy.Value = simulation.Accuracy;
             misses.Value = simulation.Misses;
-            combo.Value = simulation.ComboPercent;
 
-            title.Text = simulations.HasOwn(beatmap) ? "pp simulation (this beatmap's own)" : "pp simulation (default)";
-            subtitle.Text = $"{beatmap.Metadata.Artist} - {beatmap.Metadata.Title} [{beatmap.DifficultyName}]";
+            title.Text = "Universal PP Simulator";
+            subtitle.Text = $"{beatmap.Metadata.Artist} - {beatmap.Metadata.Title} [{beatmap.DifficultyName}]"
+                            + (simulations.HasOwn(beatmap) ? " (this beatmap's own)" : " (default)");
 
             Show();
         }
 
-        private OilySimulation current() => new OilySimulation(accuracy.Value, misses.Value, combo.Value);
+        private OilySimulation current() => new OilySimulation(accuracy.Value, misses.Value, 100); // o!ily pp does not scale with combo, so there is no combo slider.
 
         private void finish(Action action)
         {

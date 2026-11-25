@@ -123,7 +123,7 @@ namespace osu.Game.Screens.Select
         [Cached]
         private readonly PerformanceSimulationStore simulationStore = new PerformanceSimulationStore();
 
-        private PerformanceSimulationPopup simulationPopup = null!;
+        private readonly PerformanceSimulationPopup simulationPopup = new PerformanceSimulationPopup();
 
         [Cached]
         private readonly OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Blue);
@@ -338,7 +338,7 @@ namespace osu.Game.Screens.Select
                     RelativeSizeAxes = Axes.Both,
                 },
                 modSpeedHotkeyHandler = new ModSpeedHotkeyHandler(),
-                simulationPopup = new PerformanceSimulationPopup(),
+                simulationPopup,
             });
 
             LoadComponent(modSelectOverlay = CreateModSelectOverlay());
@@ -406,7 +406,12 @@ namespace osu.Game.Screens.Select
             new FooterButtonOptions
             {
                 Hotkey = GlobalAction.ToggleBeatmapOptions,
-            }
+            },
+            new FooterButtonPerformanceSimulator
+            {
+                Toggle = TogglePerformanceSimulation,
+                SimulatorState = simulationPopup.State,
+            },
         };
 
         protected override void LoadComplete()
@@ -1267,20 +1272,21 @@ namespace osu.Game.Screens.Select
         public void ShowPerformanceSimulation(BeatmapInfo beatmap) => simulationPopup.ShowFor(beatmap);
 
         /// <summary>
-        /// oily: pp simulation and pp work actions for a beatmap's menus (right-click and Options).
+        /// oily: opens the pp simulator for the selected beatmap, or closes it if it is open.
+        /// </summary>
+        public void TogglePerformanceSimulation()
+        {
+            if (simulationPopup.State.Value == Visibility.Visible)
+                simulationPopup.Hide();
+            else if (!Beatmap.IsDefault)
+                ShowPerformanceSimulation(Beatmap.Value.BeatmapInfo);
+        }
+
+        /// <summary>
+        /// oily: pp work actions for a beatmap's menus (right-click and Options).
         /// </summary>
         protected IEnumerable<OsuMenuItem> OilyActions(BeatmapInfo beatmap)
         {
-            // oily: the beatmap's own pretend score for simulated pp.
-            yield return new OsuMenuItem(simulationStore.HasOwn(beatmap) ? $"pp simulation ({simulationStore.Get(beatmap).ShortText})..." : "Set pp simulation...",
-                MenuItemType.Standard, () => ShowPerformanceSimulation(beatmap))
-            {
-                Icon = FontAwesome.Solid.Calculator
-            };
-
-            if (simulationStore.HasOwn(beatmap))
-                yield return new OsuMenuItem("Use default pp simulation", MenuItemType.Standard, () => simulationStore.Set(beatmap, null));
-
             // oily: pause or resume working out pp for every beatmap (the selected one is always worked out).
             yield return new OsuMenuItem(performanceStore.WorkPaused.Value ? "Resume pp sorting work" : "Pause pp sorting work",
                 MenuItemType.Standard, () => performanceStore.WorkPaused.Value = !performanceStore.WorkPaused.Value)

@@ -106,6 +106,8 @@ namespace osu.Game.Overlays.Settings.Sections.UserInterface
                 [OilyColour.RandomBar] = Colour4.FromHex("#66CCFF"),
                 [OilyColour.OptionsIcon] = Colour4.FromHex("#B266FF"),
                 [OilyColour.OptionsBar] = Colour4.FromHex("#B266FF"),
+                [OilyColour.PpSimulatorIcon] = Colour4.FromHex("#FFCC22"),
+                [OilyColour.PpSimulatorBar] = Colour4.FromHex("#FFCC22"),
                 [OilyColour.ToolbarIcons] = Colour4.White,
                 [OilyColour.GamemodeSelected] = Colour4.FromHex("#00FFAA"),
                 [OilyColour.GamemodeOthers] = Colour4.White,

@@ -78,6 +78,9 @@ namespace osu.Game.Screens.Footer
                 case FooterButtonOptions:
                     return FooterItem.Options;
 
+                case FooterButtonPerformanceSimulator:
+                    return FooterItem.PerformanceSimulator;
+
                 case FooterButtonFreeMods:
                     return FooterItem.FreeMods;
 
@@ -147,6 +150,9 @@ namespace osu.Game.Screens.Footer
         Mods,
         Random,
         Options,
+
+        [Description("PP Simulator")]
+        PerformanceSimulator,
 
         [Description("Free mods (multiplayer)")]
         FreeMods,

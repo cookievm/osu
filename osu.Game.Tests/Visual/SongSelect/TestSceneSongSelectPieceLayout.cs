@@ -7,6 +7,8 @@ using osu.Game.Rulesets.Difficulty;
 using NUnit.Framework;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Screens.Play.HUD;
+using osu.Game.Graphics.Sprites;
+using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Screens.Select.Filter;
 using osu.Game.Skinning.Components;
 using osu.Framework.Graphics;
@@ -190,10 +192,10 @@ namespace osu.Game.Tests.Visual.SongSelect
                 return others.Any(b => store.IsWaiting(b));
             });
 
-            AddAssert("menu offers resume and pp simulation", () =>
+            AddAssert("menu offers resume, not the simulator", () =>
             {
                 var texts = SongSelect.GetForwardActions(Beatmap.Value.BeatmapInfo).Select(i => i.Text.Value.ToString()).ToList();
-                return texts.Contains("Resume pp sorting work") && texts.Any(t => t.Contains("pp simulation"));
+                return texts.Contains("Resume pp sorting work") && !texts.Any(t => t.Contains("pp simulation"));
             });
             AddStep("resume pp work", () => SongSelect.ChildrenOfType<SSPerformanceStore>().Single().WorkPaused.Value = false);
             AddUntilStep("everything worked out", () => SongSelect.ChildrenOfType<SSPerformanceStore>().Single().Remaining, () => Is.Zero);
@@ -212,9 +214,27 @@ namespace osu.Game.Tests.Visual.SongSelect
 
             AddUntilStep("its card shows it", () => Carousel.ChildrenOfType<PanelPerformanceDisplay>().Any(d => d.SimulatedText.StartsWith("95.5% 3x", System.StringComparison.Ordinal)));
 
-            AddStep("open the popup", () => SongSelect.ShowPerformanceSimulation(Beatmap.Value.BeatmapInfo));
+            AddStep("press the PP Simulator button", () => this.ChildrenOfType<FooterButtonPerformanceSimulator>().Single().TriggerClick());
             AddUntilStep("popup shown", () => SongSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().State.Value == Visibility.Visible);
-            AddStep("close it", () => SongSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().Hide());
+            AddAssert("titled Universal PP Simulator", () => SongSelect.ChildrenOfType<PerformanceSimulationPopup>().Single()
+                                                                       .ChildrenOfType<OsuSpriteText>().Any(t => t.Text.ToString() == "Universal PP Simulator"));
+            AddAssert("no combo slider", () => SongSelect.ChildrenOfType<PerformanceSimulationPopup>().Single()
+                                                         .ChildrenOfType<FormSliderBar<double>>().All(s => !s.Caption.ToString().Contains("Combo")));
+            AddUntilStep("button lit", () => this.ChildrenOfType<FooterButtonPerformanceSimulator>().Single().OverlayState.Value == Visibility.Visible);
+            AddStep("press it again", () => this.ChildrenOfType<FooterButtonPerformanceSimulator>().Single().TriggerClick());
+            AddUntilStep("popup closed", () => SongSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().State.Value == Visibility.Hidden);
+
+            AddStep("colour the skin's simulator", () =>
+            {
+                var style = SongSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().Style!;
+                style.SaveButton.Value = Colour4.Red;
+                style.AccuracyBar.Value = Colour4.Green;
+            });
+            AddAssert("save button red", () => SongSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().ChildrenOfType<RoundedButton>()
+                                                         .First(b => b.Text.ToString() == "Save for this beatmap").BackgroundColour, () => Is.EqualTo((Color4)Colour4.Red));
+            AddAssert("accuracy bar green", () => SongSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().ChildrenOfType<FormSliderBar<double>>().First().FillColour,
+                () => Is.EqualTo((Color4?)Colour4.Green));
+            AddStep("reset skin colours", () => SongSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().Style!.Reset());
 
             AddStep("back to the default", () => SongSelect.ChildrenOfType<PerformanceSimulationStore>().Single().Set(Beatmap.Value.BeatmapInfo, null));
             AddUntilStep("no card shows it", () => Carousel.ChildrenOfType<PanelPerformanceDisplay>().All(d => !d.SimulatedText.StartsWith("95.5%", System.StringComparison.Ordinal)));
