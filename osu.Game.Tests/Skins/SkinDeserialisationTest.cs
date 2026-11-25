@@ -87,7 +87,7 @@ namespace osu.Game.Tests.Skins
             "Archives/modified-classic-20260806.osk",
             // oily: covers the "pp if FC" counters (classic, Argon, Triangles) and the global rank display.
             "Archives/modified-classic-20261102.osk",
-            // oily: covers the song select pieces (move/style song select) and the simulated pp text.
+            // oily: covers the song select pieces (move/style song select), the simulated pp text and the PP Simulator colours.
             "Archives/modified-classic-20261125.osk",
         };
 
