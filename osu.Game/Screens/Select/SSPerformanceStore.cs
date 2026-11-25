@@ -4,14 +4,17 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using osu.Framework.Allocation;
+using osu.Framework.Extensions;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Sprites;
 using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Framework.Threading;
@@ -23,7 +26,7 @@ using osu.Game.Overlays.Notifications;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Mods;
-using osu.Game.Scoring;
+using osu.Game.Utils;
 
 namespace osu.Game.Screens.Select
 {
@@ -87,17 +90,23 @@ namespace osu.Game.Screens.Select
         public int Total => wanted.Count;
 
         private ProgressNotification? progressNotification;
-        private int dismissedGeneration = -1;
+
+        /// <summary>
+        /// The last notification posted about working out pp, for tests.
+        /// </summary>
+        public Notification? LastNotification { get; private set; }
+        private int notifiedGeneration = -1;
+        private double lastBusyTime;
 
         /// <summary>
         /// Bump when o!ily's pp changes, so old saved values are thrown away.
         /// </summary>
-        private const int cache_version = 1;
+        private const int cache_version = 2;
 
-        private const string cache_filename = "oily-ss-pp.json";
-        private const int max_saved_values = 500_000;
+        private const string cache_filename = "oily-ss-pp.dat";
+        private const int max_saved_values = 5_000_000;
         private const double update_interval = 2000;
-        private const double save_interval = 15000;
+        private const double save_interval = 30000;
 
         private static readonly int worker_count = Math.Clamp(Environment.ProcessorCount / 2, 1, 6);
 
@@ -107,7 +116,7 @@ namespace osu.Game.Screens.Select
         private readonly LinkedList<BeatmapInfo> queue = new LinkedList<BeatmapInfo>();
         private readonly HashSet<Guid> queued = new HashSet<Guid>();
 
-        private ConcurrentDictionary<string, double> saved = new ConcurrentDictionary<string, double>();
+        private SavedPerformance saved = new SavedPerformance();
 
         /// <summary>
         /// Every beatmap asked for, so it can be asked for again when the mods change. Update thread only.
@@ -222,13 +231,13 @@ namespace osu.Game.Screens.Select
                 {
                     wanted[beatmap.ID] = beatmap;
 
-                    if (!generation.Values.ContainsKey(beatmap.ID) && saved.TryGetValue(savedKey(generation, beatmap), out double pp))
+                    if (!generation.Values.ContainsKey(beatmap.ID) && saved.TryGet(generation.Key, beatmap, out double pp))
                     {
                         generation.Values[beatmap.ID] = pp;
                         foundSaved = true;
                     }
 
-                    if (!generation.SimulatedValues.ContainsKey(beatmap.ID) && saved.TryGetValue(savedKey(generation, beatmap, simulationFor(beatmap)), out double simulatedPP))
+                    if (!generation.SimulatedValues.ContainsKey(beatmap.ID) && saved.TryGet(simulationGroup(generation.Key, simulationFor(beatmap)), beatmap, out double simulatedPP))
                     {
                         generation.SimulatedValues[beatmap.ID] = simulatedPP;
                         foundSaved = true;
@@ -294,12 +303,252 @@ namespace osu.Game.Screens.Select
             var rulesetInfo = ruleset.Value;
             var currentMods = mods.Value.ToArray();
 
-            string key = rulesetInfo == null
-                ? string.Empty
-                : $"{rulesetInfo.ShortName}|{JsonConvert.SerializeObject(currentMods.OrderBy(m => m.Acronym).Select(m => new APIMod(m)))}";
+            string key = rulesetInfo == null ? string.Empty : modsKey(rulesetInfo, currentMods);
 
             return new CalculationGeneration(number, rulesetInfo, currentMods, key);
         }
+
+        /// <summary>
+        /// Mods that never change pp, left out of the saved values' keys so they share values with the same mods without them.
+        /// </summary>
+        private static readonly HashSet<string> mods_without_pp_effect = new HashSet<string> { "SD", "PF" };
+
+        private static string modsKey(RulesetInfo rulesetInfo, IEnumerable<Mod> mods)
+        {
+            var apiMods = mods.Where(m => !mods_without_pp_effect.Contains(m.Acronym))
+                              .Select(m => new APIMod(m))
+                              .Select(m =>
+                              {
+                                  // Nightcore plays like Double Time for pp.
+                                  if (m.Acronym == "NC")
+                                      m.Acronym = "DT";
+                                  return m;
+                              })
+                              .OrderBy(m => m.Acronym);
+
+            var list = apiMods.ToList();
+
+            // Mods on their default settings (the usual case) get a short key, like "osu|HDHRRX".
+            if (list.All(m => m.Settings.Count == 0))
+                return $"{rulesetInfo.ShortName}|{string.Concat(list.Select(m => m.Acronym))}";
+
+            return $"{rulesetInfo.ShortName}|{JsonConvert.SerializeObject(list)}";
+        }
+
+        #region Working out every ranked mod combination in the background
+
+        /// <summary>
+        /// Stops all work (for example while a map is being played, so it doesn't take the CPU from gameplay).
+        /// </summary>
+        public bool Paused
+        {
+            get => pauseBackground;
+            set
+            {
+                pauseBackground = value;
+
+                if (!value)
+                    Schedule(() => startWorkers(current));
+            }
+        }
+
+        /// <summary>
+        /// How many beatmap and mod combinations are still waiting to be worked out in the background.
+        /// </summary>
+        public int BackgroundRemaining
+        {
+            get
+            {
+                lock (queueLock)
+                    return backgroundQueue.Count;
+            }
+        }
+
+        private volatile bool pauseBackground;
+
+        private readonly Queue<(BeatmapInfo Beatmap, BackgroundCombination Combination)> backgroundQueue = new Queue<(BeatmapInfo, BackgroundCombination)>();
+        private RulesetInfo? backgroundRuleset;
+        private int backgroundBuiltFor = -1;
+        private int backgroundTotal;
+        private double lastBackgroundBuild = double.MinValue;
+        private bool backgroundBuilding;
+        private ProgressNotification? backgroundNotification;
+        private double lastBackgroundBusyTime;
+
+        private record BackgroundCombination(Ruleset Ruleset, Mod[] Mods, string Key);
+
+        /// <summary>
+        /// Every combination of the ranked mods that change pp, most played first.
+        /// </summary>
+        private static List<Mod[]> rankedCombinations(Ruleset ruleset)
+        {
+            Mod? mod(string acronym) => ruleset.CreateModFromAcronym(acronym);
+
+            var difficulty = new[] { null, mod("EZ"), mod("HR") };
+            var speed = new[] { null, mod("DT"), mod("HT") };
+            var hidden = new[] { null, mod("HD") };
+            var flashlight = new[] { null, mod("FL") };
+            var relax = new[] { null, mod("RX") };
+
+            var combinations = new List<Mod[]>();
+
+            foreach (var d in difficulty)
+            foreach (var sp in speed)
+            foreach (var h in hidden)
+            foreach (var f in flashlight)
+            foreach (var r in relax)
+            {
+                var set = new[] { d, sp, h, f, r }.OfType<Mod>().ToArray();
+
+                if (set.Length > 0 && !ModUtils.CheckCompatibleSet(set))
+                    continue;
+
+                if (combinations.Any(c => c.Length == set.Length && c.All(m => set.Any(o => o.Acronym == m.Acronym))))
+                    continue;
+
+                combinations.Add(set);
+            }
+
+            // Common combinations first: Easy, Half Time and Flashlight are rarely played, so they go last.
+            return combinations.OrderBy(c => c.Sum(m => m.Acronym is "EZ" or "HT" or "FL" ? 3 : 1)).ToList();
+        }
+
+        private void updateBackground()
+        {
+            var rulesetInfo = current.Ruleset;
+
+            if (rulesetInfo == null || wanted.Count == 0 || backgroundBuilding)
+                return;
+
+            bool rulesetChanged = !rulesetInfo.Equals(backgroundRuleset);
+
+            if (!rulesetChanged && (backgroundBuiltFor == wanted.Count || Time.Current - lastBackgroundBuild < 10000))
+                return;
+
+            backgroundBuilding = true;
+            lastBackgroundBuild = Time.Current;
+
+            var beatmaps = wanted.Values.ToList();
+
+            Task.Run(() =>
+            {
+                var rulesetInstance = rulesetInfo.CreateInstance();
+                var items = new List<(BeatmapInfo, BackgroundCombination)>();
+
+                foreach (var combination in rankedCombinations(rulesetInstance))
+                {
+                    var entry = new BackgroundCombination(rulesetInstance, combination, modsKey(rulesetInfo, combination));
+
+                    foreach (var beatmap in beatmaps)
+                    {
+                        if (!saved.TryGet(entry.Key, beatmap, out _))
+                            items.Add((beatmap, entry));
+                    }
+                }
+
+                return items;
+            }).ContinueWith(t => Schedule(() =>
+            {
+                backgroundBuilding = false;
+
+                if (!t.IsCompletedSuccessfully)
+                    return;
+
+                var items = t.GetResultSafely();
+
+                lock (queueLock)
+                {
+                    backgroundQueue.Clear();
+
+                    foreach (var item in items)
+                        backgroundQueue.Enqueue(item);
+                }
+
+                backgroundRuleset = rulesetInfo;
+                backgroundBuiltFor = beatmaps.Count;
+                backgroundTotal = items.Count;
+
+                startWorkers(current);
+            }));
+        }
+
+        private void workBackground((BeatmapInfo Beatmap, BackgroundCombination Combination) item)
+        {
+            var (beatmap, combination) = item;
+            var simulation = simulationFor(beatmap);
+
+            double pp, simulatedPP;
+
+            try
+            {
+                var working = beatmapManager.GetWorkingBeatmap(beatmap);
+                var result = OilyPerformance.Calculate(combination.Ruleset, working, combination.Mods, simulation);
+                pp = result.SS ?? 0;
+                simulatedPP = result.Simulated ?? 0;
+            }
+            catch (Exception e)
+            {
+                Logger.Log($"Could not work out SS pp for {beatmap} with {string.Join("", combination.Mods.Select(m => m.Acronym))}: {e.Message}");
+                pp = simulatedPP = 0;
+            }
+
+            saved.Set(combination.Key, beatmap, pp);
+            saved.Set(simulationGroup(combination.Key, simulation), beatmap, simulatedPP);
+            savedDirty = true;
+        }
+
+        private void updateBackgroundNotification()
+        {
+            int left = BackgroundRemaining;
+
+            if (left > 0)
+                lastBackgroundBusyTime = Time.Current;
+
+            if (backgroundNotification?.Ongoing == true)
+            {
+                if (left == 0 && Time.Current - lastBackgroundBusyTime >= 1000)
+                {
+                    backgroundNotification.CompletionText = "Worked out pp for every ranked mod combination. Changing mods is instant now.";
+                    backgroundNotification.State = ProgressNotificationState.Completed;
+                    backgroundNotification = null;
+                }
+                else if (left > 0)
+                    setBackgroundProgress(backgroundNotification, left);
+
+                return;
+            }
+
+            backgroundNotification = null;
+
+            if (left == 0 || notifications == null || Paused)
+                return;
+
+            // Only once each time the list is built (closing it hides it, the work goes on).
+            if (backgroundNotifiedFor == backgroundTotal + backgroundBuiltFor * 7919)
+                return;
+
+            backgroundNotifiedFor = backgroundTotal + backgroundBuiltFor * 7919;
+
+            backgroundNotification = new ProgressNotification
+            {
+                State = ProgressNotificationState.Active,
+                CancelRequested = () => true,
+            };
+
+            setBackgroundProgress(backgroundNotification, left);
+            notifications.Post(backgroundNotification);
+        }
+
+        private int backgroundNotifiedFor = -1;
+
+        private void setBackgroundProgress(ProgressNotification notification, int left)
+        {
+            int done = Math.Max(0, backgroundTotal - left);
+            notification.Text = $"Working out pp for every ranked mod combination (once only): {done:N0} / {backgroundTotal:N0}";
+            notification.Progress = backgroundTotal == 0 ? 0 : (float)done / backgroundTotal;
+        }
+
+        #endregion
 
         private void startWorkers(CalculationGeneration generation)
         {
@@ -307,7 +556,7 @@ namespace osu.Game.Screens.Select
             {
                 int active = Volatile.Read(ref activeWorkers);
 
-                if (active >= worker_count || Remaining == 0)
+                if (active >= worker_count || Paused || (Remaining == 0 && BackgroundRemaining == 0))
                     return;
 
                 if (Interlocked.CompareExchange(ref activeWorkers, active + 1, active) != active)
@@ -326,15 +575,35 @@ namespace osu.Game.Screens.Select
             while (!token.IsCancellationRequested)
             {
                 BeatmapInfo? beatmap;
+                (BeatmapInfo, BackgroundCombination)? backgroundItem = null;
 
                 lock (queueLock)
                 {
-                    if (generation != current || queue.Count == 0)
+                    if (generation != current || Paused)
                         return;
 
-                    beatmap = queue.First!.Value;
-                    queue.RemoveFirst();
+                    if (queue.Count > 0)
+                    {
+                        beatmap = queue.First!.Value;
+                        queue.RemoveFirst();
+                    }
+                    else if (backgroundQueue.Count > 0)
+                    {
+                        beatmap = null;
+                        backgroundItem = backgroundQueue.Dequeue();
+                    }
+                    else
+                        return;
                 }
+
+                // Values for the selected mods come first; other combinations are worked out when there's nothing else to do.
+                if (backgroundItem != null)
+                {
+                    workBackground(backgroundItem.Value);
+                    continue;
+                }
+
+                Debug.Assert(beatmap != null);
 
                 double pp, simulatedPP;
                 var simulation = simulationFor(beatmap);
@@ -365,12 +634,12 @@ namespace osu.Game.Screens.Select
                     simulatedPP = 0;
 
                 generation.Values[beatmap.ID] = pp;
-                saved[savedKey(generation, beatmap)] = pp;
+                saved.Set(generation.Key, beatmap, pp);
 
                 // The simulation may have changed while this was worked out: then it's worked out again.
                 if (simulation == simulationFor(beatmap))
                     generation.SimulatedValues[beatmap.ID] = simulatedPP;
-                saved[savedKey(generation, beatmap, simulation)] = simulatedPP;
+                saved.Set(simulationGroup(generation.Key, simulation), beatmap, simulatedPP);
                 savedDirty = true;
 
                 lock (queueLock)
@@ -391,10 +660,8 @@ namespace osu.Game.Screens.Select
             }
         }
 
-        private static string savedKey(CalculationGeneration generation, BeatmapInfo beatmap) => $"{generation.Key}|{beatmap.MD5Hash}";
-
-        private static string savedKey(CalculationGeneration generation, BeatmapInfo beatmap, OilySimulation simulation)
-            => $"{generation.Key}|{beatmap.MD5Hash}|sim {simulation.Accuracy:R} {simulation.Misses} {simulation.ComboPercent:R}";
+        private static string simulationGroup(string modsKey, OilySimulation simulation)
+            => $"{modsKey}|sim {simulation.Accuracy:R} {simulation.Misses} {simulation.ComboPercent:R}";
 
         protected override void Update()
         {
@@ -408,6 +675,8 @@ namespace osu.Game.Screens.Select
             }
 
             updateProgressNotification();
+            updateBackground();
+            updateBackgroundNotification();
 
             if (savedDirty && Time.Current - lastSaveTime >= save_interval)
             {
@@ -420,59 +689,65 @@ namespace osu.Game.Screens.Select
         {
             int left = Remaining;
             int total = Total;
-            bool ongoing = progressNotification?.Ongoing == true;
 
-            if (!ShowProgress || left == 0)
+            // A running notification stays until everything is worked out (even if the sort is changed meanwhile), so it doesn't vanish.
+            if (left > 0)
+                lastBusyTime = Time.Current;
+
+            if (progressNotification?.Ongoing == true)
             {
-                if (ongoing)
+                // Waits a moment before finishing, as more beatmaps may be on their way (the queue can empty for a moment).
+                if (left == 0 && Time.Current - lastBusyTime >= 1000)
                 {
-                    if (left == 0)
-                    {
-                        progressNotification!.CompletionText = $"Worked out pp for all {total:N0} beatmaps.";
-                        progressNotification.State = ProgressNotificationState.Completed;
-                    }
-                    else
-                        progressNotification!.CompleteSilently();
+                    progressNotification.CompletionText = $"Worked out pp for all {total:N0} beatmaps.";
+                    progressNotification.State = ProgressNotificationState.Completed;
+                    progressNotification = null;
                 }
+                else if (left > 0)
+                    setProgress(progressNotification, left, total);
 
-                progressNotification = null;
                 return;
             }
 
-            if (!ongoing)
+            progressNotification = null;
+
+            // One notification for each set of mods, while sorting or grouping by pp.
+            if (!ShowProgress || total == 0 || notifications == null || notifiedGeneration == Generation)
+                return;
+
+            notifiedGeneration = Generation;
+
+            if (left == 0)
             {
-                if (notifications == null || dismissedGeneration == Generation)
-                    return;
-
-                int generation = Generation;
-
-                progressNotification = new ProgressNotification
+                // Everything came straight back from the saved values.
+                notifications.Post(LastNotification = new SimpleNotification
                 {
-                    State = ProgressNotificationState.Active,
-                    CancelRequested = () =>
-                    {
-                        // Only hides the notification; the pp keeps being worked out.
-                        dismissedGeneration = generation;
-                        return true;
-                    },
-                };
+                    Text = $"pp for sorting is ready: {total:N0} / {total:N0} beatmaps.",
+                    Icon = FontAwesome.Solid.Check,
+                });
 
-                notifications.Post(progressNotification);
+                return;
             }
 
+            progressNotification = new ProgressNotification
+            {
+                State = ProgressNotificationState.Active,
+                // Closing it only hides it; the pp keeps being worked out.
+                CancelRequested = () => true,
+            };
+
+            setProgress(progressNotification, left, total);
+            notifications.Post(LastNotification = progressNotification);
+        }
+
+        private static void setProgress(ProgressNotification notification, int left, int total)
+        {
             int done = Math.Max(0, total - left);
-            progressNotification!.Text = $"Working out pp for sorting: {done:N0} / {total:N0} beatmaps";
-            progressNotification.Progress = total == 0 ? 0 : (float)done / total;
+            notification.Text = $"Working out pp for sorting: {done:N0} / {total:N0} beatmaps";
+            notification.Progress = total == 0 ? 0 : (float)done / total;
         }
 
         #region Saving to disk
-
-        private class SavedValues
-        {
-            public int Version { get; set; }
-
-            public Dictionary<string, double> Values { get; set; } = new Dictionary<string, double>();
-        }
 
         private readonly object saveLock = new object();
 
@@ -484,13 +759,7 @@ namespace osu.Game.Screens.Select
                     return;
 
                 using (var stream = storage.GetStream(cache_filename))
-                using (var reader = new StreamReader(stream))
-                {
-                    var file = JsonConvert.DeserializeObject<SavedValues>(reader.ReadToEnd());
-
-                    if (file?.Version == cache_version)
-                        saved = new ConcurrentDictionary<string, double>(file.Values);
-                }
+                    saved = SavedPerformance.Read(stream, cache_version) ?? new SavedPerformance();
             }
             catch (Exception e)
             {
@@ -507,20 +776,104 @@ namespace osu.Game.Screens.Select
                     savedDirty = false;
 
                     if (saved.Count > max_saved_values)
-                        saved.Clear();
+                        saved = new SavedPerformance();
 
-                    string json = JsonConvert.SerializeObject(new SavedValues { Version = cache_version, Values = new Dictionary<string, double>(saved) });
                     string temp = cache_filename + ".tmp";
 
                     using (var stream = storage.CreateFileSafely(temp))
-                    using (var writer = new StreamWriter(stream))
-                        writer.Write(json);
+                        saved.Write(stream, cache_version);
 
                     storage.Move(temp, cache_filename);
                 }
                 catch (Exception e)
                 {
                     Logger.Log($"Could not save SS pp: {e.Message}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Saved pp values: for each group (ruleset, mods and maybe a pretend score), each beatmap's value by its MD5 hash.
+        /// Written in a small binary format, as there can be millions of them.
+        /// </summary>
+        private class SavedPerformance
+        {
+            private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, float>> groups = new ConcurrentDictionary<string, ConcurrentDictionary<string, float>>();
+
+            private int count;
+
+            public int Count => count;
+
+            public bool TryGet(string group, BeatmapInfo beatmap, out double pp)
+            {
+                pp = 0;
+
+                if (!groups.TryGetValue(group, out var values) || !values.TryGetValue(beatmap.MD5Hash, out float value))
+                    return false;
+
+                pp = value;
+                return true;
+            }
+
+            public void Set(string group, BeatmapInfo beatmap, double pp)
+            {
+                var values = groups.GetOrAdd(group, _ => new ConcurrentDictionary<string, float>());
+
+                if (values.TryAdd(beatmap.MD5Hash, (float)(double.IsFinite(pp) ? pp : 0)))
+                    Interlocked.Increment(ref count);
+                else
+                    values[beatmap.MD5Hash] = (float)(double.IsFinite(pp) ? pp : 0);
+            }
+
+            public void Write(Stream stream, int version)
+            {
+                using (var writer = new BinaryWriter(stream))
+                {
+                    writer.Write(version);
+
+                    var snapshot = groups.ToArray();
+                    writer.Write(snapshot.Length);
+
+                    foreach (var (group, values) in snapshot)
+                    {
+                        var entries = values.ToArray();
+
+                        writer.Write(group);
+                        writer.Write(entries.Length);
+
+                        foreach (var (hash, pp) in entries)
+                        {
+                            writer.Write(hash);
+                            writer.Write(pp);
+                        }
+                    }
+                }
+            }
+
+            public static SavedPerformance? Read(Stream stream, int version)
+            {
+                using (var reader = new BinaryReader(stream))
+                {
+                    if (reader.ReadInt32() != version)
+                        return null;
+
+                    var result = new SavedPerformance();
+                    int groupCount = reader.ReadInt32();
+
+                    for (int g = 0; g < groupCount; g++)
+                    {
+                        string group = reader.ReadString();
+                        int entries = reader.ReadInt32();
+                        var values = new ConcurrentDictionary<string, float>();
+
+                        for (int e = 0; e < entries; e++)
+                            values[reader.ReadString()] = reader.ReadSingle();
+
+                        result.groups[group] = values;
+                        result.count += values.Count;
+                    }
+
+                    return result;
                 }
             }
         }

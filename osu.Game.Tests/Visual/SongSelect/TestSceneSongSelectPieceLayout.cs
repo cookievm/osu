@@ -148,6 +148,9 @@ namespace osu.Game.Tests.Visual.SongSelect
             GroupBy(GroupMode.PerformanceSS);
             WaitForFiltering();
 
+            AddUntilStep("pp progress notification posted", () => SongSelect.ChildrenOfType<SSPerformanceStore>().Single().LastNotification?.Text.ToString(),
+                () => Does.Contain("pp for sorting"));
+
             AddUntilStep("beatmaps get pp groups", () => grouping.GroupItems.Keys.Any(g => g.Title.ToString().EndsWith("pp", System.StringComparison.Ordinal)));
             AddUntilStep("nothing left to work out", () => grouping.GroupItems.Keys.All(g => g.Title.ToString() != "Working out pp..."));
 

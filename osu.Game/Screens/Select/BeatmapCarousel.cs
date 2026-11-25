@@ -837,8 +837,8 @@ namespace osu.Game.Screens.Select
             if (performanceStore != null)
                 performanceStore.ShowProgress = usesPerformance;
 
-            if (usesPerformance)
-                performanceStore?.Request(detachedBeatmaps.SelectMany(s => s.Beatmaps));
+            // Every beatmap's pp is worked out straight away (and saved), so sorting by pp is ready when it's picked.
+            performanceStore?.Request(detachedBeatmaps.SelectMany(s => s.Beatmaps));
 
             loadingDebounce ??= Scheduler.AddDelayed(() =>
             {

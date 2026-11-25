@@ -699,6 +699,8 @@ namespace osu.Game.Screens.Select
 
             this.FadeIn();
             onArrivingAtScreen();
+
+            performanceStore.Paused = false;
         }
 
         public override void OnResuming(ScreenTransitionEvent e)
@@ -707,6 +709,9 @@ namespace osu.Game.Screens.Select
 
             this.FadeIn(fade_duration, Easing.OutQuint);
             onArrivingAtScreen();
+
+            // oily: carry on working out pp.
+            performanceStore.Paused = false;
 
             ensureGlobalBeatmapValid();
 
@@ -725,6 +730,9 @@ namespace osu.Game.Screens.Select
         {
             carousel.VisuallyFocusSelected = true;
 
+            // oily: don't take CPU from gameplay.
+            performanceStore.Paused = true;
+
             this.FadeOut(fade_duration, Easing.OutQuint);
             onLeavingScreen();
 
@@ -733,6 +741,7 @@ namespace osu.Game.Screens.Select
 
         public override bool OnExiting(ScreenExitEvent e)
         {
+            performanceStore.Paused = true;
             this.FadeOut(fade_duration, Easing.OutQuint);
             onLeavingScreen();
 
