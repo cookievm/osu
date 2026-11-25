@@ -1,6 +1,7 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.UserInterface;
@@ -9,6 +10,7 @@ using osu.Game.Configuration;
 using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Localisation;
 using osu.Game.Overlays.Mods.Input;
+using osu.Game.Screens.Select;
 
 namespace osu.Game.Overlays.Settings.Sections.UserInterface
 {
@@ -55,6 +57,26 @@ namespace osu.Game.Overlays.Settings.Sections.UserInterface
                     Caption = GameplaySettingsStrings.BackgroundBlur,
                     Current = config.GetBindable<bool>(OsuSetting.SongSelectBackgroundBlur),
                 }),
+                // oily: how much of the computer the pp work for sorting uses.
+                new SettingsItemV2(new FormDropdown<int>
+                {
+                    Caption = "pp work threads",
+                    HintText = $"How many CPU threads work out pp for sorting. More is faster but leaves less for everything else. Up to {SSPerformanceStore.MAX_THREADS} on this computer (its threads minus 2).",
+                    Items = Enumerable.Range(1, SSPerformanceStore.MAX_THREADS).ToList(),
+                    Current = config.GetBindable<int>(OsuSetting.OilyPpThreads),
+                })
+                {
+                    Keywords = new[] { "pp", "threads", "cpu", "performance", "sorting" },
+                },
+                new SettingsItemV2(new FormCheckBox
+                {
+                    Caption = "Pause pp work",
+                    HintText = "Stops working out pp for every beatmap. The selected map is still worked out, so its pp is always there before you play.",
+                    Current = config.GetBindable<bool>(OsuSetting.OilyPpWorkPaused),
+                })
+                {
+                    Keywords = new[] { "pp", "pause", "sorting" },
+                },
             };
         }
     }

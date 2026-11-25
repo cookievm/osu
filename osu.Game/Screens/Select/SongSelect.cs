@@ -786,6 +786,10 @@ namespace osu.Game.Screens.Select
 
             ensureGlobalBeatmapValid();
 
+            // oily: the selected map's pp always comes first, even while the pp work is paused.
+            var selectedSet = Beatmap.Value.BeatmapInfo.BeatmapSet;
+            performanceStore.RequestSelected(selectedSet?.Beatmaps.Where(b => !b.Hidden).ToArray() ?? new[] { Beatmap.Value.BeatmapInfo });
+
             ensurePlayingSelected();
             updateBackgroundDim();
             updateWedgeVisibility();
@@ -1280,6 +1284,13 @@ namespace osu.Game.Screens.Select
 
             if (simulationStore.HasOwn(beatmap))
                 yield return new OsuMenuItem("Use default pp simulation", MenuItemType.Standard, () => simulationStore.Set(beatmap, null));
+
+            // oily: pause or resume working out pp for every beatmap (the selected one is always worked out).
+            yield return new OsuMenuItem(performanceStore.WorkPaused.Value ? "Resume pp sorting work" : "Pause pp sorting work",
+                MenuItemType.Standard, () => performanceStore.WorkPaused.Value = !performanceStore.WorkPaused.Value)
+            {
+                Icon = performanceStore.WorkPaused.Value ? FontAwesome.Solid.Play : FontAwesome.Solid.Pause
+            };
 
             yield return new OsuMenuItemSpacer();
 

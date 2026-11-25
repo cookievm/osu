@@ -108,13 +108,37 @@ namespace osu.Game.Screens.Select
         private const double update_interval = 2000;
         private const double save_interval = 30000;
 
-        private static readonly int worker_count = Math.Clamp(Environment.ProcessorCount / 2, 1, 6);
+        /// <summary>
+        /// oily: the most threads the pp work can use: the computer's threads, minus 2 for the game itself.
+        /// </summary>
+        public static readonly int MAX_THREADS = Math.Max(1, Environment.ProcessorCount - 2);
 
-        private readonly ThreadedTaskScheduler workScheduler = new ThreadedTaskScheduler(worker_count, nameof(SSPerformanceStore));
+        /// <summary>
+        /// oily: how many threads work out pp (the player's choice, saved; 1 by default).
+        /// </summary>
+        public readonly BindableInt Threads = new BindableInt(1) { MinValue = 1, MaxValue = MAX_THREADS };
+
+        private volatile int threadCount = 1;
+
+        private readonly ThreadedTaskScheduler workScheduler = new ThreadedTaskScheduler(MAX_THREADS, nameof(SSPerformanceStore));
 
         private readonly object queueLock = new object();
         private readonly LinkedList<BeatmapInfo> queue = new LinkedList<BeatmapInfo>();
         private readonly HashSet<Guid> queued = new HashSet<Guid>();
+
+        /// <summary>
+        /// oily: the selected beatmap's difficulties. They are worked out first, even while the work is paused (see <see cref="WorkPaused"/>).
+        /// </summary>
+        private HashSet<Guid> urgent = new HashSet<Guid>();
+
+        private readonly LinkedList<BeatmapInfo> urgentQueue = new LinkedList<BeatmapInfo>();
+
+        /// <summary>
+        /// oily: pauses working out pp for every beatmap (the player's choice, saved). The selected beatmap is still worked out.
+        /// </summary>
+        public readonly Bindable<bool> WorkPaused = new BindableBool();
+
+        private volatile bool workPaused;
 
         private SavedPerformance saved = new SavedPerformance();
 
@@ -133,9 +157,25 @@ namespace osu.Game.Screens.Select
         private double lastUpdateTime;
         private double lastSaveTime;
 
-        [BackgroundDependencyLoader]
-        private void load()
+        [BackgroundDependencyLoader(true)]
+        private void load(OsuConfigManager? config)
         {
+            config?.BindWith(OsuSetting.OilyPpWorkPaused, WorkPaused);
+            config?.BindWith(OsuSetting.OilyPpThreads, Threads);
+            Threads.BindValueChanged(t =>
+            {
+                threadCount = Math.Clamp(t.NewValue, 1, MAX_THREADS);
+                Schedule(() => startWorkers(current));
+            }, true);
+            WorkPaused.BindValueChanged(p =>
+            {
+                workPaused = p.NewValue;
+                pendingUpdate = true;
+
+                if (!p.NewValue)
+                    Schedule(() => startWorkers(current));
+            }, true);
+
             loadSaved();
             current = createGeneration(1);
         }
@@ -199,6 +239,48 @@ namespace osu.Game.Screens.Select
         /// </summary>
         public void RequestFirst(BeatmapInfo beatmap) => Schedule(() => enqueue(new[] { beatmap }, first: true));
 
+        /// <summary>
+        /// oily: the selected beatmap's difficulties, worked out before anything else and even while the work is paused,
+        /// so their pp is always there before playing.
+        /// </summary>
+        public void RequestSelected(IEnumerable<BeatmapInfo> beatmaps)
+        {
+            var list = beatmaps.ToList();
+
+            Schedule(() =>
+            {
+                lock (queueLock)
+                {
+                    urgent = list.Select(b => b.ID).ToHashSet();
+
+                    // Ones already waiting move over.
+                    for (var node = queue.First; node != null;)
+                    {
+                        var next = node.Next;
+
+                        if (urgent.Contains(node.Value.ID))
+                        {
+                            queue.Remove(node);
+                            urgentQueue.AddLast(node);
+                        }
+
+                        node = next;
+                    }
+                }
+
+                enqueue(list, first: true);
+            });
+        }
+
+        /// <summary>
+        /// oily: whether this beatmap is waiting to be worked out (for tests).
+        /// </summary>
+        public bool IsWaiting(BeatmapInfo beatmap)
+        {
+            lock (queueLock)
+                return queued.Contains(beatmap.ID);
+        }
+
         private void simulationChanged(BeatmapInfo? beatmap)
         {
             if (beatmap == null)
@@ -248,14 +330,16 @@ namespace osu.Game.Screens.Select
 
                     if (queued.Add(beatmap.ID))
                     {
-                        if (first)
+                        if (urgent.Contains(beatmap.ID))
+                            urgentQueue.AddLast(beatmap);
+                        else if (first)
                             queue.AddFirst(beatmap);
                         else
                             queue.AddLast(beatmap);
 
                         Interlocked.Increment(ref remaining);
                     }
-                    else if (first)
+                    else if (first && !urgent.Contains(beatmap.ID))
                     {
                         // Already waiting: move it to the front.
                         for (var node = queue.First; node != null; node = node.Next)
@@ -285,6 +369,7 @@ namespace osu.Game.Screens.Select
             lock (queueLock)
             {
                 queue.Clear();
+                urgentQueue.Clear();
                 queued.Clear();
                 Interlocked.Exchange(ref remaining, 0);
             }
@@ -520,7 +605,7 @@ namespace osu.Game.Screens.Select
 
             backgroundNotification = null;
 
-            if (left == 0 || notifications == null || Paused)
+            if (left == 0 || notifications == null || Paused || workPaused)
                 return;
 
             // Only once each time the list is built (closing it hides it, the work goes on).
@@ -556,14 +641,47 @@ namespace osu.Game.Screens.Select
             {
                 int active = Volatile.Read(ref activeWorkers);
 
-                if (active >= worker_count || Paused || (Remaining == 0 && BackgroundRemaining == 0))
+                if (active >= threadCount || Paused || (Remaining == 0 && BackgroundRemaining == 0))
                     return;
+
+                if (workPaused)
+                {
+                    lock (queueLock)
+                    {
+                        if (urgentQueue.Count == 0)
+                            return;
+                    }
+                }
 
                 if (Interlocked.CompareExchange(ref activeWorkers, active + 1, active) != active)
                     continue;
 
-                Task.Factory.StartNew(() => work(generation), generation.Cancellation.Token, TaskCreationOptions.HideScheduler, workScheduler)
-                    .ContinueWith(_ => Interlocked.Decrement(ref activeWorkers));
+                Task.Factory.StartNew(() => runWorker(generation), generation.Cancellation.Token, TaskCreationOptions.HideScheduler, workScheduler)
+                    .ContinueWith(t =>
+                    {
+                        // A worker that never ran still counted itself.
+                        if (t.IsCanceled)
+                            Interlocked.Decrement(ref activeWorkers);
+                    });
+            }
+        }
+
+        [ThreadStatic]
+        private static bool stoppedForFewerThreads;
+
+        private void runWorker(CalculationGeneration generation)
+        {
+            stoppedForFewerThreads = false;
+
+            try
+            {
+                work(generation);
+            }
+            finally
+            {
+                // A worker stopped for fewer threads already counted itself out.
+                if (!stoppedForFewerThreads)
+                    Interlocked.Decrement(ref activeWorkers);
             }
         }
 
@@ -582,7 +700,22 @@ namespace osu.Game.Screens.Select
                     if (generation != current || Paused)
                         return;
 
-                    if (queue.Count > 0)
+                    // Fewer threads chosen: extra workers stop, one at a time.
+                    if (activeWorkers > threadCount)
+                    {
+                        Interlocked.Decrement(ref activeWorkers);
+                        stoppedForFewerThreads = true;
+                        return;
+                    }
+
+                    if (urgentQueue.Count > 0)
+                    {
+                        beatmap = urgentQueue.First!.Value;
+                        urgentQueue.RemoveFirst();
+                    }
+                    else if (workPaused)
+                        return;
+                    else if (queue.Count > 0)
                     {
                         beatmap = queue.First!.Value;
                         queue.RemoveFirst();
@@ -647,7 +780,12 @@ namespace osu.Game.Screens.Select
                     if (generation == current)
                     {
                         if (simulation != simulationFor(beatmap))
-                            queue.AddFirst(beatmap);
+                        {
+                            if (urgent.Contains(beatmap.ID))
+                                urgentQueue.AddFirst(beatmap);
+                            else
+                                queue.AddFirst(beatmap);
+                        }
                         else
                         {
                             queued.Remove(beatmap.ID);
@@ -704,7 +842,7 @@ namespace osu.Game.Screens.Select
                     progressNotification = null;
                 }
                 else if (left > 0)
-                    setProgress(progressNotification, left, total);
+                    setProgress(progressNotification, left, total, workPaused, threadCount);
 
                 return;
             }
@@ -736,14 +874,16 @@ namespace osu.Game.Screens.Select
                 CancelRequested = () => true,
             };
 
-            setProgress(progressNotification, left, total);
+            setProgress(progressNotification, left, total, workPaused, threadCount);
             notifications.Post(LastNotification = progressNotification);
         }
 
-        private static void setProgress(ProgressNotification notification, int left, int total)
+        private static void setProgress(ProgressNotification notification, int left, int total, bool paused, int threads)
         {
             int done = Math.Max(0, total - left);
-            notification.Text = $"Working out pp for sorting: {done:N0} / {total:N0} beatmaps";
+            notification.Text = paused
+                ? $"pp for sorting is paused: {done:N0} / {total:N0} beatmaps (the selected map is still worked out). Resume it from song select's Options."
+                : $"Working out pp for sorting: {done:N0} / {total:N0} beatmaps ({threads} {(threads == 1 ? "thread" : "threads")}, change in settings)";
             notification.Progress = total == 0 ? 0 : (float)done / total;
         }
 

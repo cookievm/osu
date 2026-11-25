@@ -164,6 +164,8 @@ namespace osu.Game.Configuration
             SetDefault(OsuSetting.OilyToolbarLayout, string.Empty);
             SetDefault(OsuSetting.OilyFooterLayout, string.Empty);
             SetDefault(OsuSetting.OilyPanelColours, string.Empty);
+            SetDefault(OsuSetting.OilyPpWorkPaused, false);
+            SetDefault(OsuSetting.OilyPpThreads, 1, 1, 256);
             SetDefault(OsuSetting.StarFountains, true);
 
             SetDefault(OsuSetting.HUDVisibilityMode, HUDVisibilityMode.Always);
@@ -512,5 +514,7 @@ namespace osu.Game.Configuration
         OilyToolbarLayout,
         OilyFooterLayout,
         OilyPanelColours,
+        OilyPpWorkPaused,
+        OilyPpThreads,
     }
 }

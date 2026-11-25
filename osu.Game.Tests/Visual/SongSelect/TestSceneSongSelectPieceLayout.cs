@@ -173,6 +173,28 @@ namespace osu.Game.Tests.Visual.SongSelect
         }
 
         [Test]
+        public void TestPausedWorkStillDoesSelectedMap()
+        {
+            ImportBeatmapForRuleset(0);
+            AddStep("pause pp work", () => SongSelect.ChildrenOfType<SSPerformanceStore>().Single().WorkPaused.Value = true);
+            ChangeMods(new OsuModHardRock());
+
+            AddStep("ask for every beatmap", () => SongSelect.ChildrenOfType<SSPerformanceStore>().Single()
+                                                             .Request(Carousel.GetCarouselItems()!.Select(i => i.Model).OfType<GroupedBeatmap>().Select(b => b.Beatmap).ToList()));
+            AddUntilStep("selected map worked out", () => SongSelect.ChildrenOfType<SSPerformanceStore>().Single().Get(Beatmap.Value.BeatmapInfo), () => Is.Not.Null);
+            AddUntilStep("other maps wait", () =>
+            {
+                var store = SongSelect.ChildrenOfType<SSPerformanceStore>().Single();
+                var others = Carousel.GetCarouselItems()!.Select(i => i.Model).OfType<GroupedBeatmap>().Select(b => b.Beatmap)
+                                     .Where(b => b.BeatmapSet!.ID != Beatmap.Value.BeatmapSetInfo.ID).ToList();
+                return others.Any(b => store.IsWaiting(b));
+            });
+
+            AddStep("resume pp work", () => SongSelect.ChildrenOfType<SSPerformanceStore>().Single().WorkPaused.Value = false);
+            AddUntilStep("everything worked out", () => SongSelect.ChildrenOfType<SSPerformanceStore>().Single().Remaining, () => Is.Zero);
+        }
+
+        [Test]
         public void TestSimulatedPerformance()
         {
             AddUntilStep("cards show the default simulation", () => Carousel.ChildrenOfType<PanelPerformanceDisplay>().Any(d => d.SimulatedText.StartsWith("98% 0x", System.StringComparison.Ordinal)));
