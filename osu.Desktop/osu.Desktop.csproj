@@ -23,6 +23,15 @@
   <PropertyGroup>
     <StartupObject>osu.Desktop.Program</StartupObject>
   </PropertyGroup>
+
+  <!-- oily: a copy of the game named osu!.exe, so tools that look for lazer's "osu!" process (tosu, stream overlays) find o!ily too.
+       It is the same program: the launcher inside it still starts oily.dll. -->
+  <Target Name="OilyLazerNamedCopy" AfterTargets="Build" Condition="Exists('$(OutDir)oily.exe')">
+    <Copy SourceFiles="$(OutDir)oily.exe" DestinationFiles="$(OutDir)osu!.exe" SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="OilyLazerNamedCopyPublish" AfterTargets="Publish" Condition="'$(PublishDir)' != '' And Exists('$(PublishDir)oily.exe')">
+    <Copy SourceFiles="$(PublishDir)oily.exe" DestinationFiles="$(PublishDir)osu!.exe" SkipUnchangedFiles="true" />
+  </Target>
   <ItemGroup Label="Project References">
     <ProjectReference Include="..\osu.Game.Tournament\osu.Game.Tournament.csproj"/>
     <ProjectReference Include="..\osu.Game\osu.Game.csproj"/>
