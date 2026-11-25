@@ -11,7 +11,6 @@ using osu.Game.Online.API.Requests.Responses;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Scoring;
 using osu.Game.Screens.Play;
-using osu.Game.Screens.Play.HUD;
 using osu.Game.Screens.Play.Leaderboards;
 
 namespace Oily.Rendering

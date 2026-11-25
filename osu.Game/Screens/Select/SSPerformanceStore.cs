@@ -477,13 +477,15 @@ namespace osu.Game.Screens.Select
 
             var combinations = new List<Mod[]>();
 
-            foreach (var d in difficulty)
-            foreach (var sp in speed)
-            foreach (var h in hidden)
-            foreach (var f in flashlight)
-            foreach (var r in relax)
+            var sets = from d in difficulty
+                       from sp in speed
+                       from h in hidden
+                       from f in flashlight
+                       from r in relax
+                       select new[] { d, sp, h, f, r }.OfType<Mod>().ToArray();
+
+            foreach (var set in sets)
             {
-                var set = new[] { d, sp, h, f, r }.OfType<Mod>().ToArray();
 
                 if (set.Length > 0 && !ModUtils.CheckCompatibleSet(set))
                     continue;
