@@ -420,20 +420,24 @@ namespace osu.Game.Tests.Visual.Navigation
 
             Guid editedSkinId = Guid.Empty;
             AddStep("save skin id", () => editedSkinId = Game.Dependencies.Get<SkinManager>().CurrentSkinInfo.Value.ID);
+
+            // oily: song select's own pieces are always there to pick, so count blueprints instead of expecting none.
+            int before = 0;
+            int withAdded = 0;
+            AddUntilStep("song select pieces shown", () => (before = skinEditor.ChildrenOfType<SkinBlueprint>().Count()) > 0);
             AddStep("add skinnable component", () =>
             {
                 skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().First().TriggerClick();
             });
+            AddUntilStep("component added", () => (withAdded = skinEditor.ChildrenOfType<SkinBlueprint>().Count()) > before);
 
             AddStep("change to triangles skin", () => Game.Dependencies.Get<SkinManager>().SetSkinFromConfiguration(SkinInfo.TRIANGLES_SKIN.ToString()));
             AddUntilStep("components loaded", () => Game.ChildrenOfType<SkinnableContainer>().All(c => c.ComponentsLoaded));
-            // sort of implicitly relies on song select not being skinnable.
-            // TODO: revisit if the above ever changes
-            AddUntilStep("skin changed", () => !skinEditor.ChildrenOfType<SkinBlueprint>().Any());
+            AddUntilStep("skin changed", () => skinEditor.ChildrenOfType<SkinBlueprint>().Count() < withAdded);
 
             AddStep("change back to modified skin", () => Game.Dependencies.Get<SkinManager>().SetSkinFromConfiguration(editedSkinId.ToString()));
             AddUntilStep("components loaded", () => Game.ChildrenOfType<SkinnableContainer>().All(c => c.ComponentsLoaded));
-            AddUntilStep("changes saved", () => skinEditor.ChildrenOfType<SkinBlueprint>().Any());
+            AddUntilStep("changes saved", () => skinEditor.ChildrenOfType<SkinBlueprint>().Count() == withAdded);
         }
 
         private void advanceToSongSelect()

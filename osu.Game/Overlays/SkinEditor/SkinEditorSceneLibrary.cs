@@ -13,6 +13,7 @@ using osu.Game.Graphics.UserInterface;
 using osu.Game.Localisation;
 using osu.Game.Screens;
 using osu.Game.Screens.Select;
+using osu.Game.Skinning;
 using osuTK;
 
 namespace osu.Game.Overlays.SkinEditor
@@ -80,6 +81,26 @@ namespace osu.Game.Overlays.SkinEditor
 
                                         screen.Push(new SoloSongSelect());
                                     }, new[] { typeof(SongSelect) })
+                                },
+                                new SceneButton
+                                {
+                                    Text = "PP Simulator",
+                                    Width = 120,
+                                    Anchor = Anchor.CentreLeft,
+                                    Origin = Anchor.CentreLeft,
+                                    // oily: song select with the Universal PP Simulator open, working on its own layer.
+                                    Action = () =>
+                                    {
+                                        performer?.PerformFromScreen(screen =>
+                                        {
+                                            if (screen is not SongSelect songSelect)
+                                                screen.Push(songSelect = new SoloSongSelect());
+
+                                            songSelect.ShowPerformanceSimulatorScene();
+                                        }, new[] { typeof(SongSelect) });
+
+                                        skinEditorOverlay?.SelectTarget(GlobalSkinnableContainers.PpSimulator);
+                                    },
                                 },
                                 new SceneButton
                                 {

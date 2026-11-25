@@ -71,6 +71,10 @@ namespace osu.Game.Overlays.SkinEditor
             if (target.Lookup.Lookup == GlobalSkinnableContainers.SongSelect && !Screens.Select.SongSelectSkinComponents.IsAllowed(type))
                 return;
 
+            // oily: the PP Simulator layer only holds its colours.
+            if (target.Lookup.Lookup == GlobalSkinnableContainers.PpSimulator && type != typeof(Screens.Select.PpSimulatorColours))
+                return;
+
             try
             {
                 Drawable instance = (Drawable)Activator.CreateInstance(type)!;

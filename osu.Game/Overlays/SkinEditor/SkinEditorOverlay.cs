@@ -28,6 +28,7 @@ using osu.Game.Screens.Edit;
 using osu.Game.Screens.Edit.Components;
 using osu.Game.Screens.Menu;
 using osu.Game.Screens.Play;
+using osu.Game.Skinning;
 using osu.Game.Screens.Select;
 using osu.Game.Users;
 using osu.Game.Utils;
@@ -164,6 +165,16 @@ namespace osu.Game.Overlays.SkinEditor
         }
 
         public void PresentGameplay() => presentGameplay(false);
+
+        /// <summary>
+        /// oily: switches the skin editor's working layer once the screen offers it.
+        /// </summary>
+        public void SelectTarget(GlobalSkinnableContainers lookup) => skinEditor?.SelectTarget(lookup);
+
+        /// <summary>
+        /// oily: re-checks which working layers the current screen offers.
+        /// </summary>
+        public void RefreshTargets() => skinEditor?.RefreshTargets();
 
         private void presentGameplay(bool attemptedBeatmapSwitch)
         {

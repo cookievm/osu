@@ -26,7 +26,10 @@ namespace osu.Game.Screens.Select
     {
         public bool UsesFixedAnchor { get; set; }
 
-        protected abstract SongSelectPiece Piece { get; }
+        public abstract SongSelectPiece Piece { get; }
+
+        [SettingSource("Stay in lazer's place", "Follows where lazer puts this part. Moving or resizing it in the skin editor turns this off.")]
+        public BindableBool FollowLazer { get; } = new BindableBool();
 
         [SettingSource("Hidden", "Hide this part of song select.")]
         public BindableBool Hidden { get; } = new BindableBool();
@@ -88,6 +91,14 @@ namespace osu.Game.Screens.Select
             if (InControl)
                 UpdatePieceStyle();
 
+            if (FollowLazer.Value)
+            {
+                followPiece();
+                return;
+            }
+
+            hasFollowed = false;
+
             // Keep the same size as lazer's piece, in this component's own space. The skin editor resizes using Scale.
             Quad natural = piece.NaturalScreenSpaceQuad;
             Vector2 topLeft = Parent.ToLocalSpace(natural.TopLeft);
@@ -96,6 +107,31 @@ namespace osu.Game.Screens.Select
 
             if (width > 0 && height > 0)
                 Size = new Vector2(width, height);
+        }
+
+        private bool hasFollowed;
+        private Vector2 followedPosition;
+        private Vector2 followedScale;
+        private float followedRotation;
+
+        /// <summary>
+        /// Sits exactly over lazer's piece. If the skin editor moved, resized or rotated this component since the last frame, stop following.
+        /// </summary>
+        private void followPiece()
+        {
+            if (hasFollowed && (Position != followedPosition || Scale != followedScale || Rotation != followedRotation || Anchor != Anchor.TopLeft || Origin != Anchor.TopLeft))
+            {
+                FollowLazer.Value = false;
+                hasFollowed = false;
+                return;
+            }
+
+            snapToPiece();
+
+            followedPosition = Position;
+            followedScale = Scale;
+            followedRotation = Rotation;
+            hasFollowed = true;
         }
 
         /// <summary>
@@ -162,17 +198,17 @@ namespace osu.Game.Screens.Select
 
     public partial class SongSelectBeatmapInfoLayout : SongSelectPieceLayout
     {
-        protected override SongSelectPiece Piece => SongSelectPiece.BeatmapInfo;
+        public override SongSelectPiece Piece => SongSelectPiece.BeatmapInfo;
     }
 
     public partial class SongSelectBeatmapDetailsLayout : SongSelectPieceLayout
     {
-        protected override SongSelectPiece Piece => SongSelectPiece.BeatmapDetails;
+        public override SongSelectPiece Piece => SongSelectPiece.BeatmapDetails;
     }
 
     public partial class SongSelectBeatmapListLayout : SongSelectPieceLayout
     {
-        protected override SongSelectPiece Piece => SongSelectPiece.BeatmapList;
+        public override SongSelectPiece Piece => SongSelectPiece.BeatmapList;
 
         [SettingSource("Flip cards", "Cards come in from the left side instead of the right.")]
         public BindableBool FlipCards { get; } = new BindableBool();
@@ -246,26 +282,26 @@ namespace osu.Game.Screens.Select
 
     public partial class SongSelectSearchBarLayout : SongSelectPieceLayout
     {
-        protected override SongSelectPiece Piece => SongSelectPiece.SearchBar;
+        public override SongSelectPiece Piece => SongSelectPiece.SearchBar;
     }
 
     public partial class SongSelectMapStatisticsLayout : SongSelectPieceLayout
     {
-        protected override SongSelectPiece Piece => SongSelectPiece.MapStatistics;
+        public override SongSelectPiece Piece => SongSelectPiece.MapStatistics;
     }
 
     public partial class SongSelectDifficultyCardLayout : SongSelectPieceLayout
     {
-        protected override SongSelectPiece Piece => SongSelectPiece.DifficultyCard;
+        public override SongSelectPiece Piece => SongSelectPiece.DifficultyCard;
     }
 
     public partial class SongSelectDifficultyStatsLayout : SongSelectPieceLayout
     {
-        protected override SongSelectPiece Piece => SongSelectPiece.DifficultyStats;
+        public override SongSelectPiece Piece => SongSelectPiece.DifficultyStats;
     }
 
     public partial class SongSelectObjectCountsLayout : SongSelectPieceLayout
     {
-        protected override SongSelectPiece Piece => SongSelectPiece.ObjectCounts;
+        public override SongSelectPiece Piece => SongSelectPiece.ObjectCounts;
     }
 }

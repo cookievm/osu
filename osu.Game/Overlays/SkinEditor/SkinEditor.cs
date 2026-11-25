@@ -368,9 +368,61 @@ namespace osu.Game.Overlays.SkinEditor
             {
                 selectedTarget.Default = getFirstTarget()?.Lookup;
 
-                if (!availableTargets.Any(t => t.Lookup.Equals(selectedTarget.Value)))
+                if (!editableTargets.Any(t => t.Lookup.Equals(selectedTarget.Value)))
                     selectedTarget.SetDefault();
+
+                applyPreferredTarget();
             }
+        }
+
+        private GlobalSkinnableContainers? preferredTarget;
+        private int preferredTargetTries;
+
+        /// <summary>
+        /// oily: switches the working layer to <paramref name="lookup"/> as soon as the screen offers it (used by the scene library).
+        /// </summary>
+        public void SelectTarget(GlobalSkinnableContainers lookup)
+        {
+            preferredTarget = lookup;
+            preferredTargetTries = 0;
+            Scheduler.AddOnce(applyPreferredTarget);
+        }
+
+        /// <summary>
+        /// oily: re-checks which layers are offered (a layer like the PP Simulator's is only offered while it is open).
+        /// </summary>
+        public void RefreshTargets() => Scheduler.AddOnce(refreshTargets);
+
+        private void refreshTargets()
+        {
+            if (targetScreen == null)
+                return;
+
+            selectedTarget.Default = getFirstTarget()?.Lookup;
+
+            if (!editableTargets.Any(t => t.Lookup.Equals(selectedTarget.Value)))
+                selectedTarget.SetDefault();
+        }
+
+        private void applyPreferredTarget()
+        {
+            if (preferredTarget == null)
+                return;
+
+            var target = targetScreen == null ? null : editableTargets.FirstOrDefault(t => t.Lookup.Lookup == preferredTarget);
+
+            if (target != null)
+            {
+                preferredTarget = null;
+                selectedTarget.Value = target.Lookup;
+                return;
+            }
+
+            // The screen may still be loading; keep trying for a few seconds.
+            if (++preferredTargetTries < 300)
+                Scheduler.AddDelayed(applyPreferredTarget, 16);
+            else
+                preferredTarget = null;
         }
 
         private void targetChanged(ValueChangedEvent<GlobalSkinnableContainerLookup?> target)
@@ -406,7 +458,7 @@ namespace osu.Game.Overlays.SkinEditor
                     {
                         new SettingsDropdown<GlobalSkinnableContainerLookup?>
                         {
-                            Items = availableTargets.Select(t => t.Lookup).Distinct(),
+                            Items = editableTargets.Select(t => t.Lookup).Distinct(),
                             Current = selectedTarget,
                         }
                     }
@@ -546,7 +598,12 @@ namespace osu.Game.Overlays.SkinEditor
 
         private IEnumerable<SkinnableContainer> availableTargets => targetScreen.ChildrenOfType<SkinnableContainer>();
 
-        private SkinnableContainer? getFirstTarget() => availableTargets.FirstOrDefault();
+        /// <summary>
+        /// oily: the layers offered in the working layer list right now. Saving still covers every layer.
+        /// </summary>
+        private IEnumerable<SkinnableContainer> editableTargets => availableTargets.Where(t => t.AvailableInEditor?.Invoke() != false);
+
+        private SkinnableContainer? getFirstTarget() => editableTargets.FirstOrDefault();
 
         private SkinnableContainer? getTarget(GlobalSkinnableContainerLookup? target)
         {

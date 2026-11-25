@@ -138,6 +138,7 @@ namespace osu.Game.Screens.Select
         private Box rightGradientBackground = null!;
         private Container mainContent = null!;
         private SkinnableContainer skinnableContent = null!;
+        private SkinnableContainer simulatorSkinLayer = null!;
 
         private GridContainer mainGridContainer = null!;
 
@@ -336,10 +337,36 @@ namespace osu.Game.Screens.Select
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
                     RelativeSizeAxes = Axes.Both,
+                    // oily: the PP Simulator has its own scene in the skin editor.
+                    AvailableInEditor = () => simulationPopup.State.Value != Visibility.Visible,
                 },
                 modSpeedHotkeyHandler = new ModSpeedHotkeyHandler(),
                 simulationPopup,
+                // oily: the skin editor's "PP Simulator" layer (only offered while the simulator is open).
+                simulatorSkinLayer = new SkinnableContainer(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.PpSimulator))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    AvailableInEditor = () => simulationPopup.State.Value == Visibility.Visible,
+                },
             });
+
+            skinnableContent.OnComponentsLoaded += _ => addMissingPieceLayouts();
+
+            simulationPopup.State.BindValueChanged(v => simulatorSkinLayer.Alpha = v.NewValue == Visibility.Visible ? 1 : 0, true);
+
+            // oily: the simulator's colours are there by default, so they can be picked in the skin editor without adding them.
+            simulatorSkinLayer.OnComponentsLoaded += _ =>
+            {
+                if (simulatorSkinLayer.Components.Any(c => c is PpSimulatorColours))
+                    return;
+
+                simulatorSkinLayer.Add(new PpSimulatorColours
+                {
+                    Anchor = Anchor.TopCentre,
+                    Origin = Anchor.TopCentre,
+                    Y = 80,
+                });
+            };
 
             LoadComponent(modSelectOverlay = CreateModSelectOverlay());
 
@@ -1270,6 +1297,40 @@ namespace osu.Game.Screens.Select
         /// oily: opens the pp simulation popup for a beatmap.
         /// </summary>
         public void ShowPerformanceSimulation(BeatmapInfo beatmap) => simulationPopup.ShowFor(beatmap);
+
+        /// <summary>
+        /// oily: the skin editor's "PP Simulator" scene: opens the simulator for the selected beatmap.
+        /// </summary>
+        public void ShowPerformanceSimulatorScene() => Schedule(() =>
+        {
+            if (!Beatmap.IsDefault)
+                ShowPerformanceSimulation(Beatmap.Value.BeatmapInfo);
+        });
+
+        private static readonly Type[] piece_layout_types = typeof(SongSelectPieceLayout).Assembly.GetTypes()
+                                                                                         .Where(t => t.IsSubclassOf(typeof(SongSelectPieceLayout)) && !t.IsAbstract)
+                                                                                         .ToArray();
+
+        /// <summary>
+        /// oily: every piece of song select can be picked in the skin editor without adding it first.
+        /// Pieces the skin has no layout for get one that stays in lazer's place until it is moved.
+        /// </summary>
+        private void addMissingPieceLayouts()
+        {
+            foreach (var type in piece_layout_types)
+            {
+                if (skinnableContent.Components.Any(c => c.GetType() == type))
+                    continue;
+
+                var layout = (SongSelectPieceLayout)Activator.CreateInstance(type)!;
+
+                if (pieceRegistry.Get(layout.Piece) == null)
+                    continue;
+
+                layout.FollowLazer.Value = true;
+                skinnableContent.Add(layout);
+            }
+        }
 
         /// <summary>
         /// oily: opens the pp simulator for the selected beatmap, or closes it if it is open.

@@ -66,12 +66,10 @@ namespace osu.Game.Screens.Select
         private static readonly Type[] allowed =
         {
             typeof(SongSelectPieceLayout),
-            typeof(PpSimulatorColours),
             typeof(SkinnableSprite),
             typeof(BoxElement),
             typeof(TextElement),
             typeof(BeatmapAttributeText),
-            typeof(SimulatedPerformanceText),
             typeof(PlayerName),
             typeof(GlobalRankDisplay),
         };

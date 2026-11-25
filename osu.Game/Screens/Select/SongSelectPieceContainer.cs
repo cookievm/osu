@@ -114,6 +114,17 @@ namespace osu.Game.Screens.Select
                 return;
             }
 
+            // oily: a layout that stays in lazer's place only changes how the piece looks, so lazer's own movement isn't a frame behind.
+            if (layout.FollowLazer.Value)
+            {
+                inner.Position = Vector2.Zero;
+                inner.Scale = Vector2.One;
+                inner.Rotation = 0;
+                inner.Alpha = layout.Hidden.Value ? 0 : layout.PieceOpacity.Value;
+                inner.Colour = layout.Tint.Value;
+                return;
+            }
+
             Vector2 origin = ToScreenSpace(Vector2.Zero);
             Vector2 xAxis = ToScreenSpace(new Vector2(inner.DrawWidth, 0)) - origin;
             Vector2 yAxis = ToScreenSpace(new Vector2(0, inner.DrawHeight)) - origin;

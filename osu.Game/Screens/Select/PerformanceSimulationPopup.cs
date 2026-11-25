@@ -18,6 +18,7 @@ using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Input.Bindings;
 using osu.Game.Overlays;
 using osu.Game.Rulesets.Difficulty;
+using osu.Game.Overlays.SkinEditor;
 using osuTK;
 using osuTK.Graphics;
 
@@ -43,6 +44,10 @@ namespace osu.Game.Screens.Select
         private IBindable<string>? panelColourSetting;
 
         internal PerformanceSimulatorStyle? Style => registry?.SimulatorStyle;
+
+        [Resolved(CanBeNull = true)]
+        private SkinEditorOverlay? skinEditor { get; set; }
+
 
         private Box panelBackground = null!;
         private FormSliderBar<double> accuracySlider = null!;
@@ -158,6 +163,8 @@ namespace osu.Game.Screens.Select
         {
             base.LoadComplete();
 
+            State.BindValueChanged(_ => skinEditor?.RefreshTargets());
+
             // oily: the box's own colour and opacity (Settings > Colours).
             if (config != null)
             {
@@ -228,6 +235,10 @@ namespace osu.Game.Screens.Select
         // Blocks clicks to song select while open; a click outside the panel closes it.
         protected override bool OnClick(ClickEvent e)
         {
+            // While skinning, clicks around the box are for the skin editor.
+            if (skinEditor?.State.Value == Visibility.Visible)
+                return true;
+
             if (!panel.ReceivePositionalInputAt(e.ScreenSpaceMousePosition))
                 Hide();
 

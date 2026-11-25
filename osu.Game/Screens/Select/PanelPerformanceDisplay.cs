@@ -126,7 +126,7 @@ namespace osu.Game.Screens.Select
             else
                 ss = lazerPerformance;
 
-            string ssString = style?.ShowPerformance.Value == false || ss == null || ss <= 0 ? string.Empty : $"{format(ss.Value)}pp";
+            string ssString = style?.ShowPerformance.Value == false || ss == null || ss <= 0 ? string.Empty : $"SS: {format(ss.Value)}pp";
 
             if (ssString != shownSS)
             {

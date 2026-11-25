@@ -91,9 +91,43 @@ namespace osu.Game.Tests.Visual.SongSelect
             AddAssert("gameplay combo counter not offered", () => SongSelectSkinComponents.IsAllowed(typeof(ArgonComboCounter)), () => Is.False);
             AddAssert("health bar not offered", () => SongSelectSkinComponents.IsAllowed(typeof(ArgonHealthDisplay)), () => Is.False);
             AddAssert("beatmap attribute text offered", () => SongSelectSkinComponents.IsAllowed(typeof(BeatmapAttributeText)), () => Is.True);
-            AddAssert("simulated pp offered", () => SongSelectSkinComponents.IsAllowed(typeof(SimulatedPerformanceText)), () => Is.True);
+            AddAssert("simulated pp text not offered (cards show it)", () => SongSelectSkinComponents.IsAllowed(typeof(SimulatedPerformanceText)), () => Is.False);
+            AddAssert("pp simulator colours not offered (own scene)", () => SongSelectSkinComponents.IsAllowed(typeof(PpSimulatorColours)), () => Is.False);
             AddAssert("song select pieces offered", () => SongSelectSkinComponents.IsAllowed(typeof(SongSelectDifficultyStatsLayout)), () => Is.True);
         }
+
+        [Test]
+        public void TestPiecesSelectableByDefault()
+        {
+            Quad natural = default;
+
+            AddUntilStep("every piece has a layout", () =>
+                SongSelect.ChildrenOfType<SongSelectPieceContainer>().All(p => skinLayer.Components.OfType<SongSelectPieceLayout>().Any(l => l.Piece == p.Piece && l.FollowLazer.Value)));
+            AddStep("remember list position", () => natural = listPiece.NaturalScreenSpaceQuad);
+            AddWaitStep("let it settle", 2);
+            AddAssert("list layout covers the list", () => Vector2.Distance(listLayout.ScreenSpaceDrawQuad.TopLeft, listPiece.NaturalScreenSpaceQuad.TopLeft), () => Is.LessThan(1));
+            AddAssert("list in lazer's place", () => listPiece.Child.Position == Vector2.Zero && listPiece.Child.Scale == Vector2.One);
+
+            AddStep("move it like the skin editor", () => listLayout.X -= 200);
+            AddUntilStep("stops following lazer", () => listLayout.FollowLazer.Value, () => Is.False);
+            AddUntilStep("list moved left", () => Carousel.ScreenSpaceDrawQuad.TopLeft.X, () => Is.LessThan(natural.TopLeft.X - 50));
+        }
+
+        [Test]
+        public void TestPpSimulatorScene()
+        {
+            AddUntilStep("simulator layer has its colours", () => SongSelect.ChildrenOfType<SkinnableContainer>().Single(c => c.Lookup.Lookup == GlobalSkinnableContainers.PpSimulator)
+                                                                           .Components.OfType<PpSimulatorColours>().Any());
+            AddAssert("song select layer offered", () => skinLayer.AvailableInEditor!(), () => Is.True);
+            AddAssert("simulator layer not offered", () => SongSelect.ChildrenOfType<SkinnableContainer>().Single(c => c.Lookup.Lookup == GlobalSkinnableContainers.PpSimulator).AvailableInEditor!(),
+                () => Is.False);
+            AddStep("open simulator scene", () => SongSelect.ShowPerformanceSimulatorScene());
+            AddUntilStep("simulator layer offered", () => SongSelect.ChildrenOfType<SkinnableContainer>().Single(c => c.Lookup.Lookup == GlobalSkinnableContainers.PpSimulator).AvailableInEditor!());
+            AddAssert("song select layer not offered", () => skinLayer.AvailableInEditor!(), () => Is.False);
+            AddStep("close it", () => SongSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().Hide());
+        }
+
+        private SongSelectBeatmapListLayout listLayout => skinLayer.Components.OfType<SongSelectBeatmapListLayout>().First();
 
         [Test]
         public void TestDetailPiecesRegistered()
@@ -250,8 +284,12 @@ namespace osu.Game.Tests.Visual.SongSelect
 
         private void addLikeSkinEditor()
         {
+            AddUntilStep("default layouts added", () => skinLayer.Components.OfType<SongSelectBeatmapListLayout>().Any());
             AddStep("add list layout like the skin editor", () =>
             {
+                foreach (var existing in skinLayer.Components.OfType<SongSelectBeatmapListLayout>().ToArray())
+                    skinLayer.Remove(existing, true);
+
                 layout = new SongSelectBeatmapListLayout
                 {
                     Anchor = Anchor.TopCentre,
