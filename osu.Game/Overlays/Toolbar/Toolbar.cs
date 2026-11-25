@@ -453,13 +453,15 @@ namespace osu.Game.Overlays.Toolbar
             public Bindable<bool> ShowGradient { get; } = new BindableBool();
 
             private readonly Box gradientBackground;
+            private readonly Box solidBackground;
+            private IBindable<string>? panelSetting;
 
             public ToolbarBackground()
             {
                 RelativeSizeAxes = Axes.Both;
                 Children = new Drawable[]
                 {
-                    new Box
+                    solidBackground = new Box
                     {
                         RelativeSizeAxes = Axes.Both,
                         Colour = OsuColour.Gray(0.1f),
@@ -474,6 +476,20 @@ namespace osu.Game.Overlays.Toolbar
                             OsuColour.Gray(0f).Opacity(0.7f), OsuColour.Gray(0).Opacity(0)),
                     },
                 };
+            }
+
+            [BackgroundDependencyLoader(true)]
+            private void load(OsuConfigManager? config)
+            {
+                // oily: the toolbars' colour and opacity from settings.
+                if (config != null)
+                {
+                    panelSetting = OilyPanelColours.Track(config, OilyPanel.Toolbar, style =>
+                    {
+                        solidBackground.Colour = style.CustomColour ?? OsuColour.Gray(0.1f);
+                        solidBackground.Alpha = Math.Clamp(style.Opacity, 0, 1);
+                    });
+                }
             }
 
             protected override void LoadComplete()

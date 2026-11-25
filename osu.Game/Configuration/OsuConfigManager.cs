@@ -163,6 +163,7 @@ namespace osu.Game.Configuration
             // oily: toolbars and their buttons (see ToolbarLayout). Empty = the default layout.
             SetDefault(OsuSetting.OilyToolbarLayout, string.Empty);
             SetDefault(OsuSetting.OilyFooterLayout, string.Empty);
+            SetDefault(OsuSetting.OilyPanelColours, string.Empty);
             SetDefault(OsuSetting.StarFountains, true);
 
             SetDefault(OsuSetting.HUDVisibilityMode, HUDVisibilityMode.Always);
@@ -510,5 +511,6 @@ namespace osu.Game.Configuration
         OilySimulationComboPercent,
         OilyToolbarLayout,
         OilyFooterLayout,
+        OilyPanelColours,
     }
 }

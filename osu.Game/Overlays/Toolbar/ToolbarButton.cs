@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -10,6 +11,7 @@ using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
+using osu.Game.Configuration;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Backgrounds;
 using osu.Game.Graphics.Containers;
@@ -154,9 +156,19 @@ namespace osu.Game.Overlays.Toolbar
             };
         }
 
-        [BackgroundDependencyLoader]
-        private void load()
+        /// <summary>
+        /// oily: whether the "Toolbar icons" colour from settings applies to this button's icon.
+        /// </summary>
+        protected virtual bool UsesToolbarIconColour => true;
+
+        private IBindable<string>? colourSetting;
+
+        [BackgroundDependencyLoader(true)]
+        private void load(OsuConfigManager? config)
         {
+            if (config != null && UsesToolbarIconColour)
+                colourSetting = OilyPanelColours.Track(config, colours => IconContainer.Colour = colours.GetColour(OilyColour.ToolbarIcons) ?? Colour4.White);
+
             if (Hotkey != null)
             {
                 subTooltipFlow.Add(new HotkeyDisplay

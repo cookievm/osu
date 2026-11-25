@@ -95,7 +95,7 @@ namespace osu.Game.Screens.Select
 
             InternalChildren = new Drawable[]
             {
-                new WedgeBackground(),
+                new WedgeBackground { Panel = OilyPanel.MapTitle },
                 new FillFlowContainer
                 {
                     RelativeSizeAxes = Axes.X,

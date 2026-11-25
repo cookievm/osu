@@ -64,6 +64,9 @@ namespace osu.Game.Screens.Footer
 
         private readonly Bindable<string> layoutSetting = new Bindable<string>();
 
+        private IBindable<string>? panelSetting;
+        private OilyPanelStyle panelStyle = new OilyPanelStyle();
+
         /// <summary>
         /// oily: the saved bottom bar layout (see <see cref="FooterLayout"/>).
         /// </summary>
@@ -102,7 +105,17 @@ namespace osu.Game.Screens.Footer
         private void load(OsuConfigManager? config)
         {
             if (config != null)
+            {
                 config.BindWith(OsuSetting.OilyFooterLayout, layoutSetting);
+
+                panelSetting = OilyPanelColours.Track(config, OilyPanel.BottomBar, style =>
+                {
+                    panelStyle = style;
+
+                    if (background != null)
+                        updateBackground(0);
+                });
+            }
 
             InternalChildren = new Drawable[]
             {
@@ -208,7 +221,7 @@ namespace osu.Game.Screens.Footer
         {
             Layout = FooterLayout.Parse(layoutSetting.Value);
 
-            background.Alpha = Layout.Bar == FooterBarMode.Shown ? 1 : 0;
+            updateBackground(0);
 
             bool backOnRight = Layout.BackButton == FooterBackSide.Right;
             float backSpace = ScreenBackButton.BUTTON_WIDTH + padding;
@@ -227,6 +240,15 @@ namespace osu.Game.Screens.Footer
 
             if (State.Value == Visibility.Visible)
                 PopIn();
+        }
+
+        /// <summary>
+        /// oily: the bar's colour and opacity from settings (hidden in "buttons only" mode).
+        /// </summary>
+        private void updateBackground(double duration)
+        {
+            background.FadeColour(panelStyle.CustomColour ?? colourProvider.Background5, duration, Easing.OutQuint);
+            background.Alpha = Layout.Bar == FooterBarMode.Shown ? Math.Clamp(panelStyle.Opacity, 0, 1) : 0;
         }
 
         /// <summary>
@@ -480,7 +502,7 @@ namespace osu.Game.Screens.Footer
         {
             colourProvider.ChangeColourScheme(hue);
 
-            background.FadeColour(colourProvider.Background5, 150, Easing.OutQuint);
+            updateBackground(150);
 
             foreach (var button in leftButtonsFlow)
                 button.UpdateDisplay();

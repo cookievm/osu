@@ -14,6 +14,7 @@ using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
+using osu.Game.Configuration;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.Sprites;
@@ -186,9 +187,46 @@ namespace osu.Game.Screens.Footer
             };
         }
 
+        [Resolved(CanBeNull = true)]
+        private OsuConfigManager? config { get; set; }
+
+        private IBindable<string>? colourSetting;
+        private Colour4? iconOverride;
+        private Colour4? barOverride;
+
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            // oily: icon and light bar colours from settings.
+            var item = FooterLayout.ItemOf(this);
+
+            if (config != null && item != null)
+            {
+                OilyColour? iconKey = item switch
+                {
+                    FooterItem.Mods => OilyColour.ModsIcon,
+                    FooterItem.Random => OilyColour.RandomIcon,
+                    FooterItem.Options => OilyColour.OptionsIcon,
+                    _ => null,
+                };
+                OilyColour? barKey = item switch
+                {
+                    FooterItem.Mods => OilyColour.ModsBar,
+                    FooterItem.Random => OilyColour.RandomBar,
+                    FooterItem.Options => OilyColour.OptionsBar,
+                    _ => null,
+                };
+
+                colourSetting = OilyPanelColours.Track(config, colours =>
+                {
+                    iconOverride = iconKey == null ? null : colours.GetColour(iconKey.Value);
+                    barOverride = barKey == null ? null : colours.GetColour(barKey.Value);
+
+                    if (IsLoaded)
+                        UpdateDisplay();
+                });
+            }
 
             if (Overlay != null)
                 OverlayState.BindTo(Overlay.State);
@@ -249,8 +287,9 @@ namespace osu.Game.Screens.Footer
                 textColour = textColour.Opacity(0.6f);
 
             text.FadeColour(textColour, 150, Easing.OutQuint);
-            icon.FadeColour(accentColour, 150, Easing.OutQuint);
-            bar.FadeColour(accentColour, 150, Easing.OutQuint);
+            bool open = OverlayState.Value == Visibility.Visible;
+            icon.FadeColour(open ? accentColour : iconOverride ?? accentColour, 150, Easing.OutQuint);
+            bar.FadeColour(open ? accentColour : barOverride ?? accentColour, 150, Easing.OutQuint);
 
             glowBox.FadeColour(ColourInfo.GradientVertical(buttonAccentColour.Opacity(0f), buttonAccentColour.Opacity(0.2f)), 150, Easing.OutQuint);
         }

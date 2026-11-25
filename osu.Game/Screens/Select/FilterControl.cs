@@ -102,6 +102,7 @@ namespace osu.Game.Screens.Select
                     Masking = true,
                     Child = new WedgeBackground
                     {
+                        Panel = OilyPanel.SongSearch,
                         Anchor = Anchor.TopRight,
                         Scale = new Vector2(-1, 1),
                     }

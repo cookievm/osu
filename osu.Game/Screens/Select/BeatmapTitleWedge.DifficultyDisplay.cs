@@ -80,7 +80,7 @@ namespace osu.Game.Screens.Select
 
                 InternalChildren = new Drawable[]
                 {
-                    new WedgeBackground(),
+                    new WedgeBackground { Panel = OilyPanel.MapDifficulty },
                     new FillFlowContainer
                     {
                         RelativeSizeAxes = Axes.X,

@@ -33,6 +33,29 @@ namespace osu.Game.Tests.Visual.UserInterface
         private OsuConfigManager config { get; set; } = null!;
 
         [Test]
+        public void TestButtonColours()
+        {
+            AddStep("set colours", () =>
+            {
+                var colours = new OilyPanelColours();
+                colours.Colours[OilyColour.OptionsIcon] = "#ff0000";
+                colours.Colours[OilyColour.OptionsBar] = "#00ff00";
+                colours.Colours[OilyColour.BackButton] = "#0000ff";
+                config.SetValue(OsuSetting.OilyPanelColours, colours.Serialise());
+            });
+
+            AddStep("push screen", () => LoadScreen(new TestScreen
+            {
+                FooterContent = { Value = ScreenFooterContent.Argon(leftButtons: () => new ScreenFooterButton[] { new FooterButtonOptions() }) },
+            }));
+
+            AddUntilStep("options icon red", () => ScreenFooter.ChildrenOfType<FooterButtonOptions>().SingleOrDefault()?.ChildrenOfType<SpriteIcon>().First().Colour.TopLeft.SRGB.R, () => Is.EqualTo(1).Within(0.01f));
+            AddUntilStep("options bar green", () => ScreenFooter.ChildrenOfType<FooterButtonOptions>().Single().ChildrenOfType<Box>().Single(b => b.Colour.TopLeft.SRGB.G > 0.99f && b.Colour.TopLeft.SRGB.R < 0.01f), () => Is.Not.Null);
+
+            AddStep("reset colours", () => config.SetValue(OsuSetting.OilyPanelColours, string.Empty));
+        }
+
+        [Test]
         public void TestBottomBarLayout()
         {
             AddStep("hide random, options first, back on the right, no background", () =>
@@ -76,6 +99,7 @@ namespace osu.Game.Tests.Visual.UserInterface
             AddUntilStep("bar out of sight", () => ScreenFooter.Alpha, () => Is.Zero);
 
             AddStep("reset", () => config.SetValue(OsuSetting.OilyFooterLayout, string.Empty));
+            AddStep("reset colours", () => config.SetValue(OsuSetting.OilyPanelColours, string.Empty));
             AddUntilStep("bar back", () => ScreenFooter.Alpha, () => Is.EqualTo(1));
             AddAssert("back button on the left", () => ScreenFooter.BackButton.Anchor, () => Is.EqualTo(Anchor.BottomLeft));
         }

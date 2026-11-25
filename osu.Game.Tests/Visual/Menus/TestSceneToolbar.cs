@@ -275,8 +275,35 @@ namespace osu.Game.Tests.Visual.Menus
             AddAssert("no screen padding", () => toolbar.ScreenPadding.Left < 1 && toolbar.ScreenPadding.Top < 1);
         }
 
+        [Test]
+        public void TestToolbarColours()
+        {
+            AddStep("red icons, half see-through bar, gold gamemode", () =>
+            {
+                var colours = new OilyPanelColours();
+                colours.Colours[OilyColour.ToolbarIcons] = "#ff0000";
+                colours.Colours[OilyColour.GamemodeSelected] = "#ffcc00";
+                colours.Panels[OilyPanel.Toolbar] = new OilyPanelStyle { Colour = "#0000ff", Opacity = 0.5f };
+                config.SetValue(OsuSetting.OilyPanelColours, colours.Serialise());
+            });
+
+            AddUntilStep("settings icon red", () => toolbar.ChildrenOfType<ToolbarSettingsButton>().Single().ChildrenOfType<osu.Game.Graphics.Containers.ConstrainedIconContainer>().Single().Colour.TopLeft.SRGB.R,
+                () => Is.EqualTo(1).Within(0.01f));
+            AddUntilStep("bar half see-through", () => toolbar.ChildrenOfType<Toolbar.ToolbarBackground>().First().Children.First().Alpha, () => Is.EqualTo(0.5f).Within(0.01f));
+            AddUntilStep("selected gamemode gold", () => toolbar.ChildrenOfType<ToolbarRulesetTabButton>().First(t => t.Active.Value)
+                                                                .ChildrenOfType<osu.Game.Graphics.Containers.ConstrainedIconContainer>().Single().Colour.TopLeft.SRGB.G,
+                () => Is.EqualTo(0.8f).Within(0.01f));
+
+            AddStep("reset colours", () => config.SetValue(OsuSetting.OilyPanelColours, string.Empty));
+            AddUntilStep("bar solid", () => toolbar.ChildrenOfType<Toolbar.ToolbarBackground>().First().Children.First().Alpha, () => Is.EqualTo(1));
+        }
+
         [TearDownSteps]
-        public void TearDownSteps() => AddStep("reset toolbar layout", () => config.SetValue(OsuSetting.OilyToolbarLayout, string.Empty));
+        public void TearDownSteps() => AddStep("reset toolbar layout", () =>
+        {
+            config.SetValue(OsuSetting.OilyToolbarLayout, string.Empty);
+            config.SetValue(OsuSetting.OilyPanelColours, string.Empty);
+        });
 
         public partial class TestToolbar : Toolbar
         {
