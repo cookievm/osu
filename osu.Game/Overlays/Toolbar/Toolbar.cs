@@ -46,7 +46,8 @@ namespace osu.Game.Overlays.Toolbar
         public override bool PropagateNonPositionalInputSubTree => OverlayActivationMode.Value != OverlayActivation.Disabled;
 
         // oily: the toolbar covers the whole screen (so its bars can sit on any edge), but only its bars take input.
-        protected override bool BlockPositionalInput => false;
+        // Clicks on the bars stop there, so an open overlay doesn't close on mouse down and get reopened by the button's click.
+        protected override bool BlockPositionalInput => true;
 
         public override bool ReceivePositionalInputAt(osuTK.Vector2 screenSpacePos) => strips.Any(s => s.ReceivePositionalInputAt(screenSpacePos));
 
