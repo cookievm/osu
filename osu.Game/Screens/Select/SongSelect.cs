@@ -119,6 +119,12 @@ namespace osu.Game.Screens.Select
         [Cached]
         private readonly SSPerformanceStore performanceStore = new SSPerformanceStore();
 
+        // oily: each beatmap's pretend score for simulated pp (right-click a card to change it).
+        [Cached]
+        private readonly PerformanceSimulationStore simulationStore = new PerformanceSimulationStore();
+
+        private PerformanceSimulationPopup simulationPopup = null!;
+
         [Cached]
         private readonly OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Blue);
 
@@ -195,6 +201,7 @@ namespace osu.Game.Screens.Select
             AddRangeInternal(new Drawable[]
             {
                 new ScrollAdjustsVolume(),
+                simulationStore,
                 performanceStore,
                 onlineLookupSource,
                 mainContent = new Container
@@ -330,7 +337,8 @@ namespace osu.Game.Screens.Select
                     Origin = Anchor.Centre,
                     RelativeSizeAxes = Axes.Both,
                 },
-                modSpeedHotkeyHandler = new ModSpeedHotkeyHandler()
+                modSpeedHotkeyHandler = new ModSpeedHotkeyHandler(),
+                simulationPopup = new PerformanceSimulationPopup(),
             });
 
             LoadComponent(modSelectOverlay = CreateModSelectOverlay());
@@ -1240,12 +1248,29 @@ namespace osu.Game.Screens.Select
         [Resolved]
         private RealmAccess realm { get; set; } = null!;
 
+        /// <summary>
+        /// oily: opens the pp simulation popup for a beatmap.
+        /// </summary>
+        public void ShowPerformanceSimulation(BeatmapInfo beatmap) => simulationPopup.ShowFor(beatmap);
+
         public virtual IEnumerable<OsuMenuItem> GetForwardActions(BeatmapInfo beatmap)
         {
             yield return new OsuMenuItem(GlobalActionKeyBindingStrings.Select, MenuItemType.Highlighted, () => SelectAndRun(beatmap, OnStart))
             {
                 Icon = FontAwesome.Solid.Check
             };
+
+            yield return new OsuMenuItemSpacer();
+
+            // oily: the beatmap's own pretend score for simulated pp.
+            yield return new OsuMenuItem(simulationStore.HasOwn(beatmap) ? $"pp simulation ({simulationStore.Get(beatmap).ShortText})..." : "Set pp simulation...",
+                MenuItemType.Standard, () => ShowPerformanceSimulation(beatmap))
+            {
+                Icon = FontAwesome.Solid.Calculator
+            };
+
+            if (simulationStore.HasOwn(beatmap))
+                yield return new OsuMenuItem("Use default pp simulation", MenuItemType.Standard, () => simulationStore.Set(beatmap, null));
 
             yield return new OsuMenuItemSpacer();
 

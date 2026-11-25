@@ -2,6 +2,8 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System.Linq;
+using osu.Framework.Graphics.Containers;
+using osu.Game.Rulesets.Difficulty;
 using NUnit.Framework;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Screens.Play.HUD;
@@ -165,6 +167,33 @@ namespace osu.Game.Tests.Visual.SongSelect
             ChangeMods(new OsuModDoubleTime());
             AddUntilStep("pp worked out again for DT", () => updates, () => Is.GreaterThan(0));
             AddUntilStep("all values back", () => grouping.GroupItems.Keys.All(g => g.Title.ToString() != "Working out pp..."));
+        }
+
+        [Test]
+        public void TestSimulatedPerformance()
+        {
+            AddUntilStep("cards show the default simulation", () => Carousel.ChildrenOfType<PanelPerformanceDisplay>().Any(d => d.SimulatedText.StartsWith("98% 0x", System.StringComparison.Ordinal)));
+
+            AddStep("give the selected beatmap its own simulation", () =>
+            {
+                var store = SongSelect.ChildrenOfType<PerformanceSimulationStore>().Single();
+                store.Set(Beatmap.Value.BeatmapInfo, new OilySimulation(95.5, 3, 100));
+            });
+
+            AddUntilStep("its card shows it", () => Carousel.ChildrenOfType<PanelPerformanceDisplay>().Any(d => d.SimulatedText.StartsWith("95.5% 3x", System.StringComparison.Ordinal)));
+
+            AddStep("open the popup", () => SongSelect.ShowPerformanceSimulation(Beatmap.Value.BeatmapInfo));
+            AddUntilStep("popup shown", () => SongSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().State.Value == Visibility.Visible);
+            AddStep("close it", () => SongSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().Hide());
+
+            AddStep("back to the default", () => SongSelect.ChildrenOfType<PerformanceSimulationStore>().Single().Set(Beatmap.Value.BeatmapInfo, null));
+            AddUntilStep("no card shows it", () => Carousel.ChildrenOfType<PanelPerformanceDisplay>().All(d => !d.SimulatedText.StartsWith("95.5%", System.StringComparison.Ordinal)));
+
+            GroupBy(GroupMode.PerformanceSimulated);
+            SortBy(SortMode.PerformanceSimulated);
+            WaitForFiltering();
+
+            AddUntilStep("simulated pp groups", () => grouping.GroupItems.Keys.Any(g => g.Title.ToString().EndsWith("pp", System.StringComparison.Ordinal)));
         }
 
         private BeatmapCarouselFilterGrouping grouping => Carousel.Filters.OfType<BeatmapCarouselFilterGrouping>().Single();

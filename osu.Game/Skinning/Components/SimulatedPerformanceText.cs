@@ -23,7 +23,7 @@ using osu.Game.Scoring;
 namespace osu.Game.Skinning.Components
 {
     /// <summary>
-    /// oily: shows how much pp a score would give on the selected beatmap, with the selected mods.
+    /// oily: shows how much o!ily pp a score would give on the selected beatmap, with the selected mods (see <see cref="OilyPerformance"/>).
     /// The score is set in the component's settings (accuracy, misses, combo).
     /// </summary>
     public partial class SimulatedPerformanceText : FontAdjustableSkinComponent
@@ -150,61 +150,11 @@ namespace osu.Game.Skinning.Components
         }
 
         /// <summary>
-        /// Works out the pp of a pretend score with the given accuracy, misses and combo.
+        /// Works out the o!ily pp of a pretend score with the given accuracy, misses and combo.
         /// </summary>
         public static double? Calculate(WorkingBeatmap working, Ruleset ruleset, Mod[] mods, DifficultyAttributes attributes,
                                         double accuracy, int misses, double comboPercent, CancellationToken cancellationToken = default)
-        {
-            var calculator = ruleset.CreatePerformanceCalculator();
-
-            if (calculator == null)
-                return null;
-
-            var playable = working.GetPlayableBeatmap(ruleset.RulesetInfo, mods, cancellationToken);
-
-            var scoreProcessor = ruleset.CreateScoreProcessor();
-            scoreProcessor.Mods.Value = mods;
-            scoreProcessor.ApplyBeatmap(playable);
-
-            var maximum = scoreProcessor.MaximumStatistics;
-            var statistics = new Dictionary<HitResult, int>(maximum);
-
-            int total = maximum.GetValueOrDefault(HitResult.Great);
-            misses = Math.Clamp(misses, 0, total);
-            int remaining = total - misses;
-
-            if (ruleset.RulesetInfo.ShortName == "osu")
-            {
-                // osu! accuracy: (300 * greats + 100 * oks + 50 * mehs) / (300 * objects). Oks make up the missing accuracy.
-                int oks = total == 0 ? 0 : (int)Math.Round((6.0 * remaining - 6.0 * accuracy * total) / 4);
-                oks = Math.Clamp(oks, 0, remaining);
-
-                statistics[HitResult.Great] = remaining - oks;
-                statistics[HitResult.Ok] = oks;
-                statistics[HitResult.Meh] = 0;
-                statistics[HitResult.Miss] = misses;
-            }
-            else
-            {
-                statistics[HitResult.Great] = remaining;
-                statistics[HitResult.Miss] = misses;
-            }
-
-            int maxCombo = scoreProcessor.MaximumCombo;
-
-            var score = new ScoreInfo(working.BeatmapInfo, ruleset.RulesetInfo)
-            {
-                Passed = true,
-                Accuracy = accuracy,
-                Mods = mods,
-                MaxCombo = (int)Math.Round(maxCombo * comboPercent),
-                Combo = (int)Math.Round(maxCombo * comboPercent),
-                Statistics = statistics,
-                MaximumStatistics = maximum,
-            };
-
-            return calculator.Calculate(score, attributes).Total;
-        }
+            => OilyPerformance.Calculate(ruleset, working, mods, new OilySimulation(accuracy * 100, misses, comboPercent * 100), attributes, cancellationToken).Simulated;
 
         private void updateText()
         {

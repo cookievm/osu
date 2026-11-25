@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Osu.Difficulty.Akatsuki;
 using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;

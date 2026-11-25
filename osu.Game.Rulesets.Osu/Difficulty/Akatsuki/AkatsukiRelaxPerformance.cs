@@ -1,9 +1,9 @@
-// Copyright (c) o!ily contributors. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
 
-namespace Oily.Rendering.Akatsuki
+namespace osu.Game.Rulesets.Osu.Difficulty.Akatsuki
 {
     /// <summary>
     /// Akatsuki's relax pp for a play, ported from <c>osu_2019::OsuPP</c> in https://github.com/osuAkatsuki/akatsuki-pp-rs (MIT).

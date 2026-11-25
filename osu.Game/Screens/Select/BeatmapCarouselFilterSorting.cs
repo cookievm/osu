@@ -29,6 +29,11 @@ namespace osu.Game.Screens.Select
         /// </summary>
         public Func<BeatmapInfo, double?>? GetPerformance { get; set; }
 
+        /// <summary>
+        /// oily: the simulated pp of a beatmap, or <c>null</c> if it isn't known yet.
+        /// </summary>
+        public Func<BeatmapInfo, double?>? GetSimulatedPerformance { get; set; }
+
         public async Task<List<CarouselItem>> Run(IEnumerable<CarouselItem> items, CancellationToken cancellationToken) => await Task.Run(() =>
         {
             var criteria = getCriteria();
@@ -38,9 +43,9 @@ namespace osu.Game.Screens.Select
             BeatmapItemsCount = items.Count();
 
             // oily: sort by SS pp (difficulties are shown on their own, like the difficulty sort). Maps still being worked out go last.
-            if (criteria.Sort == SortMode.PerformanceSS)
+            if (criteria.Sort is SortMode.PerformanceSS or SortMode.PerformanceSimulated)
             {
-                var lookup = GetPerformance;
+                var lookup = criteria.Sort == SortMode.PerformanceSS ? GetPerformance : GetSimulatedPerformance;
 
                 return items.OrderBy(i => lookup?.Invoke((BeatmapInfo)i.Model) ?? double.MaxValue)
                             .ThenBy(i => ((BeatmapInfo)i.Model).StarRating)

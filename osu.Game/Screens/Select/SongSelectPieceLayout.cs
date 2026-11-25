@@ -220,6 +220,9 @@ namespace osu.Game.Screens.Select
         [SettingSource("Show pp on cards", "Shows the pp an SS gives (with your mods) on each difficulty card.")]
         public BindableBool ShowPerformance { get; } = new BindableBool(true);
 
+        [SettingSource("Show simulated pp on cards", "Shows each card's pretend score (accuracy and misses) and its pp, next to the SS pp. Right-click a card to change its pretend score.")]
+        public BindableBool ShowSimulatedPerformance { get; } = new BindableBool(true);
+
         [SettingSource("Card colour", "Tints every card. White keeps lazer's colours.")]
         public BindableColour4 CardTint { get; } = new BindableColour4(Colour4.White);
 
@@ -235,6 +238,7 @@ namespace osu.Game.Screens.Select
             style.BackgroundOpacity.Value = CardBackgroundOpacity.Value;
             style.Tint.Value = CardTint.Value;
             style.ShowPerformance.Value = ShowPerformance.Value;
+            style.ShowSimulatedPerformance.Value = ShowSimulatedPerformance.Value;
         }
 
         protected override void ResetPieceStyle() => Registry.CardStyle.Reset();

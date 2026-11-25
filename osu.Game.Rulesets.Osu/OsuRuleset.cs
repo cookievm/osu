@@ -26,6 +26,7 @@ using osu.Game.Rulesets.Objects.Legacy;
 using osu.Game.Rulesets.Osu.Beatmaps;
 using osu.Game.Rulesets.Osu.Configuration;
 using osu.Game.Rulesets.Osu.Difficulty;
+using osu.Game.Rulesets.Osu.Difficulty.Akatsuki;
 using osu.Game.Rulesets.Osu.Edit;
 using osu.Game.Rulesets.Osu.Edit.Setup;
 using osu.Game.Rulesets.Osu.Mods;
@@ -66,6 +67,36 @@ namespace osu.Game.Rulesets.Osu
 
             foreach (var slider in playableBeatmap.HitObjects.OfType<Slider>())
                 slider.ClassicSliderBehaviour = true;
+        }
+
+        /// <summary>
+        /// oily: plays with Relax use Akatsuki's relax pp, like the o!ily server.
+        /// </summary>
+        public override bool HasOilyPerformance(IReadOnlyList<Mod> mods) => mods.Any(m => m is OsuModRelax);
+
+        public override double? CalculateOilyPerformance(IBeatmap playableBeatmap, IReadOnlyList<Mod> mods, OilyPlay? play)
+        {
+            var difficulty = new AkatsukiRelaxDifficulty(playableBeatmap, ModUtils.CalculateRateWithMods(mods));
+
+            if (difficulty.AfterObject.Count == 0)
+                return 0;
+
+            var attributes = difficulty.AfterObject[^1];
+
+            var relaxPlay = new AkatsukiRelaxPlay
+            {
+                Count300 = play?.Count300 ?? attributes.ObjectCount,
+                Count100 = play?.Count100 ?? 0,
+                Count50 = play?.Count50 ?? 0,
+                Misses = play?.Misses ?? 0,
+                MaxCombo = play?.MaxCombo ?? attributes.MaxCombo,
+                Hidden = mods.Any(m => m is OsuModHidden),
+                Flashlight = mods.Any(m => m is OsuModFlashlight),
+                TouchDevice = mods.Any(m => m is OsuModTouchDevice),
+                SpunOut = mods.Any(m => m is OsuModSpunOut),
+            };
+
+            return AkatsukiRelaxPerformance.Calculate(attributes, relaxPlay);
         }
 
         public override IBeatmapConverter CreateBeatmapConverter(IBeatmap beatmap) => new OsuBeatmapConverter(beatmap, this);

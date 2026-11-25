@@ -139,7 +139,8 @@ namespace osu.Game.Screens.Select
 
         private readonly BeatmapCarouselFilterSorting sorting;
 
-        private bool usesPerformance => Criteria?.Sort == SortMode.PerformanceSS || Criteria?.Group == GroupMode.PerformanceSS;
+        private bool usesPerformance => Criteria?.Sort is SortMode.PerformanceSS or SortMode.PerformanceSimulated
+                                        || Criteria?.Group is GroupMode.PerformanceSS or GroupMode.PerformanceSimulated;
 
         protected override void LoadComplete()
         {
@@ -148,7 +149,8 @@ namespace osu.Game.Screens.Select
 
             if (performanceStore != null)
             {
-                sorting.GetPerformance = grouping.GetPerformance = performanceStore.Get;
+                sorting.GetPerformance = grouping.GetPerformance = performanceStore.GetForSorting;
+                sorting.GetSimulatedPerformance = grouping.GetSimulatedPerformance = performanceStore.GetSimulatedForSorting;
                 performanceStore.Updated += () =>
                 {
                     if (usesPerformance)

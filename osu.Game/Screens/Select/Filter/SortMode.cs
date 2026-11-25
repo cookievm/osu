@@ -48,5 +48,9 @@ namespace osu.Game.Screens.Select.Filter
         // oily: pp an SS gives, with the selected mods.
         [System.ComponentModel.Description("pp (SS)")]
         PerformanceSS,
+
+        // oily: pp for each beatmap's pretend score (see PerformanceSimulationStore), with the selected mods.
+        [System.ComponentModel.Description("pp (simulated)")]
+        PerformanceSimulated,
     }
 }

@@ -256,6 +256,7 @@ namespace osu.Game.Screens.Select
             updateButton.BeatmapSet = null;
             localRank.Beatmap = null;
             starDifficultyBindable = null;
+            performanceDisplay.Beatmap = null;
             spreadDisplay.Beatmap.Value = null;
 
             starDifficultyCancellationSource?.Cancel();
@@ -269,6 +270,7 @@ namespace osu.Game.Screens.Select
             if (Item == null)
                 return;
 
+            performanceDisplay.Beatmap = beatmap;
             starDifficultyBindable = difficultyCache.GetBindableDifficulty(beatmap, starDifficultyCancellationSource.Token, SongSelect.DIFFICULTY_CALCULATION_DEBOUNCE);
             starDifficultyBindable.BindValueChanged(starDifficulty =>
             {

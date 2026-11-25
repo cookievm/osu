@@ -154,6 +154,11 @@ namespace osu.Game.Configuration
             // oily: Gamerules tab.
             SetDefault(OsuSetting.GameRulesNoteLock, true);
             SetDefault(OsuSetting.GameRulesSliderAccuracy, true);
+
+            // oily: the default pretend score for simulated pp in song select.
+            SetDefault(OsuSetting.OilySimulationAccuracy, 98.0, 0, 100, 0.01);
+            SetDefault(OsuSetting.OilySimulationMisses, 0, 0, 1000);
+            SetDefault(OsuSetting.OilySimulationComboPercent, 100.0, 0, 100, 0.1);
             SetDefault(OsuSetting.StarFountains, true);
 
             SetDefault(OsuSetting.HUDVisibilityMode, HUDVisibilityMode.Always);
@@ -496,5 +501,8 @@ namespace osu.Game.Configuration
         // oily: Gamerules tab.
         GameRulesNoteLock,
         GameRulesSliderAccuracy,
+        OilySimulationAccuracy,
+        OilySimulationMisses,
+        OilySimulationComboPercent,
     }
 }

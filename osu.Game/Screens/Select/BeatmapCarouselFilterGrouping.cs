@@ -31,6 +31,11 @@ namespace osu.Game.Screens.Select
         /// </summary>
         public Func<BeatmapInfo, double?>? GetPerformance { get; set; }
 
+        /// <summary>
+        /// oily: the simulated pp of a beatmap, or <c>null</c> if it isn't known yet.
+        /// </summary>
+        public Func<BeatmapInfo, double?>? GetSimulatedPerformance { get; set; }
+
         public bool BeatmapSetsGroupedTogether { get; private set; }
 
         /// <summary>
@@ -168,7 +173,7 @@ namespace osu.Game.Screens.Select
             if (criteria.Sort == SortMode.Difficulty || criteria.Group == GroupMode.Difficulty)
                 return false;
             // oily: pp belongs to each difficulty, not the set.
-            if (criteria.Sort == SortMode.PerformanceSS || criteria.Group == GroupMode.PerformanceSS)
+            if (criteria.Sort is SortMode.PerformanceSS or SortMode.PerformanceSimulated || criteria.Group is GroupMode.PerformanceSS or GroupMode.PerformanceSimulated)
                 return false;
             if (criteria.Sort == SortMode.LastPlayed && criteria.Group == GroupMode.LastPlayed)
                 return false;
@@ -224,6 +229,12 @@ namespace osu.Game.Screens.Select
                 case GroupMode.PerformanceSS:
                 {
                     var lookup = GetPerformance;
+                    return getGroupsBy(b => DefineGroupByPerformance(lookup?.Invoke(b)).Yield(), items);
+                }
+
+                case GroupMode.PerformanceSimulated:
+                {
+                    var lookup = GetSimulatedPerformance;
                     return getGroupsBy(b => DefineGroupByPerformance(lookup?.Invoke(b)).Yield(), items);
                 }
 

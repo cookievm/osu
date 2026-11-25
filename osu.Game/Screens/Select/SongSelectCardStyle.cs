@@ -40,9 +40,13 @@ namespace osu.Game.Screens.Select
         /// <summary>Shows the SS pp (with the selected mods) on each difficulty card.</summary>
         public readonly BindableBool ShowPerformance = new BindableBool(true);
 
+        /// <summary>Shows each card's pretend score and its simulated pp.</summary>
+        public readonly BindableBool ShowSimulatedPerformance = new BindableBool(true);
+
         public void Reset()
         {
             ShowPerformance.SetDefault();
+            ShowSimulatedPerformance.SetDefault();
             Flip.SetDefault();
             Rotation.SetDefault();
             Width.SetDefault();
