@@ -18,6 +18,8 @@ using osu.Framework.Threading;
 using osu.Game.Beatmaps;
 using osu.Game.Configuration;
 using osu.Game.Online.API;
+using osu.Game.Overlays;
+using osu.Game.Overlays.Notifications;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Mods;
@@ -70,6 +72,22 @@ namespace osu.Game.Screens.Select
 
         [Resolved]
         private PerformanceSimulationStore? simulations { get; set; }
+
+        [Resolved]
+        private INotificationOverlay? notifications { get; set; }
+
+        /// <summary>
+        /// Whether to show a notification with how many beatmaps have their pp worked out (song select sets this while sorting or grouping by pp).
+        /// </summary>
+        public bool ShowProgress { get; set; }
+
+        /// <summary>
+        /// How many beatmaps were asked for.
+        /// </summary>
+        public int Total => wanted.Count;
+
+        private ProgressNotification? progressNotification;
+        private int dismissedGeneration = -1;
 
         /// <summary>
         /// Bump when o!ily's pp changes, so old saved values are thrown away.
@@ -389,11 +407,62 @@ namespace osu.Game.Screens.Select
                 Updated?.Invoke();
             }
 
+            updateProgressNotification();
+
             if (savedDirty && Time.Current - lastSaveTime >= save_interval)
             {
                 lastSaveTime = Time.Current;
                 Task.Run(writeSaved);
             }
+        }
+
+        private void updateProgressNotification()
+        {
+            int left = Remaining;
+            int total = Total;
+            bool ongoing = progressNotification?.Ongoing == true;
+
+            if (!ShowProgress || left == 0)
+            {
+                if (ongoing)
+                {
+                    if (left == 0)
+                    {
+                        progressNotification!.CompletionText = $"Worked out pp for all {total:N0} beatmaps.";
+                        progressNotification.State = ProgressNotificationState.Completed;
+                    }
+                    else
+                        progressNotification!.CompleteSilently();
+                }
+
+                progressNotification = null;
+                return;
+            }
+
+            if (!ongoing)
+            {
+                if (notifications == null || dismissedGeneration == Generation)
+                    return;
+
+                int generation = Generation;
+
+                progressNotification = new ProgressNotification
+                {
+                    State = ProgressNotificationState.Active,
+                    CancelRequested = () =>
+                    {
+                        // Only hides the notification; the pp keeps being worked out.
+                        dismissedGeneration = generation;
+                        return true;
+                    },
+                };
+
+                notifications.Post(progressNotification);
+            }
+
+            int done = Math.Max(0, total - left);
+            progressNotification!.Text = $"Working out pp for sorting: {done:N0} / {total:N0} beatmaps";
+            progressNotification.Progress = total == 0 ? 0 : (float)done / total;
         }
 
         #region Saving to disk

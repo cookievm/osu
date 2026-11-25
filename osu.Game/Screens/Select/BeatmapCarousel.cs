@@ -834,6 +834,9 @@ namespace osu.Game.Screens.Select
             Criteria = criteria;
 
             // oily: sorting or grouping by pp needs every beatmap's SS pp.
+            if (performanceStore != null)
+                performanceStore.ShowProgress = usesPerformance;
+
             if (usesPerformance)
                 performanceStore?.Request(detachedBeatmaps.SelectMany(s => s.Beatmaps));
 

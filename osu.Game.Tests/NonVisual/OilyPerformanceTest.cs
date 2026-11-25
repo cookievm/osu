@@ -47,7 +47,7 @@ namespace osu.Game.Tests.NonVisual
 
         [Test]
         public void TestRelaxFollowsSpeed()
-            => Assert.That(calculate(new Mod[] { new OsuModRelax(), new OsuModDoubleTime() }).SS, Is.GreaterThan(calculate(new Mod[] { new OsuModRelax() }).SS));
+            => Assert.That(calculate(new Mod[] { new OsuModRelax(), new OsuModDoubleTime() }).SS, Is.GreaterThan(calculate(new Mod[] { new OsuModRelax() }).SS!.Value));
 
         [Test]
         public void TestRelaxSimulationGivesLess()
@@ -56,7 +56,7 @@ namespace osu.Game.Tests.NonVisual
             var (ss, simulated) = calculate(mods, new OilySimulation(95, 3, 60));
 
             Assert.That(simulated, Is.GreaterThan(0));
-            Assert.That(simulated, Is.LessThan(ss));
+            Assert.That(simulated, Is.LessThan(ss!.Value));
         }
 
         [Test]
