@@ -177,7 +177,8 @@ namespace osu.Game.Tests.Visual.Navigation
 
             switchToGameplayScene();
 
-            AddUntilStep("wait for components", () => skinEditor.ChildrenOfType<SkinBlueprint>().Any());
+            // oily: song select's own pieces have blueprints too, so wait for gameplay's.
+            AddUntilStep("wait for components", () => skinEditor.ChildrenOfType<SkinBlueprint>().Any(b => b.Item is not Screens.Select.SongSelectPieceLayout));
 
             AddStep("select all components", () => InputManager.Keys(PlatformAction.SelectAll));
 
