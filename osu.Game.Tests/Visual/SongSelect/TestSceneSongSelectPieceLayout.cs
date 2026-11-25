@@ -190,6 +190,11 @@ namespace osu.Game.Tests.Visual.SongSelect
                 return others.Any(b => store.IsWaiting(b));
             });
 
+            AddAssert("menu offers resume and pp simulation", () =>
+            {
+                var texts = SongSelect.GetForwardActions(Beatmap.Value.BeatmapInfo).Select(i => i.Text.Value.ToString()).ToList();
+                return texts.Contains("Resume pp sorting work") && texts.Any(t => t.Contains("pp simulation"));
+            });
             AddStep("resume pp work", () => SongSelect.ChildrenOfType<SSPerformanceStore>().Single().WorkPaused.Value = false);
             AddUntilStep("everything worked out", () => SongSelect.ChildrenOfType<SSPerformanceStore>().Single().Remaining, () => Is.Zero);
         }

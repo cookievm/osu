@@ -1266,15 +1266,11 @@ namespace osu.Game.Screens.Select
         /// </summary>
         public void ShowPerformanceSimulation(BeatmapInfo beatmap) => simulationPopup.ShowFor(beatmap);
 
-        public virtual IEnumerable<OsuMenuItem> GetForwardActions(BeatmapInfo beatmap)
+        /// <summary>
+        /// oily: pp simulation and pp work actions for a beatmap's menus (right-click and Options).
+        /// </summary>
+        protected IEnumerable<OsuMenuItem> OilyActions(BeatmapInfo beatmap)
         {
-            yield return new OsuMenuItem(GlobalActionKeyBindingStrings.Select, MenuItemType.Highlighted, () => SelectAndRun(beatmap, OnStart))
-            {
-                Icon = FontAwesome.Solid.Check
-            };
-
-            yield return new OsuMenuItemSpacer();
-
             // oily: the beatmap's own pretend score for simulated pp.
             yield return new OsuMenuItem(simulationStore.HasOwn(beatmap) ? $"pp simulation ({simulationStore.Get(beatmap).ShortText})..." : "Set pp simulation...",
                 MenuItemType.Standard, () => ShowPerformanceSimulation(beatmap))
@@ -1291,6 +1287,19 @@ namespace osu.Game.Screens.Select
             {
                 Icon = performanceStore.WorkPaused.Value ? FontAwesome.Solid.Play : FontAwesome.Solid.Pause
             };
+        }
+
+        public virtual IEnumerable<OsuMenuItem> GetForwardActions(BeatmapInfo beatmap)
+        {
+            yield return new OsuMenuItem(GlobalActionKeyBindingStrings.Select, MenuItemType.Highlighted, () => SelectAndRun(beatmap, OnStart))
+            {
+                Icon = FontAwesome.Solid.Check
+            };
+
+            yield return new OsuMenuItemSpacer();
+
+            foreach (var item in OilyActions(beatmap))
+                yield return item;
 
             yield return new OsuMenuItemSpacer();
 
