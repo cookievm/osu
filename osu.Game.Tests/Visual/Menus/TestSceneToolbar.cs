@@ -276,6 +276,58 @@ namespace osu.Game.Tests.Visual.Menus
         }
 
         [Test]
+        public void TestSidebarModesStacked()
+        {
+            AddStep("rulesets on a right sidebar", () =>
+            {
+                var layout = ToolbarLayout.CreateDefault();
+                layout.Bars[0].Edge = ToolbarEdge.Right;
+                config.SetValue(OsuSetting.OilyToolbarLayout, layout.Serialise());
+            });
+
+            AddUntilStep("modes one above another", () =>
+            {
+                var tabs = toolbar.ChildrenOfType<ToolbarRulesetTabButton>().ToArray();
+                return tabs.Length > 1 && tabs.Select(t => t.ScreenSpaceDrawQuad.Centre.X).Distinct().Count() == 1
+                                       && tabs.Select(t => t.ScreenSpaceDrawQuad.Centre.Y).Distinct().Count() == tabs.Length;
+            });
+            AddAssert("modes inside the sidebar", () =>
+            {
+                var strip = toolbar.ChildrenOfType<Toolbar.ToolbarStrip>().Single();
+                return toolbar.ChildrenOfType<ToolbarRulesetTabButton>().All(t => strip.ScreenSpaceDrawQuad.AABBFloat.Contains(t.ScreenSpaceDrawQuad.Centre));
+            });
+
+            AddStep("reset", () => config.SetValue(OsuSetting.OilyToolbarLayout, string.Empty));
+        }
+
+        [Test]
+        public void TestCroppedAndDraggedBars()
+        {
+            AddStep("half-length top bar", () =>
+            {
+                var layout = ToolbarLayout.CreateDefault();
+                layout.Bars[0].Length = 0.5f;
+                config.SetValue(OsuSetting.OilyToolbarLayout, layout.Serialise());
+            });
+
+            AddUntilStep("bar half as wide", () => toolbar.ChildrenOfType<Toolbar.ToolbarStrip>().Single().DrawWidth, () => Is.EqualTo(toolbar.DrawWidth / 2).Within(1));
+            AddAssert("bar in the middle", () => toolbar.ChildrenOfType<Toolbar.ToolbarStrip>().Single().X, () => Is.EqualTo(toolbar.DrawWidth / 4).Within(1));
+            AddAssert("screen still kept clear", () => toolbar.ScreenPadding.Top, () => Is.EqualTo(Toolbar.HEIGHT).Within(1));
+
+            AddStep("drag bar past the bottom of the screen", () =>
+            {
+                var layout = ToolbarLayout.CreateDefault();
+                layout.Bars[0].OffsetY = 0.99f;
+                config.SetValue(OsuSetting.OilyToolbarLayout, layout.Serialise());
+            });
+
+            AddUntilStep("bar near the bottom", () => toolbar.ChildrenOfType<Toolbar.ToolbarStrip>().Single().Y, () => Is.EqualTo(toolbar.DrawHeight * 0.99f).Within(1));
+            AddAssert("floating bar leaves the screen alone", () => toolbar.ScreenPadding.Top, () => Is.Zero);
+
+            AddStep("reset", () => config.SetValue(OsuSetting.OilyToolbarLayout, string.Empty));
+        }
+
+        [Test]
         public void TestToolbarColours()
         {
             AddStep("red icons, half see-through bar, gold gamemode", () =>

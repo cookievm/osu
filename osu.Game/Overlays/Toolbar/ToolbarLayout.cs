@@ -67,6 +67,14 @@ namespace osu.Game.Overlays.Toolbar
                     return CreateDefault();
 
                 layout.Bars = layout.Bars.Take(MAX_BARS).ToList();
+
+                foreach (var bar in layout.Bars)
+                {
+                    bar.Length = float.IsFinite(bar.Length) ? Math.Clamp(bar.Length, ToolbarBarLayout.MIN_LENGTH, 1) : 1;
+                    bar.OffsetX = float.IsFinite(bar.OffsetX) ? Math.Clamp(bar.OffsetX, -1, 1) : 0;
+                    bar.OffsetY = float.IsFinite(bar.OffsetY) ? Math.Clamp(bar.OffsetY, -1, 1) : 0;
+                }
+
                 layout.Buttons = layout.Buttons.Where(b => Enum.IsDefined(b.Item)).GroupBy(b => b.Item).Select(g => g.First()).ToList();
                 return layout;
             }
@@ -98,6 +106,27 @@ namespace osu.Game.Overlays.Toolbar
     {
         [JsonConverter(typeof(StringEnumConverter))]
         public ToolbarEdge Edge { get; set; }
+
+        public const float MIN_LENGTH = 0.1f;
+
+        /// <summary>
+        /// How much of its edge the bar covers (1 = all of it). Shorter bars sit in the middle of the edge.
+        /// </summary>
+        public float Length { get; set; } = 1;
+
+        /// <summary>
+        /// How far the bar was dragged from its place, as a fraction of the screen's width and height. Can go past the screen's edges.
+        /// </summary>
+        public float OffsetX { get; set; }
+
+        /// <inheritdoc cref="OffsetX"/>
+        public float OffsetY { get; set; }
+
+        /// <summary>
+        /// Whether the bar was dragged away from its edge. A dragged bar floats over the screen instead of making room for itself.
+        /// </summary>
+        [JsonIgnore]
+        public bool Floating => OffsetX != 0 || OffsetY != 0;
     }
 
     public class ToolbarButtonLayout

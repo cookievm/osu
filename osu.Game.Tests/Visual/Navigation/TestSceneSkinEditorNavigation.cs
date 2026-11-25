@@ -18,6 +18,8 @@ using osu.Framework.Threading;
 using osu.Game.Graphics.Containers;
 using osu.Game.Online.API;
 using osu.Game.Overlays.Toolbar;
+using osu.Game.Configuration;
+using osu.Game.Screens.Footer;
 using osu.Game.Beatmaps;
 using osu.Game.Overlays.Mods;
 using osu.Game.Overlays.Settings;
@@ -345,17 +347,47 @@ namespace osu.Game.Tests.Visual.Navigation
             AddAssert("screen not resized", () => Game.ScreenStack.DrawSize, () => Is.EqualTo(screenSize));
             AddAssert("toolbars still shown", () => Game.Toolbar.State.Value, () => Is.EqualTo(Visibility.Visible));
             AddUntilStep("toolbars shrunk the same", () => toolbarPreview.ScreenSpaceDrawQuad.AlmostEquals(screenPreview.ScreenSpaceDrawQuad));
-            AddAssert("toolbars can't be clicked", () => toolbarPreview.PropagatePositionalInputSubTree, () => Is.False);
+            AddAssert("toolbars can't be clicked", () => Game.Toolbar.PropagatePositionalInputSubTree, () => Is.False);
 
             AddStep("click toolbars tab", () => skinEditor.ChildrenOfType<SkinEditorSceneLibrary.SceneButton>().Single(b => b.Text == "Toolbars").TriggerClick());
             AddUntilStep("toolbar options shown", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Count(), () => Is.EqualTo(1));
+            AddUntilStep("bottom bar options shown", () => skinEditor.ChildrenOfType<BottomBarLayoutEditor>().Count(), () => Is.EqualTo(1));
+            AddUntilStep("drag boxes shown", () => Game.ChildrenOfType<BarEditLayer.DragBox>().Count(), () => Is.GreaterThan(1));
+
+            AddStep("drag the toolbar down", () =>
+            {
+                var box = Game.ChildrenOfType<BarEditLayer.DragBox>().First(b => b.Target is Toolbar.ToolbarStrip);
+                InputManager.MoveMouseTo(box);
+                InputManager.PressButton(MouseButton.Left);
+                InputManager.MoveMouseTo(box.ScreenSpaceDrawQuad.Centre + new Vector2(0, 100));
+                InputManager.ReleaseButton(MouseButton.Left);
+            });
+            AddUntilStep("toolbar moved and saved", () => ToolbarLayout.Parse(Game.LocalConfig.Get<string>(OsuSetting.OilyToolbarLayout)).Bars[0].OffsetY, () => Is.GreaterThan(0));
+
+            AddStep("drag the mods button up", () =>
+            {
+                var box = Game.ChildrenOfType<BarEditLayer.DragBox>().First(b => b.Target is FooterButtonMods);
+                InputManager.MoveMouseTo(box);
+                InputManager.PressButton(MouseButton.Left);
+                InputManager.MoveMouseTo(box.ScreenSpaceDrawQuad.Centre - new Vector2(0, 100));
+                InputManager.ReleaseButton(MouseButton.Left);
+            });
+            AddUntilStep("mods button moved and saved", () => FooterLayout.Parse(Game.LocalConfig.Get<string>(OsuSetting.OilyFooterLayout)).Buttons.Single(b => b.Item == FooterItem.Mods).OffsetY, () => Is.LessThan(0));
+            AddUntilStep("mods button drawn higher", () => Game.ChildrenOfType<FooterButtonMods>().Single().Margin.Top, () => Is.LessThan(0));
+
+            AddStep("put things back", () =>
+            {
+                Game.LocalConfig.SetValue(OsuSetting.OilyToolbarLayout, string.Empty);
+                Game.LocalConfig.SetValue(OsuSetting.OilyFooterLayout, string.Empty);
+            });
 
             AddStep("select a component", () => skinEditor.SelectedComponents.Add(skinEditor.ChildrenOfType<SkinBlueprint>().First().Item));
             AddUntilStep("toolbar options gone", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Count(), () => Is.Zero);
+            AddUntilStep("drag boxes gone", () => Game.ChildrenOfType<BarEditLayer.DragBox>().Count(), () => Is.Zero);
 
             toggleSkinEditor();
             AddUntilStep("screen full size again", () => screenPreview.Scale.X, () => Is.EqualTo(1));
-            AddAssert("toolbars clickable again", () => toolbarPreview.PropagatePositionalInputSubTree, () => Is.True);
+            AddAssert("toolbars clickable again", () => Game.Toolbar.PropagatePositionalInputSubTree, () => Is.True);
         }
 
         private EditorPreviewContainer screenPreview => Game.ChildrenOfType<EditorPreviewContainer>().First(p => p.ChildrenOfType<OsuScreenStack>().Any());

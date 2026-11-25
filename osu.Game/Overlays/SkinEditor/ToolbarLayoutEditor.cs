@@ -100,9 +100,33 @@ namespace osu.Game.Overlays.SkinEditor
             });
 
             refresh();
+
+            // Bars dragged on screen save the layout themselves; pick that up so it isn't overwritten.
+            layoutSetting.BindValueChanged(v =>
+            {
+                if (v.NewValue == lastSaved)
+                    return;
+
+                layout = ToolbarLayout.Parse(v.NewValue);
+                lastSaved = v.NewValue;
+                updatingFromSetting = true;
+                barCount.Value = layout.Bars.Count;
+                updatingFromSetting = false;
+                refresh();
+            });
         }
 
-        private void save() => layoutSetting.Value = layout.Serialise();
+        private string? lastSaved;
+        private bool updatingFromSetting;
+
+        private void save()
+        {
+            if (updatingFromSetting)
+                return;
+
+            lastSaved = layout.Serialise();
+            layoutSetting.Value = lastSaved;
+        }
 
         private void refresh()
         {
@@ -121,9 +145,40 @@ namespace osu.Game.Overlays.SkinEditor
                 barsFlow.Add(new SettingsItemV2(new FormEnumDropdown<ToolbarEdge>
                 {
                     Caption = $"Toolbar {i + 1} position",
-                    HintText = "Left and right make it a sidebar.",
+                    HintText = "Left and right make it a sidebar. You can also drag the toolbar anywhere on the screen, even past the edges.",
                     Current = edge,
                 }));
+
+                var length = new BindableFloat(bar.Length)
+                {
+                    MinValue = ToolbarBarLayout.MIN_LENGTH,
+                    MaxValue = 1,
+                    Precision = 0.01f,
+                };
+                length.BindValueChanged(l =>
+                {
+                    bar.Length = l.NewValue;
+                    save();
+                });
+
+                barsFlow.Add(new SettingsItemV2(new FormSliderBar<float>
+                {
+                    Caption = $"Toolbar {i + 1} length",
+                    HintText = "Crops the toolbar to part of its edge. Buttons that don't fit are cut off.",
+                    Current = length,
+                    DisplayAsPercentage = true,
+                }));
+
+                barsFlow.Add(new SettingsButtonV2
+                {
+                    Text = $"Put toolbar {i + 1} back on its edge",
+                    Action = () =>
+                    {
+                        bar.OffsetX = 0;
+                        bar.OffsetY = 0;
+                        save();
+                    },
+                });
             }
 
             buttonsFlow.Clear();

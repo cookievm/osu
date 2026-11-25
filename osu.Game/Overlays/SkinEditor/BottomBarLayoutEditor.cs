@@ -60,7 +60,7 @@ namespace osu.Game.Overlays.SkinEditor
                 new SettingsItemV2(new FormEnumDropdown<FooterBarMode>
                 {
                     Caption = "Bottom bar",
-                    HintText = "When hidden, Escape still goes back, and F1 to F3 open mods, random and options only if their buttons are shown.",
+                    HintText = "Drag the Mods, Random, Options and PP Simulator buttons on the screen to move them. When hidden, Escape still goes back, and F1 to F3 open mods, random and options only if their buttons are shown.",
                     Current = barMode,
                 })
                 {
@@ -90,6 +90,17 @@ namespace osu.Game.Overlays.SkinEditor
                     AutoSizeAxes = Axes.Y,
                     Direction = FillDirection.Vertical,
                     Spacing = new Vector2(5),
+                },
+                new SettingsButtonV2
+                {
+                    Text = "Put dragged buttons back in place",
+                    Action = () =>
+                    {
+                        foreach (var button in layout.Buttons)
+                            button.OffsetX = button.OffsetY = 0;
+
+                        save();
+                    },
                 },
                 new SettingsButtonV2
                 {
@@ -125,9 +136,35 @@ namespace osu.Game.Overlays.SkinEditor
             });
 
             refresh();
+
+            // Buttons dragged on screen save the layout themselves; pick that up so it isn't overwritten.
+            layoutSetting.BindValueChanged(v =>
+            {
+                if (v.NewValue == lastSaved)
+                    return;
+
+                layout = FooterLayout.Parse(v.NewValue);
+                lastSaved = v.NewValue;
+                updatingFromSetting = true;
+                barMode.Value = layout.Bar;
+                backSide.Value = layout.BackButton;
+                size.Value = layout.Size;
+                updatingFromSetting = false;
+                refresh();
+            });
         }
 
-        private void save() => layoutSetting.Value = layout.Serialise();
+        private string? lastSaved;
+        private bool updatingFromSetting;
+
+        private void save()
+        {
+            if (updatingFromSetting)
+                return;
+
+            lastSaved = layout.Serialise();
+            layoutSetting.Value = lastSaved;
+        }
 
         private void refresh()
         {

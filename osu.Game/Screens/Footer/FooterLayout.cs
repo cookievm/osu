@@ -136,6 +136,14 @@ namespace osu.Game.Screens.Footer
         public FooterItem Item { get; set; }
 
         public bool Visible { get; set; } = true;
+
+        /// <summary>
+        /// How far the button was dragged from its place in the bar, in the bar's own units (lazer's bar is 50 tall).
+        /// </summary>
+        public float OffsetX { get; set; }
+
+        /// <inheritdoc cref="OffsetX"/>
+        public float OffsetY { get; set; }
     }
 
     public enum FooterBarMode

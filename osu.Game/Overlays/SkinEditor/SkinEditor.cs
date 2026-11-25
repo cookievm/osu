@@ -628,6 +628,8 @@ namespace osu.Game.Overlays.SkinEditor
             if (SelectedComponents.Count > 0)
                 showingToolbarSettings = false;
 
+            game?.SetBarEditing(showingToolbarSettings);
+
             if (showingToolbarSettings)
             {
                 settingsSidebar.Add(new EditorSidebarSection("Toolbars") { Child = new ToolbarLayoutEditor() });

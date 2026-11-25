@@ -256,6 +256,31 @@ namespace osu.Game.Screens.Footer
         }
 
         /// <summary>
+        /// oily: the buttons on the bar now, for dragging them in the skin editor.
+        /// </summary>
+        public IEnumerable<ScreenFooterButton> ShownButtons => leftButtonsFlow;
+
+        /// <summary>
+        /// oily: saves <see cref="Layout"/> after it was changed in place (by dragging a button).
+        /// </summary>
+        public void SaveLayout() => layoutSetting.Value = Layout.Serialise();
+
+        protected override void Update()
+        {
+            base.Update();
+
+            // oily: buttons dragged in the skin editor sit that far from their place, without moving the others.
+            foreach (var button in leftButtonsFlow)
+            {
+                var saved = FooterLayout.ItemOf(button) is FooterItem item ? Layout.Buttons.FirstOrDefault(b => b.Item == item) : null;
+                float x = saved?.OffsetX ?? 0;
+                float y = saved?.OffsetY ?? 0;
+
+                button.Margin = new MarginPadding { Left = x, Right = -x, Top = y, Bottom = -y };
+            }
+        }
+
+        /// <summary>
         /// oily: whether the bar is hidden in settings (the back key still works).
         /// </summary>
         public bool BarHidden => Layout.Bar == FooterBarMode.Hidden;

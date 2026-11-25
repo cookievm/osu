@@ -43,13 +43,34 @@ namespace osu.Game.Overlays.Toolbar
         protected readonly IBindable<OverlayActivation> OverlayActivationMode = new Bindable<OverlayActivation>(OverlayActivation.All);
 
         // Toolbar and its components need keyboard input even when hidden.
-        public override bool PropagateNonPositionalInputSubTree => OverlayActivationMode.Value != OverlayActivation.Disabled;
+        public override bool PropagateNonPositionalInputSubTree => OverlayActivationMode.Value != OverlayActivation.Disabled && !BlockInput;
 
         // oily: the toolbar covers the whole screen (so its bars can sit on any edge), but only its bars take input.
         // Clicks on the bars stop there, so an open overlay doesn't close on mouse down and get reopened by the button's click.
         protected override bool BlockPositionalInput => true;
 
         public override bool ReceivePositionalInputAt(osuTK.Vector2 screenSpacePos) => strips.Any(s => s.ReceivePositionalInputAt(screenSpacePos));
+
+        /// <summary>
+        /// oily: stops the buttons taking clicks and keys (while the skin editor shows the toolbars shrunk).
+        /// </summary>
+        public bool BlockInput { get; set; }
+
+        public override bool PropagatePositionalInputSubTree => !BlockInput && base.PropagatePositionalInputSubTree;
+
+        /// <summary>
+        /// oily: the bars, for dragging them in the skin editor.
+        /// </summary>
+        public IReadOnlyList<ToolbarStrip> Strips => strips;
+
+        /// <summary>
+        /// oily: saves <see cref="Layout"/> after it was changed in place (by dragging a bar).
+        /// </summary>
+        public void SaveLayout() => layoutSetting.Value = Layout.Serialise();
+
+        private ToolbarBarLayout barOf(ToolbarStrip strip) => strip.Index < Layout.Bars.Count ? Layout.Bars[strip.Index] : new ToolbarBarLayout { Edge = strip.Edge };
+
+        private osuTK.Vector2 offsetOf(ToolbarBarLayout bar) => new osuTK.Vector2(bar.OffsetX * DrawWidth, bar.OffsetY * DrawHeight);
 
         /// <summary>
         /// oily: the bars (see <see cref="ToolbarLayout"/>).
@@ -207,49 +228,73 @@ namespace osu.Game.Overlays.Toolbar
             base.Update();
 
             // oily: lays the bars out. Bars on the same edge stack outwards in; side bars fit between the top and bottom bars.
+            // A shortened bar sits in the middle of its edge. A dragged ("floating") bar sits where it was dragged to and doesn't push the screen.
             float top = 0, bottom = 0, left = 0, right = 0;
 
             foreach (var strip in strips.Where(s => !s.Vertical))
             {
+                var bar = barOf(strip);
                 float thickness = HEIGHT;
                 float shown = thickness * reveal;
 
-                strip.Width = DrawWidth;
+                strip.Width = DrawWidth * bar.Length;
                 strip.Height = thickness;
+                strip.Masking = bar.Length < 1;
+
+                float x = (DrawWidth - strip.Width) / 2;
 
                 if (strip.Edge == ToolbarEdge.Top)
                 {
                     strip.Anchor = strip.Origin = Anchor.TopLeft;
-                    strip.Position = new osuTK.Vector2(0, top - thickness + shown);
-                    top += shown;
+                    strip.Position = new osuTK.Vector2(x, (bar.Floating ? 0 : top) - thickness + shown);
+
+                    if (!bar.Floating)
+                        top += shown;
                 }
                 else
                 {
                     strip.Anchor = strip.Origin = Anchor.BottomLeft;
-                    strip.Position = new osuTK.Vector2(0, -(bottom - thickness + shown));
-                    bottom += shown;
+                    strip.Position = new osuTK.Vector2(x, -((bar.Floating ? 0 : bottom) - thickness + shown));
+
+                    if (!bar.Floating)
+                        bottom += shown;
                 }
+
+                strip.Position += offsetOf(bar);
             }
 
             foreach (var strip in strips.Where(s => s.Vertical))
             {
+                var bar = barOf(strip);
                 float thickness = strip.Thickness;
                 float shown = thickness * reveal;
 
-                strip.Height = Math.Max(0, DrawHeight - top - bottom);
+                float spaceTop = bar.Floating ? 0 : top;
+                float space = Math.Max(0, DrawHeight - spaceTop - (bar.Floating ? 0 : bottom));
+
+                strip.Height = space * bar.Length;
+                strip.Masking = bar.Length < 1;
+
+                float y = spaceTop + (space - strip.Height) / 2;
 
                 if (strip.Edge == ToolbarEdge.Left)
                 {
                     strip.Anchor = strip.Origin = Anchor.TopLeft;
-                    strip.Position = new osuTK.Vector2(left - thickness + shown, top);
-                    left += shown;
+                    strip.Position = new osuTK.Vector2((bar.Floating ? 0 : left) - thickness + shown, y);
+
+                    if (!bar.Floating)
+                        left += shown;
                 }
                 else
                 {
                     strip.Anchor = strip.Origin = Anchor.TopRight;
-                    strip.Position = new osuTK.Vector2(-(right - thickness + shown), top);
-                    right += shown;
+                    strip.Position = new osuTK.Vector2(-((bar.Floating ? 0 : right) - thickness + shown), y);
+
+                    if (!bar.Floating)
+                        right += shown;
                 }
+
+                strip.Position += offsetOf(bar);
             }
 
             ScreenPadding = new MarginPadding { Top = top, Bottom = bottom, Left = left, Right = right };

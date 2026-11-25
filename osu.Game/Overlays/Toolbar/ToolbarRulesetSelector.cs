@@ -3,6 +3,7 @@
 
 #nullable disable
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
@@ -45,9 +46,23 @@ namespace osu.Game.Overlays.Toolbar
         {
         }
 
+        /// <summary>
+        /// oily: the base class makes the tab flow before this class's constructor runs, so the direction is passed along here first.
+        /// </summary>
+        [ThreadStatic]
+        private static bool creatingVertical;
+
         public ToolbarRulesetSelector(bool vertical)
+            : this(vertical, rememberDirection(vertical))
+        {
+        }
+
+        private static bool rememberDirection(bool vertical) => creatingVertical = vertical;
+
+        private ToolbarRulesetSelector(bool vertical, bool _)
         {
             Vertical = vertical;
+            creatingVertical = false;
 
             if (vertical)
                 AutoSizeAxes = Axes.Both;
@@ -178,7 +193,7 @@ namespace osu.Game.Overlays.Toolbar
             return item;
         }
 
-        protected override TabFillFlowContainer CreateTabFlow() => Vertical
+        protected override TabFillFlowContainer CreateTabFlow() => Vertical || creatingVertical
             ? new TabFillFlowContainer
             {
                 AutoSizeAxes = Axes.Both,
