@@ -263,6 +263,13 @@ namespace osu.Game.Rulesets
         public virtual HealthProcessor CreateHealthProcessor(double drainStartTime) => new DrainingHealthProcessor(drainStartTime);
 
         /// <summary>
+        /// oily: applies the o!ily gameplay rules to a playable beatmap, before gameplay and scoring are set up.
+        /// </summary>
+        public virtual void ApplyGameRules(IBeatmap playableBeatmap, OilyGameRules rules)
+        {
+        }
+
+        /// <summary>
         /// Creates a <see cref="IBeatmapConverter"/> to convert a <see cref="IBeatmap"/> to one that is applicable for this <see cref="Ruleset"/>.
         /// </summary>
         /// <param name="beatmap">The <see cref="IBeatmap"/> to be converted.</param>

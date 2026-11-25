@@ -77,7 +77,9 @@ namespace osu.Game.Overlays
                 new SkinSection(),
                 new InputSection(createSubPanel(new KeyBindingPanel())),
                 new UserInterfaceSection(),
-                new GameplaySection()
+                new GameplaySection(),
+                // oily: Gamerules tab.
+                new GameRulesSection(),
             };
 
             foreach (Ruleset ruleset in rulesets.AvailableRulesets.Select(info => info.CreateInstance()))
@@ -106,7 +108,7 @@ namespace osu.Game.Overlays
 
             var today = DateTimeOffset.Now;
             if (today.Month == 4 && today.Day == 1)
-                sections.Insert(9, new AfToggleSection());
+                sections.Insert(10, new AfToggleSection()); // oily: 10 (was 9) because of the Gamerules tab.
 
             foreach (var s in sections)
                 AddSection(s);

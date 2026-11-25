@@ -58,6 +58,16 @@ namespace osu.Game.Rulesets.Osu
 
         public override HealthProcessor CreateHealthProcessor(double drainStartTime) => new OsuHealthProcessor(drainStartTime);
 
+        // oily: with "Slider accuracy" off in the Gamerules settings, sliders are judged like stable (same as the Classic mod's option).
+        public override void ApplyGameRules(IBeatmap playableBeatmap, OilyGameRules rules)
+        {
+            if (rules.SliderAccuracy)
+                return;
+
+            foreach (var slider in playableBeatmap.HitObjects.OfType<Slider>())
+                slider.ClassicSliderBehaviour = true;
+        }
+
         public override IBeatmapConverter CreateBeatmapConverter(IBeatmap beatmap) => new OsuBeatmapConverter(beatmap, this);
 
         public override IBeatmapProcessor CreateBeatmapProcessor(IBeatmap beatmap) => new OsuBeatmapProcessor(beatmap);

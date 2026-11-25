@@ -150,6 +150,10 @@ namespace osu.Game.Configuration
             SetDefault(OsuSetting.LightenDuringBreaks, true);
 
             SetDefault(OsuSetting.HitLighting, true);
+
+            // oily: Gamerules tab.
+            SetDefault(OsuSetting.GameRulesNoteLock, true);
+            SetDefault(OsuSetting.GameRulesSliderAccuracy, true);
             SetDefault(OsuSetting.StarFountains, true);
 
             SetDefault(OsuSetting.HUDVisibilityMode, HUDVisibilityMode.Always);
@@ -488,5 +492,9 @@ namespace osu.Game.Configuration
         /// </summary>
         PMFriendsOnly,
         HitsoundVolume,
+
+        // oily: Gamerules tab.
+        GameRulesNoteLock,
+        GameRulesSliderAccuracy,
     }
 }

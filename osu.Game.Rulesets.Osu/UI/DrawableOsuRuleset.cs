@@ -62,24 +62,13 @@ namespace osu.Game.Rulesets.Osu.UI
 
         public override bool ReceivePositionalInputAt(Vector2 screenSpacePos) => true; // always show the gameplay cursor
 
-        // oily: osu! standard plays use stable notelock (see StableNoteLockHitPolicy).
-        private StableNoteLockHitPolicy? stableNoteLock;
-
+        // oily: stable notelock when the gamerules ask for it (see StableNoteLockHitPolicy).
         protected override Playfield CreatePlayfield()
         {
             // Autopilot moves the cursor for the player, so stable gives it a smaller notelock range (same as the Classic mod).
             double hittableRange = OsuHitWindows.MISS_WINDOW - (Mods.OfType<OsuModAutopilot>().Any() ? 200 : 0);
 
-            return new OsuPlayfield { HitPolicy = stableNoteLock = new StableNoteLockHitPolicy(hittableRange) };
-        }
-
-        public override void SetReplayScore(Score? replayScore)
-        {
-            base.SetReplayScore(replayScore);
-
-            // oily: replays from official lazer were played without stable notelock, so play them back without it.
-            if (stableNoteLock != null)
-                stableNoteLock.Enabled = replayScore == null || Oily.Identity.OilyIdentity.PlayedWithStableNoteLock(replayScore.ScoreInfo.ClientVersion);
+            return new OsuPlayfield { HitPolicy = new StableNoteLockHitPolicy(hittableRange) { Enabled = GameRules.NoteLock } };
         }
 
         protected override PassThroughInputManager CreateInputManager() => new OsuInputManager(Ruleset.RulesetInfo);

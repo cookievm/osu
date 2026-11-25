@@ -242,6 +242,10 @@ namespace osu.Game.Screens.Play
             if (playableBeatmap == null)
                 return;
 
+            // oily: gamerules (settings, or the replay's own rules) apply before gameplay and scoring are set up.
+            GameRules = CreateGameRules(playableBeatmap, config);
+            ruleset.ApplyGameRules(playableBeatmap, GameRules);
+
             if (!ModUtils.CheckModsBelongToRuleset(ruleset, gameplayMods))
             {
                 Logger.Log($@"Gameplay was started with a mod belonging to a ruleset different than '{ruleset.Description}'.", level: LogLevel.Important);
@@ -252,6 +256,7 @@ namespace osu.Game.Screens.Play
                 gameActive.BindTo(game.IsActive);
 
             DrawableRuleset = ruleset.CreateDrawableRulesetWith(playableBeatmap, gameplayMods);
+            DrawableRuleset.GameRules = GameRules;
             dependencies.CacheAs(DrawableRuleset);
 
             if (DrawableRuleset is IDrawableScrollingRuleset scrollingRuleset)
@@ -1227,13 +1232,23 @@ namespace osu.Game.Screens.Play
         /// </summary>
         /// <param name="beatmap"></param>
         /// <returns>The <see cref="Scoring.Score"/>.</returns>
+        /// <summary>
+        /// oily: the gamerules this play uses.
+        /// </summary>
+        public OilyGameRules GameRules { get; private set; } = OilyGameRules.DEFAULT;
+
+        /// <summary>
+        /// oily: chooses the gamerules for this play. Normal plays use the settings; replays use the rules saved with the score.
+        /// </summary>
+        protected virtual OilyGameRules CreateGameRules(IBeatmap playableBeatmap, OsuConfigManager config) => OilyGameRules.FromConfig(config);
+
         protected virtual Score CreateScore(IBeatmap beatmap) => new Score
         {
             ScoreInfo = new ScoreInfo
             {
                 User = api.LocalUser.Value,
-                // oily: tag scores so their replays are played back with stable notelock.
-                ClientVersion = Oily.Identity.OilyIdentity.TagClientVersion(game.Version),
+                // oily: save the gamerules with the score, so its replay is played back with the same rules.
+                ClientVersion = GameRules.TagClientVersion(game.Version),
             },
         };
 

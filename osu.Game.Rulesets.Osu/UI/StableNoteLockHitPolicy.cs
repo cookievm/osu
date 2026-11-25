@@ -12,14 +12,14 @@ namespace osu.Game.Rulesets.Osu.UI
     /// oily: the hit policy o!ily uses for osu! standard gameplay.
     /// When <see cref="Enabled"/>, hits follow stable's notelock (<see cref="LegacyHitPolicy"/>, over the full hit window),
     /// and slider heads that were already hit keep blocking objects underneath them until the slider is fully judged.
-    /// When not enabled (playing back a replay from official lazer), lazer's <see cref="StartTimeOrderedHitPolicy"/> is used.
+    /// When not enabled (turned off in the Gamerules settings, or a replay from official lazer), lazer's <see cref="StartTimeOrderedHitPolicy"/> is used.
     /// </summary>
     public class StableNoteLockHitPolicy : IHitPolicy
     {
         /// <summary>
-        /// Whether stable notelock applies. Can change before gameplay starts (when a replay is loaded).
+        /// Whether stable notelock applies.
         /// </summary>
-        public bool Enabled { get; set; } = true;
+        public bool Enabled { get; init; } = true;
 
         private readonly LegacyHitPolicy stable;
         private readonly StartTimeOrderedHitPolicy lazer = new StartTimeOrderedHitPolicy();

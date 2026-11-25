@@ -476,6 +476,11 @@ namespace osu.Game.Rulesets.UI
         /// </summary>
         public abstract IReadOnlyList<Mod> Mods { get; }
 
+        /// <summary>
+        /// oily: the gamerules for this play. Set by the player before loading. Without a player, official lazer's rules apply.
+        /// </summary>
+        public OilyGameRules GameRules { get; set; } = OilyGameRules.LAZER;
+
         /// <summary>~
         /// The associated ruleset.
         /// </summary>

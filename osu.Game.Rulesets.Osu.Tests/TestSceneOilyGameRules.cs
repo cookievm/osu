@@ -10,6 +10,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Replays;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Objects;
+using osu.Game.Rulesets.Objects.Types;
 using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Osu.Replays;
 using osu.Game.Rulesets.Osu.UI;
@@ -18,15 +19,15 @@ using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
 using osu.Game.Screens.Play;
 using osu.Game.Tests.Visual;
-using Oily.Identity;
 using osuTK;
 
 namespace osu.Game.Rulesets.Osu.Tests
 {
     /// <summary>
-    /// oily: o!ily plays osu! standard with stable notelock, but plays back official lazer replays with lazer's rules.
+    /// oily: o!ily's gamerules (stable notelock, slider accuracy) are saved with scores, and replays are played back with them.
+    /// Official lazer replays are played back with lazer's rules.
     /// </summary>
-    public partial class TestSceneStableNoteLock : RateAdjustedBeatmapTestScene
+    public partial class TestSceneOilyGameRules : RateAdjustedBeatmapTestScene
     {
         private const double time_first = 1000;
         private const double time_second = 1100;
@@ -37,22 +38,61 @@ namespace osu.Game.Rulesets.Osu.Tests
         private ScoreAccessibleReplayPlayer currentPlayer = null!;
         private List<JudgementResult> judgementResults = new List<JudgementResult>();
 
+        private const string lazer_version = "2026.1005.0";
+
         [Test]
         public void TestClientVersionTag()
         {
-            AddAssert("plain lazer version has no notelock", () => OilyIdentity.PlayedWithStableNoteLock("2026.1005.0"), () => Is.False);
-            AddAssert("empty version has no notelock", () => OilyIdentity.PlayedWithStableNoteLock(null), () => Is.False);
-            AddAssert("tagged version has notelock", () => OilyIdentity.PlayedWithStableNoteLock(OilyIdentity.TagClientVersion("2026.1005.0")), () => Is.True);
-            AddAssert("tagging twice adds one tag", () => OilyIdentity.TagClientVersion(OilyIdentity.TagClientVersion("1.0")), () => Is.EqualTo(OilyIdentity.TagClientVersion("1.0")));
+            AddAssert("plain lazer version uses lazer rules", () => OilyGameRules.FromClientVersion(lazer_version), () => Is.EqualTo(OilyGameRules.LAZER));
+            AddAssert("empty version uses lazer rules", () => OilyGameRules.FromClientVersion(null), () => Is.EqualTo(OilyGameRules.LAZER));
+
+            foreach (bool noteLock in new[] { true, false })
+            {
+                foreach (bool sliderAccuracy in new[] { true, false })
+                {
+                    var rules = new OilyGameRules(noteLock, sliderAccuracy);
+                    AddAssert($"{rules} round trips", () => OilyGameRules.FromClientVersion(rules.TagClientVersion(lazer_version)), () => Is.EqualTo(rules));
+                }
+            }
+
+            AddAssert("default tag", () => OilyGameRules.DEFAULT.TagClientVersion(lazer_version), () => Is.EqualTo(lazer_version + "-oily"));
+            AddAssert("retagging replaces the tag", () => OilyGameRules.DEFAULT.TagClientVersion(new OilyGameRules(false, false).TagClientVersion(lazer_version)),
+                () => Is.EqualTo(lazer_version + "-oily"));
+        }
+
+        [TestCase(true, true)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(false, false)]
+        public void TestSliderAccuracyRule(bool playedInOily, bool sliderAccuracy)
+        {
+            var hitObjects = new List<OsuHitObject>
+            {
+                new Slider
+                {
+                    StartTime = time_first,
+                    Position = position_first,
+                    Path = new SliderPath(PathType.LINEAR, new[] { Vector2.Zero, new Vector2(100, 0) }),
+                },
+            };
+
+            string version = playedInOily ? new OilyGameRules(true, sliderAccuracy).TagClientVersion(lazer_version) : lazer_version;
+
+            performTest(hitObjects, new List<ReplayFrame>(), version);
+
+            bool expectStableSliders = playedInOily && !sliderAccuracy;
+            AddAssert("slider judged like stable", () => currentPlayer.GameplayState.Beatmap.HitObjects.OfType<Slider>().Single().ClassicSliderBehaviour,
+                () => Is.EqualTo(expectStableSliders));
         }
 
         /// <summary>
         /// Clicking the second circle after the first circle's start time, while the first circle can still be hit.
         /// Lazer allows it (and misses the first circle). Stable's notelock blocks it.
         /// </summary>
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestClickSecondCircleWhileFirstIsHittable(bool playedInOily)
+        [TestCase(true, true)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        public void TestClickSecondCircleWhileFirstIsHittable(bool playedInOily, bool noteLock)
         {
             var hitObjects = new List<OsuHitObject>
             {
@@ -64,11 +104,11 @@ namespace osu.Game.Rulesets.Osu.Tests
             {
                 new OsuReplayFrame { Time = time_first + 40, Position = position_second, Actions = { OsuAction.LeftButton } },
                 new OsuReplayFrame { Time = time_first + 60, Position = position_second },
-            }, playedInOily);
+            }, playedInOily ? new OilyGameRules(noteLock, true).TagClientVersion(lazer_version) : lazer_version);
 
             AddAssert("first circle missed", () => resultFor(hitObjects[0]), () => Is.EqualTo(HitResult.Miss));
 
-            if (playedInOily)
+            if (playedInOily && noteLock)
                 AddAssert("second circle blocked by notelock", () => resultFor(hitObjects[1]), () => Is.EqualTo(HitResult.Miss));
             else
                 AddAssert("second circle hit", () => resultFor(hitObjects[1]), () => Is.Not.EqualTo(HitResult.Miss));
@@ -76,7 +116,7 @@ namespace osu.Game.Rulesets.Osu.Tests
 
         private HitResult resultFor(HitObject hitObject) => judgementResults.Single(r => r.HitObject == hitObject).Type;
 
-        private void performTest(List<OsuHitObject> hitObjects, List<ReplayFrame> frames, bool playedInOily)
+        private void performTest(List<OsuHitObject> hitObjects, List<ReplayFrame> frames, string clientVersion)
         {
             AddStep("load player", () =>
             {
@@ -93,7 +133,7 @@ namespace osu.Game.Rulesets.Osu.Tests
                 var score = new Score
                 {
                     Replay = new Replay { Frames = frames },
-                    ScoreInfo = { ClientVersion = playedInOily ? OilyIdentity.TagClientVersion("2026.1005.0") : "2026.1005.0" },
+                    ScoreInfo = { ClientVersion = clientVersion },
                 };
 
                 var p = new ScoreAccessibleReplayPlayer(score);
@@ -113,7 +153,7 @@ namespace osu.Game.Rulesets.Osu.Tests
             AddUntilStep("Beatmap at 0", () => Beatmap.Value.Track.CurrentTime == 0);
             AddUntilStep("Wait until player is loaded", () => currentPlayer.IsCurrentScreen());
             AddAssert("notelock matches replay", () => ((StableNoteLockHitPolicy)currentPlayer.ChildrenOfType<OsuPlayfield>().Single().HitPolicy).Enabled,
-                () => Is.EqualTo(playedInOily));
+                () => Is.EqualTo(OilyGameRules.FromClientVersion(clientVersion).NoteLock));
             AddUntilStep("Wait for completion", () => currentPlayer.ScoreProcessor.HasCompleted.Value);
         }
 
