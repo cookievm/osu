@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -13,6 +14,7 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
 using osu.Framework.Threading;
+using osu.Game.Configuration;
 using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Input.Bindings;
@@ -58,6 +60,20 @@ namespace osu.Game.Screens.Footer
         private Container<ScreenFooterButton> hiddenLeftButtonsContainer = null!;
         private Container<ShearedButton> hiddenRightButtonsContainer = null!;
 
+        private GridContainer buttonsGrid = null!;
+
+        private readonly Bindable<string> layoutSetting = new Bindable<string>();
+
+        /// <summary>
+        /// oily: the saved bottom bar layout (see <see cref="FooterLayout"/>).
+        /// </summary>
+        public FooterLayout Layout { get; private set; } = FooterLayout.CreateDefault();
+
+        /// <summary>
+        /// oily: room left on the right for the osu! logo when the back button is on the right.
+        /// </summary>
+        private const float logo_space = 150;
+
         private LogoTrackingContainer logoTrackingContainer = null!;
         private IDisposable? logoTracking;
 
@@ -82,9 +98,12 @@ namespace osu.Game.Screens.Footer
             receptor.OnBackPressed = () => BackButton.TriggerClick();
         }
 
-        [BackgroundDependencyLoader]
-        private void load()
+        [BackgroundDependencyLoader(true)]
+        private void load(OsuConfigManager? config)
         {
+            if (config != null)
+                config.BindWith(OsuSetting.OilyFooterLayout, layoutSetting);
+
             InternalChildren = new Drawable[]
             {
                 background = new Box
@@ -92,7 +111,7 @@ namespace osu.Game.Screens.Footer
                     RelativeSizeAxes = Axes.Both,
                     Colour = colourProvider.Background5
                 },
-                new GridContainer
+                buttonsGrid = new GridContainer
                 {
                     RelativeSizeAxes = Axes.Both,
                     Padding = new MarginPadding
@@ -175,6 +194,46 @@ namespace osu.Game.Screens.Footer
             };
         }
 
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+
+            layoutSetting.BindValueChanged(_ => applyLayout(), true);
+        }
+
+        /// <summary>
+        /// oily: shows or hides the bar and its background, and puts the back button on its side.
+        /// </summary>
+        private void applyLayout()
+        {
+            Layout = FooterLayout.Parse(layoutSetting.Value);
+
+            background.Alpha = Layout.Bar == FooterBarMode.Shown ? 1 : 0;
+
+            bool backOnRight = Layout.BackButton == FooterBackSide.Right;
+            float backSpace = ScreenBackButton.BUTTON_WIDTH + padding;
+
+            buttonsGrid.Padding = backOnRight
+                ? new MarginPadding { Left = OsuGame.SCREEN_EDGE_MARGIN, Right = OsuGame.SCREEN_EDGE_MARGIN + logo_space + backSpace }
+                : new MarginPadding { Left = OsuGame.SCREEN_EDGE_MARGIN + backSpace, Right = OsuGame.SCREEN_EDGE_MARGIN };
+
+            hiddenLeftButtonsContainer.Margin = new MarginPadding { Left = buttonsGrid.Padding.Left };
+            hiddenRightButtonsContainer.Margin = new MarginPadding { Bottom = OsuGame.SCREEN_EDGE_MARGIN, Right = buttonsGrid.Padding.Right };
+
+            BackButton.Anchor = BackButton.Origin = backOnRight ? Anchor.BottomRight : Anchor.BottomLeft;
+            BackButton.Margin = backOnRight
+                ? new MarginPadding { Bottom = OsuGame.SCREEN_EDGE_MARGIN, Right = OsuGame.SCREEN_EDGE_MARGIN + logo_space }
+                : new MarginPadding { Bottom = OsuGame.SCREEN_EDGE_MARGIN, Left = OsuGame.SCREEN_EDGE_MARGIN };
+
+            if (State.Value == Visibility.Visible)
+                PopIn();
+        }
+
+        /// <summary>
+        /// oily: whether the bar is hidden in settings (the back key still works).
+        /// </summary>
+        public bool BarHidden => Layout.Bar == FooterBarMode.Hidden;
+
         private ScheduledDelegate? changeLogoDepthDelegate;
 
         public void StartTrackingLogo(OsuLogo logo, float duration = 0, Easing easing = Easing.None)
@@ -196,6 +255,14 @@ namespace osu.Game.Screens.Footer
 
         protected override void PopIn()
         {
+            if (BarHidden)
+            {
+                this.MoveToY(ScreenFooterButton.HEIGHT, transition_duration, Easing.OutQuint)
+                    .Then()
+                    .FadeOut();
+                return;
+            }
+
             leftButtonsFlow.FadeIn(transition_duration / 4, Easing.OutQuint);
 
             this.MoveToY(0, transition_duration, Easing.OutQuint)
@@ -216,6 +283,14 @@ namespace osu.Game.Screens.Footer
         public void SetButtons(IReadOnlyList<ScreenFooterButton> leftButtons, IReadOnlyList<ShearedButton> rightButtons, Direction direction)
         {
             overlays.Clear();
+
+            // oily: the saved order, without the buttons hidden in settings.
+            var arranged = Layout.Arrange(leftButtons);
+
+            foreach (var unused in leftButtons.Except(arranged))
+                unused.Dispose();
+
+            leftButtons = arranged;
 
             this.HidePopover();
             clearActiveOverlayContainer();

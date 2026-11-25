@@ -7,9 +7,11 @@ using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
+using osu.Game.Configuration;
 using osu.Game.Graphics;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Input.Bindings;
@@ -26,6 +28,57 @@ namespace osu.Game.Tests.Visual.UserInterface
     {
         [Resolved]
         private OsuColour colours { get; set; } = null!;
+
+        [Resolved]
+        private OsuConfigManager config { get; set; } = null!;
+
+        [Test]
+        public void TestBottomBarLayout()
+        {
+            AddStep("hide random, options first, back on the right, no background", () =>
+            {
+                var layout = FooterLayout.CreateDefault();
+                layout.Bar = FooterBarMode.ButtonsOnly;
+                layout.BackButton = FooterBackSide.Right;
+                layout.Buttons.Single(b => b.Item == FooterItem.Random).Visible = false;
+                var options = layout.Buttons.Single(b => b.Item == FooterItem.Options);
+                layout.Buttons.Remove(options);
+                layout.Buttons.Insert(0, options);
+                config.SetValue(OsuSetting.OilyFooterLayout, layout.Serialise());
+            });
+
+            AddStep("push screen", () => LoadScreen(new TestScreen
+            {
+                FooterContent =
+                {
+                    Value = ScreenFooterContent.Argon(leftButtons: () => new ScreenFooterButton[]
+                    {
+                        new ScreenFooterButton { Text = "Other", Action = () => { } },
+                        new FooterButtonRandom(),
+                        new FooterButtonOptions(),
+                    }),
+                },
+            }));
+
+            AddUntilStep("random gone", () => ScreenFooter.ChildrenOfType<FooterButtonRandom>().Any(), () => Is.False);
+            AddUntilStep("options before where random was, other button kept first", () => ScreenFooter.ChildrenOfType<FillFlowContainer<ScreenFooterButton>>().First().FlowingChildren.Cast<ScreenFooterButton>().Select(b => b.GetType().Name),
+                () => Is.EqualTo(new[] { nameof(ScreenFooterButton), nameof(FooterButtonOptions) }));
+            AddAssert("back button on the right", () => ScreenFooter.BackButton.Anchor, () => Is.EqualTo(Anchor.BottomRight));
+            AddAssert("back button right of the buttons", () => ScreenFooter.BackButton.ScreenSpaceDrawQuad.Centre.X > ScreenFooter.ChildrenOfType<FooterButtonOptions>().Single().ScreenSpaceDrawQuad.Centre.X);
+            AddAssert("no background", () => ScreenFooter.ChildrenOfType<Box>().First().Alpha, () => Is.Zero);
+
+            AddStep("hide the bar", () =>
+            {
+                var layout = FooterLayout.Parse(config.Get<string>(OsuSetting.OilyFooterLayout));
+                layout.Bar = FooterBarMode.Hidden;
+                config.SetValue(OsuSetting.OilyFooterLayout, layout.Serialise());
+            });
+            AddUntilStep("bar out of sight", () => ScreenFooter.Alpha, () => Is.Zero);
+
+            AddStep("reset", () => config.SetValue(OsuSetting.OilyFooterLayout, string.Empty));
+            AddUntilStep("bar back", () => ScreenFooter.Alpha, () => Is.EqualTo(1));
+            AddAssert("back button on the left", () => ScreenFooter.BackButton.Anchor, () => Is.EqualTo(Anchor.BottomLeft));
+        }
 
         [Test]
         public void TestButtonsIn()
