@@ -38,7 +38,7 @@ namespace Oily.Rendering
         public bool RecordAudio { get; init; }
 
         /// <summary>
-        /// Whether the PP counter shows Akatsuki's relax pp instead of lazer's, for osu! plays with Relax. See <see cref="Akatsuki.AkatsukiRelaxLiveCalculator"/>.
+        /// Whether the PP counter shows Akatsuki's relax pp instead of lazer's, for osu! plays with Relax. See <see cref="osu.Game.Rulesets.Osu.Difficulty.Akatsuki.AkatsukiRelaxLiveCalculator"/>.
         /// </summary>
         public bool AkatsukiPp { get; init; }
 

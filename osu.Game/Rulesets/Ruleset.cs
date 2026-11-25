@@ -283,6 +283,11 @@ namespace osu.Game.Rulesets
         public virtual double? CalculateOilyPerformance(IBeatmap playableBeatmap, IReadOnlyList<Mod> mods, OilyPlay? play) => null;
 
         /// <summary>
+        /// oily: o!ily's own live pp during a play (the pp counter and gameplay leaderboard), or null to use lazer's.
+        /// </summary>
+        public virtual Screens.Play.HUD.ILivePerformanceCalculator? CreateOilyLivePerformance(Screens.Play.GameplayState gameplayState) => null;
+
+        /// <summary>
         /// Creates a <see cref="IBeatmapConverter"/> to convert a <see cref="IBeatmap"/> to one that is applicable for this <see cref="Ruleset"/>.
         /// </summary>
         /// <param name="beatmap">The <see cref="IBeatmap"/> to be converted.</param>

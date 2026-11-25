@@ -454,7 +454,7 @@ namespace osu.Game.Overlays.Toolbar
 
             private readonly Box gradientBackground;
             private readonly Box solidBackground;
-            private IBindable<string>? panelSetting;
+            private IBindable<string> panelSetting;
 
             public ToolbarBackground()
             {
@@ -479,7 +479,7 @@ namespace osu.Game.Overlays.Toolbar
             }
 
             [BackgroundDependencyLoader(true)]
-            private void load(OsuConfigManager? config)
+            private void load(OsuConfigManager config)
             {
                 // oily: the toolbars' colour and opacity from settings.
                 if (config != null)

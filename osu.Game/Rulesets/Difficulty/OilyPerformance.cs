@@ -92,6 +92,46 @@ namespace osu.Game.Rulesets.Difficulty
         }
 
         /// <summary>
+        /// The o!ily pp of a real score (0 for mods that give none, <c>null</c> where the ruleset has no pp).
+        /// </summary>
+        /// <param name="ruleset">The ruleset.</param>
+        /// <param name="working">The beatmap.</param>
+        /// <param name="score">The score.</param>
+        /// <param name="attributesCache">Lazer difficulty already worked out, by mods, shared between calls.</param>
+        /// <param name="cancellationToken">Stops the work.</param>
+        public static double? CalculateForScore(Ruleset ruleset, WorkingBeatmap working, ScoreInfo score, Dictionary<string, DifficultyAttributes>? attributesCache = null,
+                                                CancellationToken cancellationToken = default)
+        {
+            var mods = score.Mods;
+
+            if (GivesNoPp(mods))
+                return 0;
+
+            if (ruleset.HasOilyPerformance(mods))
+            {
+                var playable = working.GetPlayableBeatmap(ruleset.RulesetInfo, mods, cancellationToken);
+                return ruleset.CalculateOilyPerformance(playable, mods, playOf(score));
+            }
+
+            var calculator = ruleset.CreatePerformanceCalculator();
+
+            if (calculator == null)
+                return null;
+
+            string key = Newtonsoft.Json.JsonConvert.SerializeObject(mods.Select(m => new Online.API.APIMod(m)).OrderBy(m => m.Acronym));
+
+            if (attributesCache == null || !attributesCache.TryGetValue(key, out var attributes))
+            {
+                attributes = ruleset.CreateDifficultyCalculator(working).Calculate(mods, cancellationToken);
+
+                if (attributesCache != null)
+                    attributesCache[key] = attributes;
+            }
+
+            return calculator.Calculate(score, attributes).Total;
+        }
+
+        /// <summary>
         /// A pretend score with the simulation's accuracy, misses and combo.
         /// </summary>
         public static ScoreInfo CreateScore(BeatmapInfo beatmap, RulesetInfo ruleset, Mod[] mods, ScoreProcessor scoreProcessor, OilySimulation simulation)

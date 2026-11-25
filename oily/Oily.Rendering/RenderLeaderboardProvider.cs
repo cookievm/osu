@@ -89,7 +89,7 @@ namespace Oily.Rendering
                 newScores.Add(tracked);
 
                 // The player's pp so far, worked out the same way as the HUD's pp counter.
-                var pp = new LivePerformancePoints();
+                var pp = new LeaderboardPerformancePoints();
                 pp.Current.BindValueChanged(v => tracked.PerformancePoints.Value = v.NewValue);
                 AddInternal(pp);
             }
@@ -127,16 +127,6 @@ namespace Oily.Rendering
                 score.ShowPerformancePoints.Value = byPp;
                 score.DisplayOrder.Value = i + 1;
                 score.Position.Value = score.Tracked && i == ordered.Count - 1 && Entries.Count >= MAX_ENTRIES ? null : i + 1;
-            }
-        }
-
-        private partial class LivePerformancePoints : PerformancePointsCounter
-        {
-            public LivePerformancePoints()
-            {
-                // Never seen, but it has to keep updating.
-                Alpha = 0;
-                AlwaysPresent = true;
             }
         }
     }

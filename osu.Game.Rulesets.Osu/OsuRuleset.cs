@@ -27,6 +27,8 @@ using osu.Game.Rulesets.Osu.Beatmaps;
 using osu.Game.Rulesets.Osu.Configuration;
 using osu.Game.Rulesets.Osu.Difficulty;
 using osu.Game.Rulesets.Osu.Difficulty.Akatsuki;
+using osu.Game.Screens.Play;
+using osu.Game.Screens.Play.HUD;
 using osu.Game.Rulesets.Osu.Edit;
 using osu.Game.Rulesets.Osu.Edit.Setup;
 using osu.Game.Rulesets.Osu.Mods;
@@ -73,6 +75,8 @@ namespace osu.Game.Rulesets.Osu
         /// oily: plays with Relax use Akatsuki's relax pp, like the o!ily server.
         /// </summary>
         public override bool HasOilyPerformance(IReadOnlyList<Mod> mods) => mods.Any(m => m is OsuModRelax);
+
+        public override ILivePerformanceCalculator? CreateOilyLivePerformance(GameplayState gameplayState) => AkatsukiRelaxLiveCalculator.CreateFor(gameplayState);
 
         public override double? CalculateOilyPerformance(IBeatmap playableBeatmap, IReadOnlyList<Mod> mods, OilyPlay? play)
         {

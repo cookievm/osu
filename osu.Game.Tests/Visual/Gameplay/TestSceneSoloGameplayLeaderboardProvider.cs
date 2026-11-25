@@ -67,6 +67,52 @@ namespace osu.Game.Tests.Visual.Gameplay
         }
 
         [Test]
+        public void TestSortByPerformance()
+        {
+            SoloGameplayLeaderboardProvider provider = null!;
+
+            var leaderboardManager = new LeaderboardManager();
+            LoadComponent(leaderboardManager);
+            var gameplayState = TestGameplayState.Create(new OsuRuleset());
+
+            AddStep("fetch local", () => leaderboardManager.FetchWithCriteria(new LeaderboardCriteria(Beatmap.Value.BeatmapInfo, Ruleset.Value, BeatmapLeaderboardScope.Local, null)));
+            AddStep("set scores, more score means less pp", () =>
+            {
+                ((Bindable<LeaderboardScores?>)leaderboardManager.Scores).Value = LeaderboardScores.Success(
+                    Enumerable.Range(1, 3).Select(i => new ScoreInfo
+                    {
+                        TotalScore = 10_000 * (10 - i),
+                        PP = 100 * i,
+                        Position = i,
+                    }).ToArray(),
+                    scoresRequested: 3,
+                    totalScores: 3,
+                    null
+                );
+            });
+            AddStep("create content", () => Child = new DependencyProvidingContainer
+            {
+                RelativeSizeAxes = Axes.Both,
+                CachedDependencies =
+                [
+                    (typeof(LeaderboardManager), leaderboardManager),
+                    (typeof(GameplayState), gameplayState)
+                ],
+                Children = new Drawable[]
+                {
+                    leaderboardManager,
+                    provider = new SoloGameplayLeaderboardProvider()
+                }
+            });
+
+            AddUntilStep("best score first", () => provider.Scores.Single(s => s.DisplayOrder.Value == 1).TotalScore.Value, () => Is.EqualTo(90_000));
+            AddStep("sort by pp", () => provider.SortBy.Value = GameplayLeaderboardSort.PerformancePoints);
+            AddUntilStep("most pp first", () => provider.Scores.Single(s => s.DisplayOrder.Value == 1).PerformancePoints.Value, () => Is.EqualTo(300));
+            AddAssert("rows show pp", () => provider.Scores.All(s => s.ShowPerformancePoints.Value));
+            AddAssert("most pp is #1", () => provider.Scores.Single(s => s.DisplayOrder.Value == 1).Position.Value, () => Is.EqualTo(1));
+        }
+
+        [Test]
         public void TestFullGlobalLeaderboard()
         {
             SoloGameplayLeaderboardProvider provider = null!;

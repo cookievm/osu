@@ -81,6 +81,12 @@ namespace osu.Game.Screens.Play.HUD
         // oily: the score's mods, shown when the leaderboard's "Show mods" setting is on.
         public IReadOnlyList<Mod> Mods { get; }
         public BindableBool ShowMods { get; } = new BindableBool();
+
+        // oily: which numbers each row shows, from the leaderboard's skin settings.
+        public BindableBool ShowScore { get; } = new BindableBool(true);
+        public BindableBool ShowAccuracy { get; } = new BindableBool(true);
+        public BindableBool ShowPerformance { get; } = new BindableBool(true);
+        public BindableBool ShowCombo { get; } = new BindableBool(true);
         private FillFlowContainer modsFlow = null!;
 
         // oily: the leaderboard's own colours and background opacity, from its skin settings.
@@ -498,14 +504,14 @@ namespace osu.Game.Screens.Play.HUD
 
             bool showAccuracyAndCombo = rightLayer.Width >= accuracy_combo_width_cutoff;
 
-            accuracyText.Alpha = showAccuracyAndCombo ? 1 : 0;
-            ppText.Alpha = showAccuracyAndCombo ? 1 : 0;
-            comboText.Alpha = showAccuracyAndCombo ? 1 : 0;
+            accuracyText.Alpha = showAccuracyAndCombo && ShowAccuracy.Value ? 1 : 0;
+            ppText.Alpha = showAccuracyAndCombo && ShowPerformance.Value ? 1 : 0;
+            comboText.Alpha = showAccuracyAndCombo && ShowCombo.Value ? 1 : 0;
 
             bool showUsernameAndScore = rightLayer.Width >= username_score_width_cutoff;
 
             usernameText.Alpha = showUsernameAndScore ? 1 : 0;
-            scoreText.Alpha = showUsernameAndScore ? 1 : 0;
+            scoreText.Alpha = showUsernameAndScore && ShowScore.Value ? 1 : 0;
         }
 
         private float computeRightLayerWidth() => Math.Max(0, DrawWidth - extended_left_panel_width - avatar_size / 2 - (ShowMods.Value ? MODS_WIDTH : 0));
