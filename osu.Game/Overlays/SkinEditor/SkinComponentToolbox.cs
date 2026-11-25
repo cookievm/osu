@@ -198,8 +198,8 @@ namespace osu.Game.Overlays.SkinEditor
                         Anchor = Anchor.BottomCentre,
                         Origin = Anchor.BottomCentre,
                         Margin = new MarginPadding(5),
-                        // oily: settings-only components say what they are in their own preview.
-                        Alpha = component is ISettingsOnlySkinComponent ? 0 : 1,
+                        // oily: these components say what they are in their own preview.
+                        Alpha = component is ISkinComponentWithLabel ? 0 : 1,
                     },
                 });
 

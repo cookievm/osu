@@ -28,11 +28,16 @@ namespace osu.Game.Screens.Select
     /// Needs <see cref="SongSelectPieceRegistry"/>, so it is only offered in the skin editor's song select layer.
     /// The component draws nothing itself; it's the same size as the piece, so the skin editor's selection box fits the piece.
     /// </remarks>
-    public abstract partial class SongSelectPieceLayout : CompositeDrawable, ISerialisableDrawable
+    public abstract partial class SongSelectPieceLayout : CompositeDrawable, ISkinComponentWithLabel
     {
         public bool UsesFixedAnchor { get; set; }
 
         public abstract SongSelectPiece Piece { get; }
+
+        /// <summary>
+        /// What this part of song select is called in the skin editor's component list.
+        /// </summary>
+        public abstract string DisplayName { get; }
 
         [SettingSource("Stay in lazer's place", "Follows where lazer puts this part. Moving or resizing it in the skin editor turns this off.")]
         public BindableBool FollowLazer { get; } = new BindableBool();
@@ -102,7 +107,12 @@ namespace osu.Game.Screens.Select
             // Only components placed in song select's skin layer take control.
             // (The skin editor's component list also creates one as a preview.)
             if (findSkinnableContainer() == null)
+            {
+                // oily: in the component list, just say what it is.
+                AutoSizeAxes = Axes.Both;
+                InternalChild = new SkinComponentLabel(DisplayName);
                 return;
+            }
 
             piece = Registry.Get(Piece);
 
@@ -347,16 +357,22 @@ namespace osu.Game.Screens.Select
     public partial class SongSelectBeatmapInfoLayout : SongSelectPieceLayout
     {
         public override SongSelectPiece Piece => SongSelectPiece.BeatmapInfo;
+
+        public override string DisplayName => "Beatmap info";
     }
 
     public partial class SongSelectBeatmapDetailsLayout : SongSelectPieceLayout
     {
         public override SongSelectPiece Piece => SongSelectPiece.BeatmapDetails;
+
+        public override string DisplayName => "Beatmap details";
     }
 
     public partial class SongSelectBeatmapListLayout : SongSelectPieceLayout
     {
         public override SongSelectPiece Piece => SongSelectPiece.BeatmapList;
+
+        public override string DisplayName => "Beatmap list";
 
         [SettingSource("Flip cards", "Cards come in from the left side instead of the right.")]
         public BindableBool FlipCards { get; } = new BindableBool();
@@ -431,6 +447,8 @@ namespace osu.Game.Screens.Select
     public partial class SongSelectSearchBarLayout : SongSelectPieceLayout
     {
         public override SongSelectPiece Piece => SongSelectPiece.SearchBar;
+
+        public override string DisplayName => "Search bar";
 
         [SettingSource("Search box colour", "White keeps lazer's colour.")]
         public BindableColour4 SearchBoxColour { get; } = new BindableColour4(Colour4.White);
@@ -520,20 +538,28 @@ namespace osu.Game.Screens.Select
     public partial class SongSelectMapStatisticsLayout : SongSelectPieceLayout
     {
         public override SongSelectPiece Piece => SongSelectPiece.MapStatistics;
+
+        public override string DisplayName => "Map statistics";
     }
 
     public partial class SongSelectDifficultyCardLayout : SongSelectPieceLayout
     {
         public override SongSelectPiece Piece => SongSelectPiece.DifficultyCard;
+
+        public override string DisplayName => "Difficulty card";
     }
 
     public partial class SongSelectDifficultyStatsLayout : SongSelectPieceLayout
     {
         public override SongSelectPiece Piece => SongSelectPiece.DifficultyStats;
+
+        public override string DisplayName => "Difficulty stats";
     }
 
     public partial class SongSelectObjectCountsLayout : SongSelectPieceLayout
     {
         public override SongSelectPiece Piece => SongSelectPiece.ObjectCounts;
+
+        public override string DisplayName => "Object counts";
     }
 }

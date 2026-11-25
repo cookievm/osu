@@ -7,7 +7,7 @@ namespace osu.Game.Skinning
     /// oily: a skin component that only holds settings. It draws nothing and can't be moved; picking it in the skin editor's
     /// component list opens its settings (the layer keeps one of it).
     /// </summary>
-    public interface ISettingsOnlySkinComponent : ISerialisableDrawable
+    public interface ISettingsOnlySkinComponent : ISkinComponentWithLabel
     {
     }
 }

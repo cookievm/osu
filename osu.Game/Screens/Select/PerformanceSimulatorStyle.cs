@@ -6,11 +6,8 @@ using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
-using osu.Framework.Graphics.Shapes;
 using osu.Framework.Testing;
 using osu.Game.Configuration;
-using osu.Game.Graphics;
-using osu.Game.Graphics.Sprites;
 using osu.Game.Overlays.Settings;
 using osu.Game.Skinning;
 
@@ -96,29 +93,9 @@ namespace osu.Game.Screens.Select
         }
 
         [BackgroundDependencyLoader]
-        private void load(OsuColour colours)
+        private void load()
         {
-            InternalChild = new Container
-            {
-                AutoSizeAxes = Axes.Both,
-                Masking = true,
-                CornerRadius = 5,
-                Children = new Drawable[]
-                {
-                    new Box
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Colour = colours.Gray2,
-                    },
-                    new OsuSpriteText
-                    {
-                        Margin = new MarginPadding { Horizontal = 10, Vertical = 5 },
-                        Text = "PP Simulator colours",
-                        Font = OsuFont.Torus.With(size: 14, weight: FontWeight.Bold),
-                        Colour = Colour4.White,
-                    },
-                }
-            };
+            InternalChild = new SkinComponentLabel("PP Simulator colours");
         }
 
         protected override void LoadComplete()
