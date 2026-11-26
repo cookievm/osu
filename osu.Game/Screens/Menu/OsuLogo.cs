@@ -173,7 +173,6 @@ namespace osu.Game.Screens.Menu
                                                     v.Anchor = Anchor.Centre;
                                                     v.Alpha = visualizer_default_alpha;
                                                     v.Size = SCALE_ADJUST;
-                                                    v.HeartShape = true; // oily: bars follow the heart logo's edge.
                                                 }),
                                                 LogoElements = new Container
                                                 {
