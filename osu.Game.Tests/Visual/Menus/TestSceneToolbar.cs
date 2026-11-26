@@ -3,6 +3,7 @@
 
 #nullable disable
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
@@ -67,6 +68,9 @@ namespace osu.Game.Tests.Visual.Menus
         [SetUp]
         public void SetUp() => Schedule(() =>
         {
+            // oily: every test starts from the fixed toolbar, whatever the last test changed it to.
+            config.SetValue(OsuSetting.OilyToolbarLayout, ToolbarLayout.FIXED);
+
             Remove(nowPlayingOverlay, false);
             Remove(volumeOverlay, false);
 
@@ -222,15 +226,16 @@ namespace osu.Game.Tests.Visual.Menus
         [Test]
         public void TestDiscordButton()
         {
-            // oily (ilo, 2026-11-26): a Discord button at the far right of the toolbar, after Rankings.
+            // oily (ilo, 2026-11-26): a Discord button straight after Rankings.
             string opened = null;
 
             AddUntilStep("discord button shown", () => toolbar.ChildrenOfType<ToolbarDiscordButton>().SingleOrDefault()?.IsPresent == true);
-            AddAssert("far right, after rankings", () =>
+            AddUntilStep("straight after rankings", () =>
             {
-                var discord = toolbar.ChildrenOfType<ToolbarDiscordButton>().Single().ScreenSpaceDrawQuad;
-                return toolbar.ChildrenOfType<ToolbarButton>().Where(b => b is not ToolbarDiscordButton && b.IsPresent).All(b => b.ScreenSpaceDrawQuad.Centre.X < discord.Centre.X)
-                       && toolbar.ChildrenOfType<ToolbarRankingsButton>().Single().ScreenSpaceDrawQuad.TopRight.X <= discord.TopLeft.X + 1;
+                float discord = toolbar.ChildrenOfType<ToolbarDiscordButton>().Single().ScreenSpaceDrawQuad.Centre.X;
+                float rankings = toolbar.ChildrenOfType<ToolbarRankingsButton>().Single().ScreenSpaceDrawQuad.Centre.X;
+                return rankings < discord && toolbar.ChildrenOfType<ToolbarButton>().Where(b => b.IsPresent)
+                                                   .All(b => b.ScreenSpaceDrawQuad.Centre.X <= rankings + 1 || b.ScreenSpaceDrawQuad.Centre.X >= discord - 1);
             });
 
             AddStep("click with the app installed", () =>
@@ -249,6 +254,52 @@ namespace osu.Game.Tests.Visual.Menus
                 button.TriggerClick();
             });
             AddAssert("opened in the browser", () => opened, () => Is.EqualTo("https://discord.gg/ilystudios"));
+        }
+
+        [Test]
+        public void TestFixedToolbarSpreadInOrder()
+        {
+            // oily (ilo, 2026-11-26): rulesets, beatmap listing, chat, dashboard, rankings, Discord, notifications, now playing, clock, profile,
+            // spread evenly from left to right.
+            AddStep("use the fixed layout", () => config.SetValue(OsuSetting.OilyToolbarLayout, ToolbarLayout.FIXED));
+            AddUntilStep("bar is spread", () => toolbar.ChildrenOfType<Toolbar.ToolbarStrip>().SingleOrDefault()?.Spread == true);
+
+            AddAssert("icons in order", () => iconsLeftToRight().Select(d => d.GetType()).ToArray(), () => Is.EqualTo(new[]
+            {
+                typeof(ToolbarRulesetTabButton), typeof(ToolbarRulesetTabButton), typeof(ToolbarRulesetTabButton), typeof(ToolbarRulesetTabButton),
+                typeof(ToolbarBeatmapListingButton), typeof(ToolbarChatButton), typeof(ToolbarSocialButton), typeof(ToolbarRankingsButton),
+                typeof(ToolbarDiscordButton), typeof(ToolbarNotificationButton), typeof(ToolbarMusicButton), typeof(ToolbarClock), typeof(ToolbarUserButton),
+            }));
+
+            // the fixed bar is narrow, so check the gaps on a full-width copy of it.
+            AddStep("make the bar full width", () =>
+            {
+                var layout = ToolbarLayout.Parse(ToolbarLayout.FIXED);
+                layout.Bars[0].Length = 1;
+                layout.Bars[0].OffsetX = layout.Bars[0].OffsetY = 0;
+                config.SetValue(OsuSetting.OilyToolbarLayout, layout.Serialise());
+            });
+
+            AddUntilStep("gaps are equal", () =>
+            {
+                var icons = iconsLeftToRight().ToArray();
+                var gaps = icons.Zip(icons.Skip(1), (a, b) => b.ScreenSpaceDrawQuad.TopLeft.X - a.ScreenSpaceDrawQuad.TopRight.X).ToArray();
+                return gaps.Max() - gaps.Min() < 1 && gaps.Min() > 0;
+            });
+
+            AddAssert("spread from end to end", () =>
+            {
+                var strip = toolbar.ChildrenOfType<Toolbar.ToolbarStrip>().Single().ScreenSpaceDrawQuad;
+                var icons = iconsLeftToRight().ToArray();
+                return Math.Abs(icons.First().ScreenSpaceDrawQuad.TopLeft.X - strip.TopLeft.X) < 1
+                       && Math.Abs(icons.Last().ScreenSpaceDrawQuad.TopRight.X - strip.TopRight.X) < 1;
+            });
+
+            IEnumerable<Drawable> iconsLeftToRight()
+                => toolbar.ChildrenOfType<ToolbarRulesetTabButton>().Cast<Drawable>()
+                          .Concat(toolbar.ChildrenOfType<ToolbarButton>().Where(b => b.IsPresent && b.FindClosestParent<ToolbarRulesetSelector>() == null))
+                          .Concat(toolbar.ChildrenOfType<ToolbarClock>())
+                          .OrderBy(d => d.ScreenSpaceDrawQuad.Centre.X);
         }
 
         [Test]

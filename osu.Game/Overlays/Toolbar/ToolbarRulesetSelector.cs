@@ -141,6 +141,44 @@ namespace osu.Game.Overlays.Toolbar
             ScheduleAfterChildren(moveLineToCurrent);
         }
 
+        /// <summary>
+        /// oily: the width of the ruleset icons alone, without the gaps between them.
+        /// </summary>
+        public float TabsWidth => TabContainer.Children.Sum(t => Vertical ? t.DrawHeight : t.DrawWidth);
+
+        /// <summary>
+        /// oily: how many ruleset icons there are.
+        /// </summary>
+        public int TabCount => TabContainer.Children.Count;
+
+        /// <summary>
+        /// oily: the gap between ruleset icons (used to spread the toolbar's icons evenly).
+        /// </summary>
+        public float TabSpacing
+        {
+            get => Vertical ? TabContainer.Spacing.Y : TabContainer.Spacing.X;
+            set
+            {
+                var spacing = Vertical ? new Vector2(0, value) : new Vector2(value, 0);
+
+                if (TabContainer.Spacing == spacing)
+                    return;
+
+                TabContainer.Spacing = spacing;
+
+                // the selected icon moves with the gap, so the line under it has to follow straight away.
+                ScheduleAfterChildren(() =>
+                {
+                    if (SelectedTab == null) return;
+
+                    if (Vertical)
+                        ModeButtonLine.Y = SelectedTab.DrawPosition.Y;
+                    else
+                        ModeButtonLine.X = SelectedTab.DrawPosition.X;
+                });
+            }
+        }
+
         private void currentDisabledChanged()
         {
             this.FadeColour(Current.Disabled ? Color4.Gray : Color4.White, 300);

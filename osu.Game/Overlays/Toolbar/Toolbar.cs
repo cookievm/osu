@@ -20,6 +20,7 @@ using osu.Game.Rulesets;
 using osu.Framework.Input.Bindings;
 using osu.Game.Graphics.Containers;
 using osu.Game.Input.Bindings;
+using osuTK;
 
 namespace osu.Game.Overlays.Toolbar
 {
@@ -149,14 +150,30 @@ namespace osu.Game.Overlays.Toolbar
             {
                 var strip = new ToolbarStrip(Layout.Bars[i].Edge, i);
 
-                foreach (var side in new[] { ToolbarSide.Start, ToolbarSide.Middle, ToolbarSide.End })
+                if (Layout.Bars[i].Spread && !strip.Vertical)
                 {
-                    foreach (var item in Layout.ItemsOn(i, side))
+                    // oily: spread bars keep every button in one row, in order, with equal gaps.
+                    strip.Spread = true;
+
+                    foreach (var item in Layout.ItemsOn(i))
                     {
                         var drawable = createItem(item, strip.Vertical);
 
                         if (drawable != null)
-                            strip.Add(item, drawable, side);
+                            strip.Add(item, drawable, ToolbarSide.Middle);
+                    }
+                }
+                else
+                {
+                    foreach (var side in new[] { ToolbarSide.Start, ToolbarSide.Middle, ToolbarSide.End })
+                    {
+                        foreach (var item in Layout.ItemsOn(i, side))
+                        {
+                            var drawable = createItem(item, strip.Vertical);
+
+                            if (drawable != null)
+                                strip.Add(item, drawable, side);
+                        }
                     }
                 }
 
@@ -327,6 +344,11 @@ namespace osu.Game.Overlays.Toolbar
             public bool Vertical => Edge is ToolbarEdge.Left or ToolbarEdge.Right;
 
             public readonly Dictionary<ToolbarItem, Drawable> Items = new Dictionary<ToolbarItem, Drawable>();
+
+            /// <summary>
+            /// oily: whether the buttons are spread evenly across the whole bar (see <see cref="ToolbarBarLayout.Spread"/>).
+            /// </summary>
+            public bool Spread;
 
             /// <summary>
             /// How thick the bar is (its height, or its width on a side bar).
@@ -539,6 +561,47 @@ namespace osu.Game.Overlays.Toolbar
 
                 if (Vertical)
                     Width = Thickness;
+
+                if (Spread)
+                    spreadButtons();
+            }
+
+            /// <summary>
+            /// oily: gives every icon the same gap, so the first touches the left end and the last touches the right end.
+            /// The ruleset selector counts as one icon per ruleset.
+            /// </summary>
+            private void spreadButtons()
+            {
+                float used = 0;
+                int icons = 0;
+                ToolbarRulesetSelector rulesets = null;
+
+                foreach (var child in middleFlow.Children)
+                {
+                    if (child is ToolbarRulesetSelector selector)
+                    {
+                        rulesets = selector;
+                        used += selector.TabsWidth;
+                        icons += selector.TabCount;
+                    }
+                    else
+                    {
+                        used += child.DrawWidth;
+                        icons++;
+                    }
+                }
+
+                if (icons < 2)
+                    return;
+
+                float gap = Math.Max(0, (DrawWidth - used) / (icons - 1));
+
+                middleFlow.Spacing = new Vector2(gap, 0);
+
+                if (rulesets != null)
+                    rulesets.TabSpacing = gap;
+
+                fadeBox.Alpha = 0;
             }
         }
 
