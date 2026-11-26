@@ -205,7 +205,7 @@ namespace osu.Game.Screens.Menu
 
                     using (BeginDelayedSequence(text_4))
                     {
-                        welcomeText.FadeIn().OnComplete(t => t.Text = "welcome to osu!");
+                        welcomeText.FadeIn().OnComplete(t => t.Text = "welcome to o!ily"); // oily (ilo, 2026-11-26)
                         welcomeText.TransformTo(nameof(welcomeText.Spacing), new Vector2(50, 0), 5000);
                     }
 
@@ -298,21 +298,26 @@ namespace osu.Game.Screens.Menu
                     Size = new Vector2(960);
                 }
 
+                [Resolved(CanBeNull = true)]
+                private OilyTextures oilyTextures { get; set; }
+
                 [BackgroundDependencyLoader]
                 private void load(LargeTextureStore textures)
                 {
+                    // oily (ilo, 2026-11-26): the intro draws the o!ily logo's outline instead of osu!'s.
+                    // Red channel = when each pixel appears (0-1), green channel = its opacity.
                     InternalChildren = new Drawable[]
                     {
                         highlight = new LogoAnimation
                         {
                             RelativeSizeAxes = Axes.Both,
-                            Texture = textures.Get(@"Intro/Triangles/logo-highlight"),
+                            Texture = oilyTextures?.Get(@"intro-highlight") ?? textures.Get(@"Intro/Triangles/logo-highlight"),
                             Colour = Color4.White,
                         },
                         background = new LogoAnimation
                         {
                             RelativeSizeAxes = Axes.Both,
-                            Texture = textures.Get(@"Intro/Triangles/logo-background"),
+                            Texture = oilyTextures?.Get(@"intro-background") ?? textures.Get(@"Intro/Triangles/logo-background"),
                             Colour = OsuColour.Gray(0.6f),
                         },
                     };
