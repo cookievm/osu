@@ -95,6 +95,8 @@ namespace osu.Game.Screens.Select
 
         private readonly Axes contentRelativeAxes;
 
+        private readonly Drawable content;
+
         /// <summary>
         /// How much bigger than lazer's size the piece is laid out.
         /// </summary>
@@ -107,6 +109,7 @@ namespace osu.Game.Screens.Select
         public SongSelectPieceContainer(SongSelectPiece piece, Drawable content)
         {
             Piece = piece;
+            this.content = content;
 
             contentRelativeAxes = content.RelativeSizeAxes;
             RelativeSizeAxes = content.RelativeSizeAxes;
@@ -217,18 +220,39 @@ namespace osu.Game.Screens.Select
         /// </summary>
         private void place(Vector2 position, Vector2 scale, float rotation, Vector2? full, (float left, float top, float right, float bottom) crop, float alpha, Color4 colour)
         {
-            Vector2 content = inner.DrawSize;
-            Vector2 size = full ?? content;
+            Vector2 contentSize = inner.DrawSize;
+            Vector2 size = full ?? contentSize;
 
             // Cut off what's cropped, and anything that sticks out of a window smaller than the part.
             bool cropped = crop.left > 0 || crop.top > 0 || crop.right > 0 || crop.bottom > 0
-                           || size.X < content.X - 0.5f || size.Y < content.Y - 0.5f;
+                           || size.X < contentSize.X - 0.5f || size.Y < contentSize.Y - 0.5f;
 
             Vector2 cut = new Vector2(crop.left * size.X, crop.top * size.Y);
 
+            // oily (ilo, 2026-11-26): some pieces (like the slanted search bar) draw past their own box on purpose.
+            // Only cropped edges cut the piece off; the other edges leave room for what sticks out.
+            RectangleF bounds = inner.ToLocalSpace(content.ScreenSpaceDrawQuad).AABBFloat;
+            float padLeft = crop.left > 0 ? 0 : Math.Max(0, -bounds.Left);
+            float padTop = crop.top > 0 ? 0 : Math.Max(0, -bounds.Top);
+            float padRight = crop.right > 0 ? 0 : Math.Max(0, bounds.Right - size.X);
+            float padBottom = crop.bottom > 0 ? 0 : Math.Max(0, bounds.Bottom - size.Y);
+
+            if (!cropped)
+                padLeft = padTop = padRight = padBottom = 0;
+            else
+            {
+                // A couple of pixels spare, so the smoothed edge of what sticks out isn't shaved off.
+                if (padLeft > 0) padLeft += 2;
+                if (padTop > 0) padTop += 2;
+                if (padRight > 0) padRight += 2;
+                if (padBottom > 0) padBottom += 2;
+            }
+
+            Vector2 start = cut - new Vector2(padLeft, padTop);
+
             // The visible part starts after the cut, along the piece's own (scaled and rotated) axes.
             float radians = MathHelper.DegreesToRadians(rotation);
-            Vector2 offset = new Vector2(cut.X * scale.X, cut.Y * scale.Y);
+            Vector2 offset = new Vector2(start.X * scale.X, start.Y * scale.Y);
             offset = new Vector2(
                 offset.X * MathF.Cos(radians) - offset.Y * MathF.Sin(radians),
                 offset.X * MathF.Sin(radians) + offset.Y * MathF.Cos(radians));
@@ -236,12 +260,12 @@ namespace osu.Game.Screens.Select
             frame.Position = position + offset;
             frame.Scale = scale;
             frame.Rotation = rotation;
-            frame.Size = new Vector2(size.X * (1 - crop.left - crop.right), size.Y * (1 - crop.top - crop.bottom));
+            frame.Size = new Vector2(size.X * (1 - crop.left - crop.right) + padLeft + padRight, size.Y * (1 - crop.top - crop.bottom) + padTop + padBottom);
             frame.Masking = cropped;
             frame.Alpha = alpha;
             frame.Colour = colour;
 
-            inner.Position = -cut;
+            inner.Position = -start;
         }
 
         private partial class NeverMaskedAwayContainer : Container

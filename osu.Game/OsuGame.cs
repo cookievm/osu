@@ -1687,6 +1687,15 @@ namespace osu.Game
             return component;
         }
 
+        private bool toggleFromHotkey(VisibilityContainer overlay)
+        {
+            if (overlay == null || OverlayActivationMode.Value == OverlayActivation.Disabled)
+                return false;
+
+            overlay.ToggleVisibility();
+            return true;
+        }
+
         public bool OnPressed(KeyBindingPressEvent<GlobalAction> e)
         {
             switch (e.Action)
@@ -1727,6 +1736,26 @@ namespace osu.Game
                     var mouseDisableButtons = LocalConfig.GetBindable<bool>(OsuSetting.MouseDisableButtons);
                     mouseDisableButtons.Value = !mouseDisableButtons.Value;
                     return true;
+
+                // oily (ilo, 2026-11-26): lazer's hotkeys for the toolbar popups work even when their button is hidden,
+                // on the bottom bar, or on a toolbar that's tucked away (normally the toolbar button handles these first).
+                case GlobalAction.ToggleSettings:
+                    return toggleFromHotkey(Settings);
+
+                case GlobalAction.ToggleChat:
+                    return toggleFromHotkey(chatOverlay);
+
+                case GlobalAction.ToggleNowPlaying:
+                    return toggleFromHotkey(nowPlayingOverlay);
+
+                case GlobalAction.ToggleSocial:
+                    return toggleFromHotkey(dashboard);
+
+                case GlobalAction.ToggleBeatmapListing:
+                    return toggleFromHotkey(beatmapListing);
+
+                case GlobalAction.ToggleNotifications:
+                    return toggleFromHotkey(Notifications);
 
                 case GlobalAction.ToggleProfile:
                     if (userProfile.State.Value == Visibility.Visible)

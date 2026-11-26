@@ -212,6 +212,25 @@ namespace osu.Game.Tests.Visual.SongSelect
         }
 
         [Test]
+        public void TestCroppedSearchBarKeepsItsSlantedEnds()
+        {
+            SongSelectSearchBarLayout searchLayout = null!;
+            SongSelectPieceContainer searchPiece = null!;
+
+            AddUntilStep("search bar layout added", () => (searchLayout = skinLayer.Components.OfType<SongSelectSearchBarLayout>().FirstOrDefault()!) != null);
+            AddStep("find search bar", () => searchPiece = SongSelect.ChildrenOfType<SongSelectPieceContainer>().Single(p => p.Piece == SongSelectPiece.SearchBar));
+            AddStep("crop a little off the bottom", () => searchLayout.CropBottom.Value = 0.1f);
+            AddUntilStep("cut off", () => ((Container)searchPiece.Child).Masking);
+            AddUntilStep("slanted bottom left not cut off", () => SongSelect.ChildrenOfType<FilterControl>().Single().ScreenSpaceDrawQuad.BottomLeft.X,
+                () => Is.GreaterThanOrEqualTo(searchPiece.Child.ScreenSpaceDrawQuad.TopLeft.X - 1));
+            AddUntilStep("right end not cut off", () => SongSelect.ChildrenOfType<FilterControl>().Single().ScreenSpaceDrawQuad.TopRight.X,
+                () => Is.LessThanOrEqualTo(searchPiece.Child.ScreenSpaceDrawQuad.TopRight.X + 1));
+            AddUntilStep("top not cut off", () => SongSelect.ChildrenOfType<FilterControl>().Single().ScreenSpaceDrawQuad.TopRight.Y,
+                () => Is.GreaterThanOrEqualTo(searchPiece.Child.ScreenSpaceDrawQuad.TopRight.Y - 1));
+            AddStep("no crop", () => searchLayout.CropBottom.Value = 0);
+        }
+
+        [Test]
         public void TestDetailPiecesRegistered()
         {
             foreach (var piece in System.Enum.GetValues<SongSelectPiece>())
