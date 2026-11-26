@@ -5,6 +5,7 @@ using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Testing;
+using osu.Game.Configuration;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Toolbar;
 using osuTK.Input;
@@ -36,6 +37,9 @@ namespace osu.Game.Tests.Visual.Navigation
             AddUntilStep("wait for toolbar", () => Game.Toolbar.IsLoaded);
             AddStep("show toolbar", () => Game.Toolbar.Show());
 
+            // oily: the fixed toolbar hides the settings button, so bring back lazer's layout for this one.
+            AddStep("show settings button", () => Game.LocalConfig.SetValue(OsuSetting.OilyToolbarLayout, ToolbarLayout.CreateDefault().Serialise()));
+            AddUntilStep("wait for settings button", () => Game.Toolbar.ChildrenOfType<ToolbarSettingsButton>().Any(b => b.IsPresent));
             AddStep("click settings", () => clickButton<ToolbarSettingsButton>());
             AddUntilStep("settings open", () => Game.Settings.State.Value == Visibility.Visible);
 

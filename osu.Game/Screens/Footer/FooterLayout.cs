@@ -53,6 +53,12 @@ namespace osu.Game.Screens.Footer
         /// </summary>
         public List<FooterButtonLayout> Buttons { get; set; } = new List<FooterButtonLayout>();
 
+        /// <summary>
+        /// oily (ilo, 2026-11-26): the bottom bar everyone gets: ilo's own layout from 2026-11-26. Players can't change it in game;
+        /// we change it here. Loading the config always puts this back (see <see cref="Configuration.OsuConfigManager"/>).
+        /// </summary>
+        public const string FIXED = @"{""Bar"":""Shown"",""BackButton"":""Left"",""Size"":0.8,""BackOffsetX"":-5.3837585,""BackOffsetY"":-67.6239,""ToolbarButtonsOffsetX"":0.0,""ToolbarButtonsOffsetY"":0.0,""Buttons"":[{""Item"":""Mods"",""Visible"":true,""OffsetX"":-274.9633,""OffsetY"":-6.219116},{""Item"":""FreeMods"",""Visible"":true,""OffsetX"":0.0,""OffsetY"":0.0},{""Item"":""Freestyle"",""Visible"":true,""OffsetX"":0.0,""OffsetY"":0.0},{""Item"":""Random"",""Visible"":true,""OffsetX"":-278.11865,""OffsetY"":-7.033325},{""Item"":""Options"",""Visible"":true,""OffsetX"":-281.05988,""OffsetY"":-7.989502},{""Item"":""PerformanceSimulator"",""Visible"":true,""OffsetX"":-284.0029,""OffsetY"":-8.419922}]}";
+
         public static FooterLayout CreateDefault() => new FooterLayout
         {
             Buttons = Enum.GetValues<FooterItem>().Select(i => new FooterButtonLayout { Item = i, Visible = true }).ToList(),

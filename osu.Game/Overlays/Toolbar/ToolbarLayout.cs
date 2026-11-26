@@ -24,6 +24,13 @@ namespace osu.Game.Overlays.Toolbar
         public const int BOTTOM_BAR = -2;
 
         /// <summary>
+        /// oily (ilo, 2026-11-26): the toolbar everyone gets: ilo's own layout from 2026-11-26 (one bar sitting in the bottom bar,
+        /// no Settings or Home buttons, chat and profile popping up from the bottom). Players can't change it in game; we change it here.
+        /// Loading the config always puts this back (see <see cref="Configuration.OsuConfigManager"/>).
+        /// </summary>
+        public const string FIXED = @"{""Bars"":[{""Edge"":""Top"",""Length"":0.47,""OffsetX"":0.12113807,""OffsetY"":0.9500218}],""Buttons"":[{""Item"":""Settings"",""Bar"":-1,""Side"":""Start"",""Order"":0,""PopupFrom"":""Default""},{""Item"":""Home"",""Bar"":-1,""Side"":""Start"",""Order"":0,""PopupFrom"":""Default""},{""Item"":""Rulesets"",""Bar"":0,""Side"":""Middle"",""Order"":0,""PopupFrom"":""Default""},{""Item"":""Rankings"",""Bar"":0,""Side"":""End"",""Order"":8,""PopupFrom"":""Default""},{""Item"":""BeatmapListing"",""Bar"":0,""Side"":""End"",""Order"":1,""PopupFrom"":""Default""},{""Item"":""Chat"",""Bar"":0,""Side"":""End"",""Order"":2,""PopupFrom"":""Bottom""},{""Item"":""Social"",""Bar"":0,""Side"":""End"",""Order"":3,""PopupFrom"":""Default""},{""Item"":""Music"",""Bar"":0,""Side"":""End"",""Order"":4,""PopupFrom"":""Default""},{""Item"":""User"",""Bar"":0,""Side"":""End"",""Order"":5,""PopupFrom"":""Bottom""},{""Item"":""Clock"",""Bar"":0,""Side"":""End"",""Order"":6,""PopupFrom"":""Default""},{""Item"":""Notifications"",""Bar"":0,""Side"":""End"",""Order"":7,""PopupFrom"":""Default""}]}";
+
+        /// <summary>
         /// The toolbars, in order. Can be empty (no toolbar at all).
         /// </summary>
         public List<ToolbarBarLayout> Bars { get; set; } = new List<ToolbarBarLayout>();

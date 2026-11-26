@@ -632,35 +632,9 @@ namespace osu.Game.Overlays.SkinEditor
             return true;
         }
 
-        /// <summary>
-        /// oily: whether the settings show the toolbar options (from the scene library's "Toolbars" tab) while nothing is selected.
-        /// </summary>
-        private bool showingToolbarSettings;
-
-        /// <summary>
-        /// oily: shows the toolbar options in the settings (until something is selected).
-        /// </summary>
-        public void ShowToolbarSettings()
-        {
-            SelectedComponents.Clear();
-            showingToolbarSettings = true;
-            Scheduler.AddOnce(populateSettings);
-        }
-
         private void populateSettings()
         {
             settingsSidebar.Clear();
-
-            if (SelectedComponents.Count > 0)
-                showingToolbarSettings = false;
-
-            game?.SetBarEditing(showingToolbarSettings);
-
-            if (showingToolbarSettings)
-            {
-                settingsSidebar.Add(new EditorSidebarSection("Toolbars") { Child = new ToolbarLayoutEditor() });
-                settingsSidebar.Add(new EditorSidebarSection("Bottom bar") { Child = new BottomBarLayoutEditor() });
-            }
 
             foreach (var component in SelectedComponents.OfType<Drawable>())
                 settingsSidebar.Add(new SkinSettingsToolbox(component));

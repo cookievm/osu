@@ -1204,8 +1204,6 @@ namespace osu.Game
                     Child = toolbarPreview = new EditorPreviewContainer
                     {
                         Depth = float.MinValue,
-                        // oily: drag boxes over the toolbars and bottom bar buttons, for the skin editor's "Toolbars" tab.
-                        Child = barEditLayer = new BarEditLayer(() => Toolbar, () => screenStackFooter?.Footer) { Depth = float.MinValue },
                     },
                 },
                 idleTracker,
@@ -1930,7 +1928,6 @@ namespace osu.Game
 
         private EditorPreviewContainer screenPreview;
         private EditorPreviewContainer toolbarPreview;
-        private BarEditLayer barEditLayer;
 
         /// <summary>
         /// oily: shrinks the game screen and the toolbars evenly to fit <paramref name="rect"/> (relative to the window) while the skin editor is open,
@@ -1941,15 +1938,7 @@ namespace osu.Game
             screenPreview.SetPreviewRect(rect);
             toolbarPreview.SetPreviewRect(rect);
             Toolbar.BlockInput = rect != null;
-
-            if (rect == null)
-                SetBarEditing(false);
         }
-
-        /// <summary>
-        /// oily: shows drag boxes over the toolbars and the bottom bar's buttons (the skin editor's "Toolbars" tab).
-        /// </summary>
-        public void SetBarEditing(bool editing) => barEditLayer.Editing = editing;
 
         /// <summary>
         /// When a screen-edge overlay is present, we push the game content slightly in its direction to create a sense of depth.

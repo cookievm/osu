@@ -23,7 +23,25 @@ namespace osu.Game.Configuration
         /// </summary>
         public Dictionary<OilyColour, string> Colours { get; set; } = new Dictionary<OilyColour, string>();
 
-        public OilyPanelStyle Get(OilyPanel panel) => Panels.TryGetValue(panel, out var style) ? style : new OilyPanelStyle();
+        public OilyPanelStyle Get(OilyPanel panel)
+        {
+            // oily (ilo, 2026-11-26): the toolbar (see-through) and bottom bar (solid) look the same for everyone.
+            switch (panel)
+            {
+                case OilyPanel.Toolbar:
+                    return new OilyPanelStyle { Opacity = 0 };
+
+                case OilyPanel.BottomBar:
+                    return new OilyPanelStyle { Opacity = 1 };
+            }
+
+            return Panels.TryGetValue(panel, out var style) ? style : new OilyPanelStyle();
+        }
+
+        /// <summary>
+        /// oily: whether players can change this panel's colour and opacity (the toolbar and bottom bar are fixed).
+        /// </summary>
+        public static bool IsEditable(OilyPanel panel) => panel != OilyPanel.Toolbar && panel != OilyPanel.BottomBar;
 
         public Colour4? GetColour(OilyColour item) => Colours.TryGetValue(item, out string? hex) && Colour4.TryParseHex(hex, out var c) ? c : null;
 

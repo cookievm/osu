@@ -441,7 +441,7 @@ namespace osu.Game.Tests.Visual.Navigation
                                                                           .Any(b => b.ChildrenOfType<PpSimulatorColours>().Any()));
             AddAssert("song select parts still offered", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().Count(b => b.ChildrenOfType<SongSelectPieceLayout>().Any()),
                 () => Is.GreaterThan(1));
-            AddAssert("toolbars and PP simulator buttons still there", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxActionButton>().Count(), () => Is.EqualTo(2));
+            AddAssert("PP simulator button still there", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxActionButton>().Count(), () => Is.EqualTo(1));
 
             AddStep("pick a song select part", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().First(b => b.ChildrenOfType<SongSelectPieceLayout>().Any()).TriggerClick());
             AddUntilStep("simulator closed", () => songSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().State.Value, () => Is.EqualTo(Visibility.Hidden));
@@ -471,91 +471,12 @@ namespace osu.Game.Tests.Visual.Navigation
             AddUntilStep("only song select parts offered", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().Any());
             AddAssert("no sprites, boxes or texts", () => skinEditor.ChildrenOfType<SkinComponentToolbox>().Single().ChildrenOfType<ISkinComponentWithLabel>().Count(),
                 () => Is.EqualTo(skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().Count()));
-            AddAssert("PP simulator button in components", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxActionButton>().Count(), () => Is.EqualTo(2));
-            AddStep("click toolbars button", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxActionButton>().First().TriggerClick());
-            AddUntilStep("toolbar options shown", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Count(), () => Is.EqualTo(1));
-            AddUntilStep("bottom bar options shown", () => skinEditor.ChildrenOfType<BottomBarLayoutEditor>().Count(), () => Is.EqualTo(1));
-            AddUntilStep("drag boxes shown", () => Game.ChildrenOfType<BarEditLayer.DragBox>().Count(), () => Is.GreaterThan(1));
-            AddAssert("background opacity sliders shown", () => skinEditor.ChildrenOfType<PanelOpacitySlider>().Count(), () => Is.EqualTo(2));
-            AddStep("make the toolbars transparent", () => skinEditor.ChildrenOfType<PanelOpacitySlider>().First().ChildrenOfType<FormSliderBar<float>>().Single().Current.Value = 0);
-            AddUntilStep("toolbars transparent", () => OilyPanelColours.Parse(Game.LocalConfig.Get<string>(OsuSetting.OilyPanelColours)).Get(OilyPanel.Toolbar).Opacity, () => Is.Zero);
-            AddStep("toolbars back to normal", () => Game.LocalConfig.SetValue(OsuSetting.OilyPanelColours, string.Empty));
-
-            AddAssert("no buttons to move toolbar buttons", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Single().ChildrenOfType<IconButton>().Count(), () => Is.Zero);
-            AddAssert("bottom bar has only its two sliders", () => skinEditor.ChildrenOfType<BottomBarLayoutEditor>().Single().ChildrenOfType<ISettingsItem>().Count(), () => Is.EqualTo(2));
-            AddStep("untick the settings button", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Single().ChildrenOfType<FormCheckBox>().First(c => c.Caption.ToString() == "Settings").Current.Value = false);
-            AddUntilStep("settings button gone", () => Game.Toolbar.ChildrenOfType<ToolbarSettingsButton>().Count(), () => Is.Zero);
-            AddStep("tick it again", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Single().ChildrenOfType<FormCheckBox>().First(c => c.Caption.ToString() == "Settings").Current.Value = true);
-            AddUntilStep("settings button back", () => Game.Toolbar.ChildrenOfType<ToolbarSettingsButton>().Count(), () => Is.EqualTo(1));
-            AddAssert("popup sides are only the four directions", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Single().ChildrenOfType<FormEnumDropdown<ToolbarPopupDirection>>()
-                                                                             .All(d => !d.Items.Contains(ToolbarPopupDirection.Default) && d.Items.Count() == 4));
-            AddAssert("settings shows it comes from the left", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Single().ChildrenOfType<FormEnumDropdown<ToolbarPopupDirection>>().First().Current.Value,
-                () => Is.EqualTo(ToolbarPopupDirection.Left));
-            AddStep("settings come from the right", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Single().ChildrenOfType<FormEnumDropdown<ToolbarPopupDirection>>().First().Current.Value = ToolbarPopupDirection.Right);
-            AddUntilStep("saved", () => ToolbarLayout.Parse(Game.LocalConfig.Get<string>(OsuSetting.OilyToolbarLayout)).Buttons.Single(b => b.Item == ToolbarItem.Settings).PopupFrom,
-                () => Is.EqualTo(ToolbarPopupDirection.Right));
-            AddUntilStep("settings on the right", () => ((ToolbarPopupContainer)Game.Settings.Parent!).OnRight);
-
-            AddStep("drag the toolbar down", () =>
-            {
-                var box = Game.ChildrenOfType<BarEditLayer.DragBox>().First(b => b.Target is Toolbar.ToolbarStrip);
-                InputManager.MoveMouseTo(box);
-                InputManager.PressButton(MouseButton.Left);
-                InputManager.MoveMouseTo(box.ScreenSpaceDrawQuad.Centre + new Vector2(0, 100));
-                InputManager.ReleaseButton(MouseButton.Left);
-            });
-            AddUntilStep("toolbar moved and saved", () => ToolbarLayout.Parse(Game.LocalConfig.Get<string>(OsuSetting.OilyToolbarLayout)).Bars[0].OffsetY, () => Is.GreaterThan(0));
-
-            AddStep("drag the mods button up", () =>
-            {
-                var box = Game.ChildrenOfType<BarEditLayer.DragBox>().First(b => b.Target is FooterButtonMods);
-                InputManager.MoveMouseTo(box);
-                InputManager.PressButton(MouseButton.Left);
-                InputManager.MoveMouseTo(box.ScreenSpaceDrawQuad.Centre - new Vector2(0, 100));
-                InputManager.ReleaseButton(MouseButton.Left);
-            });
-            AddUntilStep("mods button moved and saved", () => FooterLayout.Parse(Game.LocalConfig.Get<string>(OsuSetting.OilyFooterLayout)).Buttons.Single(b => b.Item == FooterItem.Mods).OffsetY, () => Is.LessThan(0));
-            AddUntilStep("mods button drawn higher", () => Game.ChildrenOfType<FooterButtonMods>().Single().Margin.Top, () => Is.LessThan(0));
-
-            AddStep("drag the back button up", () =>
-            {
-                var box = Game.ChildrenOfType<BarEditLayer.DragBox>().First(b => b.Target is ScreenBackButton);
-                InputManager.MoveMouseTo(box);
-                InputManager.PressButton(MouseButton.Left);
-                InputManager.MoveMouseTo(box.ScreenSpaceDrawQuad.Centre - new Vector2(0, 100));
-                InputManager.ReleaseButton(MouseButton.Left);
-            });
-            AddUntilStep("back button moved and saved", () => FooterLayout.Parse(Game.LocalConfig.Get<string>(OsuSetting.OilyFooterLayout)).BackOffsetY, () => Is.LessThan(0));
-            AddUntilStep("back button drawn higher", () => Game.ChildrenOfType<ScreenBackButton>().Single().Y, () => Is.LessThan(0));
-
-            AddStep("put settings button on the bottom bar", () =>
-            {
-                var layout = ToolbarLayout.Parse(Game.LocalConfig.Get<string>(OsuSetting.OilyToolbarLayout));
-                layout.Buttons.Single(b => b.Item == ToolbarItem.Settings).Bar = ToolbarLayout.BOTTOM_BAR;
-                Game.LocalConfig.SetValue(OsuSetting.OilyToolbarLayout, layout.Serialise());
-            });
-            AddUntilStep("settings button on the bottom bar", () => Game.ChildrenOfType<ScreenFooter>().Single().ChildrenOfType<ToolbarSettingsButton>().Count(), () => Is.EqualTo(1));
-            AddUntilStep("settings button not on the toolbar", () => Game.Toolbar.ChildrenOfType<ToolbarSettingsButton>().Count(), () => Is.Zero);
-            AddStep("drag the toolbar buttons left", () =>
-            {
-                var footer = Game.ChildrenOfType<ScreenFooter>().Single();
-                var box = Game.ChildrenOfType<BarEditLayer.DragBox>().First(b => b.Target == footer.ToolbarButtons);
-                InputManager.MoveMouseTo(box);
-                InputManager.PressButton(MouseButton.Left);
-                InputManager.MoveMouseTo(box.ScreenSpaceDrawQuad.Centre - new Vector2(100, 0));
-                InputManager.ReleaseButton(MouseButton.Left);
-            });
-            AddUntilStep("toolbar buttons moved and saved", () => FooterLayout.Parse(Game.LocalConfig.Get<string>(OsuSetting.OilyFooterLayout)).ToolbarButtonsOffsetX, () => Is.LessThan(0));
-
-            AddStep("put things back", () =>
-            {
-                Game.LocalConfig.SetValue(OsuSetting.OilyToolbarLayout, string.Empty);
-                Game.LocalConfig.SetValue(OsuSetting.OilyFooterLayout, string.Empty);
-            });
-
-            AddStep("select a component", () => skinEditor.SelectedComponents.Add(skinEditor.ChildrenOfType<SkinBlueprint>().First().Item));
-            AddUntilStep("toolbar options gone", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Count(), () => Is.Zero);
-            AddUntilStep("drag boxes gone", () => Game.ChildrenOfType<BarEditLayer.DragBox>().Count(), () => Is.Zero);
+            // oily (ilo, 2026-11-26): the toolbar and bottom bar are fixed, so there's no "Toolbars" button and nothing to drag.
+            AddAssert("only the PP simulator button in components", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxActionButton>().Count(), () => Is.EqualTo(1));
+            AddAssert("toolbar is the fixed one", () => Game.LocalConfig.Get<string>(OsuSetting.OilyToolbarLayout), () => Is.EqualTo(ToolbarLayout.FIXED));
+            AddAssert("bottom bar is the fixed one", () => Game.LocalConfig.Get<string>(OsuSetting.OilyFooterLayout), () => Is.EqualTo(FooterLayout.FIXED));
+            AddAssert("bottom bar at 80%", () => Game.ChildrenOfType<ScreenFooter>().Single().Scale.X, () => Is.EqualTo(0.8f).Within(0.001f));
+            AddAssert("toolbar sits at the bottom", () => Game.Toolbar.Layout.Bars.Single().OffsetY, () => Is.GreaterThan(0.9f));
 
             toggleSkinEditor();
             AddUntilStep("screen full size again", () => screenPreview.Scale.X, () => Is.EqualTo(1));

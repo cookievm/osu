@@ -172,11 +172,6 @@ namespace osu.Game.Overlays.SkinEditor
         /// </summary>
         public void RefreshTargets() => skinEditor?.RefreshTargets();
 
-        /// <summary>
-        /// oily: shows the toolbar options in the skin editor's settings.
-        /// </summary>
-        public void ShowToolbarSettings() => skinEditor?.ShowToolbarSettings();
-
         private void presentGameplay(bool attemptedBeatmapSwitch)
         {
             performer?.PerformFromScreen(screen =>

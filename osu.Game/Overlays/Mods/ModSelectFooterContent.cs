@@ -126,6 +126,9 @@ namespace osu.Game.Overlays.Mods
         /// </summary>
         private const float expanded_attributes_width = 640;
 
+        [Resolved(canBeNull: true)]
+        private OsuGame? game { get; set; }
+
         protected override void Update()
         {
             base.Update();
@@ -141,8 +144,10 @@ namespace osu.Game.Overlays.Mods
 
             if (footer != null)
             {
-                foreach (var button in footer.ShownButtons.Where(b => b.IsPresent))
-                    left = Math.Max(left, ToLocalSpace(button.ScreenSpaceDrawQuad.TopRight).X);
+                // oily: the fixed layout moves the buttons left of where this area starts, so this can be negative.
+                var shown = footer.ShownButtons.Where(b => b.IsPresent).ToArray();
+                if (shown.Length > 0)
+                    left = shown.Max(button => ToLocalSpace(button.ScreenSpaceDrawQuad.TopRight).X);
 
                 // The first toolbar icon on the bar that's actually showing (and right of the buttons).
                 if (footer.ToolbarButtons is CompositeDrawable toolbarButtons && toolbarButtons.IsPresent)
@@ -150,6 +155,25 @@ namespace osu.Game.Overlays.Mods
                     foreach (var icon in toolbarButtons.ChildrenOfType<Drawable>().Where(d => d.IsPresent && d.DrawWidth > 1 && d.DrawWidth < 200))
                     {
                         float iconLeft = ToLocalSpace(icon.ScreenSpaceDrawQuad.TopLeft).X;
+                        if (iconLeft > left)
+                            right = Math.Min(right, iconLeft);
+                    }
+                }
+
+                // oily: the fixed toolbar sits inside the bottom bar, so its first icon (the gamemode circle) counts too.
+                if (game?.Toolbar is Overlays.Toolbar.Toolbar toolbar && toolbar.IsPresent)
+                {
+                    float footerTop = footer.ScreenSpaceDrawQuad.TopLeft.Y;
+
+                    foreach (var icon in toolbar.ChildrenOfType<Overlays.Toolbar.ToolbarRulesetTabButton>().Cast<Drawable>()
+                                                .Concat(toolbar.ChildrenOfType<Overlays.Toolbar.ToolbarButton>())
+                                                .Where(d => d.IsPresent && d.DrawWidth > 1 && d.DrawWidth < 200))
+                    {
+                        var quad = icon.ScreenSpaceDrawQuad;
+                        if (quad.Centre.Y < footerTop)
+                            continue;
+
+                        float iconLeft = ToLocalSpace(quad.TopLeft).X;
                         if (iconLeft > left)
                             right = Math.Min(right, iconLeft);
                     }

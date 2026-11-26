@@ -63,12 +63,10 @@ namespace osu.Game.Overlays.SkinEditor
 
             var lookup = target.Lookup.Lookup;
 
-            // oily: the toolbar and PP Simulator settings live with song select's parts.
+            // oily: the PP Simulator's settings live with song select's parts.
+            // (ilo, 2026-11-26: the toolbar and bottom bar are fixed, so there are no settings for them.)
             if (lookup == GlobalSkinnableContainers.SongSelect || lookup == GlobalSkinnableContainers.PpSimulator)
-            {
-                fill.Add(new ToolboxActionButton("Toolbars", () => skinEditor?.ShowToolbarSettings()));
                 fill.Add(new ToolboxActionButton("PP Simulator", showPerformanceSimulator));
-            }
 
             var skinnableTypes = SerialisedDrawableInfo.GetAllAvailableDrawables(ruleset);
             foreach (var type in skinnableTypes)

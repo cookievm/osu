@@ -233,7 +233,8 @@ namespace osu.Game.Tests.Visual.Menus
                 InputManager.MoveMouseTo(button);
             });
             AddAssert("no ruleset toggle buttons hovered", () => !toolbar.ChildrenOfType<ToolbarRulesetTabButton>().Any(button => button.IsHovered));
-            AddUntilStep("toolbar gradient visible", () => toolbar.ChildrenOfType<Toolbar.ToolbarBackground>().Single().Children.All(d => d.Alpha > 0));
+            // oily: the fixed toolbar is see-through, so no gradient shows behind it.
+            AddUntilStep("toolbar stays see-through", () => toolbar.ChildrenOfType<Toolbar.ToolbarBackground>().Single().Children.All(d => d.Alpha == 0));
         }
 
         [Test]
@@ -359,15 +360,16 @@ namespace osu.Game.Tests.Visual.Menus
                 config.SetValue(OsuSetting.OilyPanelColours, colours.Serialise());
             });
 
-            AddUntilStep("settings icon red", () => toolbar.ChildrenOfType<ToolbarSettingsButton>().Single().ChildrenOfType<osu.Game.Graphics.Containers.ConstrainedIconContainer>().Single().Colour.TopLeft.SRGB.R,
+            AddUntilStep("chat icon red", () => toolbar.ChildrenOfType<ToolbarChatButton>().Single().ChildrenOfType<osu.Game.Graphics.Containers.ConstrainedIconContainer>().Single().Colour.TopLeft.SRGB.R,
                 () => Is.EqualTo(1).Within(0.01f));
-            AddUntilStep("bar half see-through", () => toolbar.ChildrenOfType<Toolbar.ToolbarBackground>().First().Children.First().Alpha, () => Is.EqualTo(0.5f).Within(0.01f));
+            // oily (ilo, 2026-11-26): the toolbar is fixed and always see-through, so its colour setting does nothing.
+            AddUntilStep("bar stays see-through", () => toolbar.ChildrenOfType<Toolbar.ToolbarBackground>().First().Children.First().Alpha, () => Is.EqualTo(0));
             AddUntilStep("selected gamemode gold", () => toolbar.ChildrenOfType<ToolbarRulesetTabButton>().First(t => t.Active.Value)
                                                                 .ChildrenOfType<osu.Game.Graphics.Containers.ConstrainedIconContainer>().Single().Colour.TopLeft.SRGB.G,
                 () => Is.EqualTo(0.8f).Within(0.01f));
 
             AddStep("reset colours", () => config.SetValue(OsuSetting.OilyPanelColours, string.Empty));
-            AddUntilStep("bar solid", () => toolbar.ChildrenOfType<Toolbar.ToolbarBackground>().First().Children.First().Alpha, () => Is.EqualTo(1));
+            AddUntilStep("bar still see-through", () => toolbar.ChildrenOfType<Toolbar.ToolbarBackground>().First().Children.First().Alpha, () => Is.EqualTo(0));
         }
 
         [TearDownSteps]

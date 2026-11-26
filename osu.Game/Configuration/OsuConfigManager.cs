@@ -33,6 +33,9 @@ namespace osu.Game.Configuration
         public OsuConfigManager(Storage storage)
             : base(storage)
         {
+            // oily (ilo, 2026-11-26): the toolbar and bottom bar are the same for everyone and can't be changed in game.
+            SetValue(OsuSetting.OilyToolbarLayout, Overlays.Toolbar.ToolbarLayout.FIXED);
+            SetValue(OsuSetting.OilyFooterLayout, Screens.Footer.FooterLayout.FIXED);
         }
 
         protected override void InitialiseDefaults()
@@ -161,8 +164,8 @@ namespace osu.Game.Configuration
             SetDefault(OsuSetting.OilySimulationComboPercent, 100.0, 0, 100, 0.1);
 
             // oily: toolbars and their buttons (see ToolbarLayout). Empty = the default layout.
-            SetDefault(OsuSetting.OilyToolbarLayout, string.Empty);
-            SetDefault(OsuSetting.OilyFooterLayout, string.Empty);
+            SetDefault(OsuSetting.OilyToolbarLayout, Overlays.Toolbar.ToolbarLayout.FIXED);
+            SetDefault(OsuSetting.OilyFooterLayout, Screens.Footer.FooterLayout.FIXED);
             SetDefault(OsuSetting.OilyPanelColours, string.Empty);
             SetDefault(OsuSetting.OilyPpWorkPaused, false);
             SetDefault(OsuSetting.OilyPpThreads, 1, 1, 256);

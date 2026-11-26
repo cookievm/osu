@@ -82,52 +82,22 @@ namespace osu.Game.Tests.Visual.Navigation
         }
 
         [Test]
-        public void TestMapDetailsCentredInBottomBar()
-        {
-            PushAndConfirm(() => new SoloSongSelect());
-            AddStep("import beatmap", () => osu.Game.Tests.Beatmaps.IO.BeatmapImportHelper.LoadQuickOszIntoOsu(Game).WaitSafely());
-            AddUntilStep("wait for selected", () => !Game.Beatmap.IsDefault);
-            AddStep("open mods", () => press(new[] { Key.F1 }));
-            AddUntilStep("map details shown", () => Game.ChildrenOfType<BeatmapAttributesDisplay>().SingleOrDefault()?.Alpha == 1);
-            AddUntilStep("map details centred between Mods and the ranked display", () =>
-            {
-                var details = Game.ChildrenOfType<BeatmapAttributesDisplay>().Single().ScreenSpaceDrawQuad;
-                float left = Game.ChildrenOfType<FooterButtonMods>().Single().ScreenSpaceDrawQuad.TopRight.X;
-                float right = Game.ChildrenOfType<RankingInformationDisplay>().Single().ScreenSpaceDrawQuad.TopLeft.X;
-                return details.TopLeft.X > left && Math.Abs((details.TopLeft.X - left) - (right - details.TopRight.X)) < 60;
-            });
-        }
-
-        [Test]
         public void TestMapDetailsCentredBeforeBottomBarIcons()
         {
-            AddStep("put the toolbar buttons on the bottom bar", () =>
-            {
-                var layout = ToolbarLayout.CreateDefault();
-                foreach (var b in layout.Buttons)
-                {
-                    if (b.Item == ToolbarItem.Rulesets || b.Item == ToolbarItem.Settings || b.Item == ToolbarItem.Chat || b.Item == ToolbarItem.Music)
-                        b.Bar = -2;
-                }
-                Game.LocalConfig.SetValue(OsuSetting.OilyToolbarLayout, layout.Serialise());
-            });
-
+            // oily (ilo, 2026-11-26): the fixed toolbar sits inside the bottom bar; the details go between Mods and its gamemode circle.
             PushAndConfirm(() => new SoloSongSelect());
             AddStep("import beatmap", () => osu.Game.Tests.Beatmaps.IO.BeatmapImportHelper.LoadQuickOszIntoOsu(Game).WaitSafely());
             AddUntilStep("wait for selected", () => !Game.Beatmap.IsDefault);
             AddStep("open mods", () => press(new[] { Key.F1 }));
             AddUntilStep("map details shown", () => Game.ChildrenOfType<BeatmapAttributesDisplay>().SingleOrDefault()?.Alpha == 1);
             AddWaitStep("let it settle", 10);
-            AddUntilStep("map details centred between Mods and the first icon", () =>
+            AddUntilStep("map details centred between Mods and the gamemode circle", () =>
             {
                 var details = Game.ChildrenOfType<BeatmapAttributesDisplay>().Single().ScreenSpaceDrawQuad;
                 float left = Game.ChildrenOfType<FooterButtonMods>().Single().ScreenSpaceDrawQuad.TopRight.X;
-                float right = ((CompositeDrawable)Game.ChildrenOfType<ScreenFooter>().Single().ToolbarButtons).ChildrenOfType<Drawable>()
-                                                                                                           .Where(d => d.IsPresent && d.DrawWidth > 1 && d.DrawWidth < 200)
-                                                                                                           .Min(d => d.ScreenSpaceDrawQuad.TopLeft.X);
+                float right = Game.Toolbar.ChildrenOfType<ToolbarRulesetTabButton>().Where(d => d.IsPresent).Min(d => d.ScreenSpaceDrawQuad.TopLeft.X);
                 return details.TopRight.X <= right && Math.Abs((details.TopLeft.X - left) - (right - details.TopRight.X)) < 60;
             });
-            AddStep("put the toolbar back", () => Game.LocalConfig.SetValue(OsuSetting.OilyToolbarLayout, string.Empty));
         }
 
         private VisibilityContainer overlayFor(string name)

@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Extensions;
@@ -33,7 +34,7 @@ namespace osu.Game.Overlays.Settings.Sections.UserInterface
 
             var children = new List<Drawable>();
 
-            foreach (var panel in Enum.GetValues<OilyPanel>())
+            foreach (var panel in Enum.GetValues<OilyPanel>().Where(OilyPanelColours.IsEditable))
             {
                 var style = colours.Get(panel);
                 colours.Panels[panel] = style;
