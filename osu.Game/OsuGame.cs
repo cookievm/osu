@@ -1608,7 +1608,20 @@ namespace osu.Game
         /// <summary>
         /// oily: adds a toolbar button's popup inside a <see cref="ToolbarPopupContainer"/>, so it can slide in from the side the toolbar settings pick.
         /// </summary>
-        private static Action<Drawable> popup(ToolbarItem item, Action<Drawable> add) => d => add(new ToolbarPopupContainer(item, (VisibilityContainer)d));
+        private Action<Drawable> popup(ToolbarItem item, Action<Drawable> add) => d => add(new ToolbarPopupContainer(item, (VisibilityContainer)d, () => findToolbarButton(item)));
+
+        /// <summary>
+        /// oily: the button for a toolbar item on screen: on a toolbar, or on the song select bottom bar.
+        /// </summary>
+        private Drawable findToolbarButton(ToolbarItem item)
+        {
+            var onToolbar = Toolbar?.Find(item)?.Button;
+
+            if (onToolbar?.IsPresent == true && Toolbar.State.Value == Visibility.Visible)
+                return onToolbar;
+
+            return (screenStackFooter?.Footer?.IsPresent == true ? screenStackFooter.Footer.FindToolbarButton(item) : null) ?? onToolbar;
+        }
 
         /// <summary>
         /// Queues loading the provided component in sequential fashion.

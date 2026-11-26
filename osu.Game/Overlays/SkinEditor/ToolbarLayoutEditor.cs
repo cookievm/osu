@@ -216,6 +216,14 @@ namespace osu.Game.Overlays.SkinEditor
         /// </summary>
         private partial class ButtonRow : CompositeDrawable
         {
+            private static readonly ToolbarPopupDirection[] sides =
+            {
+                ToolbarPopupDirection.Left,
+                ToolbarPopupDirection.Right,
+                ToolbarPopupDirection.Top,
+                ToolbarPopupDirection.Bottom,
+            };
+
             public ButtonRow(ToolbarLayoutEditor settings, ToolbarItem item)
             {
                 RelativeSizeAxes = Axes.X;
@@ -234,7 +242,8 @@ namespace osu.Game.Overlays.SkinEditor
                     settings.save();
                 });
 
-                var popupFrom = new Bindable<ToolbarPopupDirection>(button.PopupFrom);
+                // Only the four sides (no "lazer's default"). A button that was never changed shows the side lazer uses for it.
+                var popupFrom = new Bindable<ToolbarPopupDirection>(ToolbarPopupContainer.DirectionOf(button, item));
                 popupFrom.BindValueChanged(d =>
                 {
                     button.PopupFrom = d.NewValue;
@@ -256,27 +265,26 @@ namespace osu.Game.Overlays.SkinEditor
                     return;
                 }
 
-                InternalChild = new GridContainer
+                // oily (ilo, 2026-11-26): the button's name and tick box, with "Popup comes from" underneath it.
+                InternalChild = new FillFlowContainer
                 {
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y,
-                    ColumnDimensions = new[] { new Dimension(), new Dimension() },
-                    RowDimensions = new[] { new Dimension(GridSizeMode.AutoSize) },
-                    Content = new[]
+                    Direction = FillDirection.Vertical,
+                    Spacing = new Vector2(4),
+                    Children = new Drawable[]
                     {
-                        new Drawable[]
+                        checkBox,
+                        new SettingsItemV2(new FormEnumDropdown<ToolbarPopupDirection>
                         {
-                            checkBox,
-                            new SettingsItemV2(new FormEnumDropdown<ToolbarPopupDirection>
-                            {
-                                Caption = "Popup comes from",
-                                HintText = "Which side of the screen this button's popup slides in from.",
-                                Current = popupFrom,
-                            })
-                            {
-                                Keywords = new[] { "toolbar", "popup", "direction", "slide" },
-                            },
-                        }
+                            Caption = "Popup comes from",
+                            HintText = "Which side of the screen this button's popup slides in from. It lines up with the button you pressed.",
+                            Items = sides,
+                            Current = popupFrom,
+                        })
+                        {
+                            Keywords = new[] { "toolbar", "popup", "direction", "slide" },
+                        },
                     }
                 };
             }

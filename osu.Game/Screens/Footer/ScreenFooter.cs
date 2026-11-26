@@ -269,6 +269,16 @@ namespace osu.Game.Screens.Footer
         public Drawable ToolbarButtons => toolbarButtonsFlow;
 
         /// <summary>
+        /// oily: the button for a toolbar item on this bar, if it's here.
+        /// </summary>
+        public Drawable? FindToolbarButton(ToolbarItem item)
+        {
+            int index = Array.IndexOf(shownToolbarItems, item);
+            var children = toolbarButtonsFlow.Children;
+            return index >= 0 && index < children.Count ? children[index] : null;
+        }
+
+        /// <summary>
         /// oily: which top toolbar buttons are on this bar now.
         /// </summary>
         public IReadOnlyList<ToolbarItem> ShownToolbarItems => shownToolbarItems;

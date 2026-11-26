@@ -458,6 +458,10 @@ namespace osu.Game.Tests.Visual.Navigation
             AddUntilStep("settings button gone", () => Game.Toolbar.ChildrenOfType<ToolbarSettingsButton>().Count(), () => Is.Zero);
             AddStep("tick it again", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Single().ChildrenOfType<FormCheckBox>().First(c => c.Caption.ToString() == "Settings").Current.Value = true);
             AddUntilStep("settings button back", () => Game.Toolbar.ChildrenOfType<ToolbarSettingsButton>().Count(), () => Is.EqualTo(1));
+            AddAssert("popup sides are only the four directions", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Single().ChildrenOfType<FormEnumDropdown<ToolbarPopupDirection>>()
+                                                                             .All(d => !d.Items.Contains(ToolbarPopupDirection.Default) && d.Items.Count() == 4));
+            AddAssert("settings shows it comes from the left", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Single().ChildrenOfType<FormEnumDropdown<ToolbarPopupDirection>>().First().Current.Value,
+                () => Is.EqualTo(ToolbarPopupDirection.Left));
             AddStep("settings come from the right", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Single().ChildrenOfType<FormEnumDropdown<ToolbarPopupDirection>>().First().Current.Value = ToolbarPopupDirection.Right);
             AddUntilStep("saved", () => ToolbarLayout.Parse(Game.LocalConfig.Get<string>(OsuSetting.OilyToolbarLayout)).Buttons.Single(b => b.Item == ToolbarItem.Settings).PopupFrom,
                 () => Is.EqualTo(ToolbarPopupDirection.Right));
