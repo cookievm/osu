@@ -54,6 +54,7 @@ namespace osu.Game.Overlays.Rankings
                     case RankingsScope.Performance:
                     case RankingsScope.PerformanceRelax:
                     case RankingsScope.Country:
+                    case RankingsScope.CountryRelax:
                         return true;
 
                     default:

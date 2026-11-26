@@ -7,11 +7,17 @@ namespace osu.Game.Online.API.Requests
 {
     public class GetCountryRankingsRequest : GetRankingsRequest<GetCountriesResponse>
     {
-        public GetCountryRankingsRequest(RulesetInfo ruleset, int page = 1)
+        /// <summary>
+        /// oily: whether this asks for countries ranked on the Lazer Relax board.
+        /// </summary>
+        public readonly bool Relax;
+
+        public GetCountryRankingsRequest(RulesetInfo ruleset, int page = 1, bool relax = false)
             : base(ruleset, page)
         {
+            Relax = relax;
         }
 
-        protected override string TargetPostfix() => "country";
+        protected override string TargetPostfix() => Relax ? "country-relax" : "country";
     }
 }

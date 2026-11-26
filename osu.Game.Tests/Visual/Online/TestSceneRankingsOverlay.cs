@@ -67,8 +67,8 @@ namespace osu.Game.Tests.Visual.Online
         public void TestOnlyOilyPages()
         {
             // oily (ilo, 2026-11-26): no score, spotlights or kudosu pages.
-            AddAssert("pages are performance, relax and country", () => System.Enum.GetValues<RankingsScope>(),
-                () => Is.EqualTo(new[] { RankingsScope.Performance, RankingsScope.PerformanceRelax, RankingsScope.Country }));
+            AddAssert("pages are performance, relax, country and country relax", () => System.Enum.GetValues<RankingsScope>(),
+                () => Is.EqualTo(new[] { RankingsScope.Performance, RankingsScope.PerformanceRelax, RankingsScope.Country, RankingsScope.CountryRelax }));
         }
 
         [Test]

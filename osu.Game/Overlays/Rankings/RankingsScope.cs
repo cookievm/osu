@@ -8,7 +8,7 @@ using osu.Game.Resources.Localisation.Web;
 namespace osu.Game.Overlays.Rankings
 {
     /// <summary>
-    /// oily (ilo, 2026-11-26): the rankings pages are performance, performance (relax) and country.
+    /// oily (ilo, 2026-11-26): the rankings pages are performance, performance (relax), country and country (relax).
     /// Score, Spotlights and Kudosu were removed.
     /// </summary>
     public enum RankingsScope
@@ -24,5 +24,11 @@ namespace osu.Game.Overlays.Rankings
 
         [LocalisableDescription(typeof(RankingsStrings), nameof(RankingsStrings.TypeCountry))]
         Country,
+
+        /// <summary>
+        /// Countries by their players' Lazer Relax pp.
+        /// </summary>
+        [Description("country (relax)")]
+        CountryRelax,
     }
 }

@@ -120,6 +120,9 @@ namespace osu.Game.Overlays
                 case RankingsScope.Country:
                     return new GetCountryRankingsRequest(ruleset.Value);
 
+                case RankingsScope.CountryRelax:
+                    return new GetCountryRankingsRequest(ruleset.Value, relax: true);
+
                 case RankingsScope.PerformanceRelax:
                     return new GetUserRankingsRequest(ruleset.Value, UserRankingsType.Relax, countryCode: Country.Value);
             }
