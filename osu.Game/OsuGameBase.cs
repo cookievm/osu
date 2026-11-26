@@ -291,6 +291,9 @@ namespace osu.Game
             largeStore.AddTextureSource(Host.CreateTextureLoaderStore(CreateOnlineStore()));
             dependencies.Cache(largeStore);
 
+            // oily: o!ily's own textures (logo, hearts).
+            dependencies.Cache(new OilyTextures(Host.Renderer, Host));
+
             dependencies.Cache(onlineAssetStore = new OnlineAssetCachingStore(Host, realm));
 
             dependencies.CacheAs(LocalConfig);
