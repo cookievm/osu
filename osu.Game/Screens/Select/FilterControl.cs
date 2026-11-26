@@ -31,7 +31,6 @@ using osu.Game.Screens.Select.Filter;
 using osu.Framework.Graphics.Shapes;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics;
-using osu.Framework.Extensions.Color4Extensions;
 using osuTK;
 using osuTK.Input;
 

@@ -23,7 +23,6 @@ using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Skinning;
 using osu.Game.Utils;
-using osuTK;
 using osuTK.Graphics;
 
 namespace osu.Game.Screens.Select
