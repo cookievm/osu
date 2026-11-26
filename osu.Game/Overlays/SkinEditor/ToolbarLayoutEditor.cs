@@ -2,16 +2,13 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
-using osu.Framework.Graphics.Sprites;
 using osu.Game.Configuration;
-using osu.Game.Graphics.UserInterface;
 using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Overlays.Settings;
 using osu.Game.Overlays.Toolbar;
@@ -189,18 +186,6 @@ namespace osu.Game.Overlays.SkinEditor
                 buttonsFlow.Add(new ButtonRow(this, item));
         }
 
-        private IEnumerable<ToolbarPlace> places()
-        {
-            yield return ToolbarPlace.HIDDEN;
-            yield return ToolbarPlace.BOTTOM_BAR;
-
-            for (int i = 0; i < layout.Bars.Count; i++)
-            {
-                foreach (var side in Enum.GetValues<ToolbarSide>())
-                    yield return new ToolbarPlace(i, side);
-            }
-        }
-
         private ToolbarButtonLayout getOrCreate(ToolbarItem item)
         {
             var button = layout.Buttons.FirstOrDefault(b => b.Item == item);
@@ -215,28 +200,20 @@ namespace osu.Game.Overlays.SkinEditor
         }
 
         /// <summary>
-        /// Swaps a button with the one before (-1) or after (1) it on the same part of its toolbar.
+        /// Shows a hidden button again, in lazer's place for it (on the first toolbar), at the end of its part of the bar.
         /// </summary>
-        private void move(ToolbarItem item, int direction)
+        private void show(ToolbarButtonLayout button)
         {
-            var button = getOrCreate(item);
-            var neighbours = layout.Buttons.Where(b => b.Bar == button.Bar && b.Side == button.Side).OrderBy(b => b.Order).ToList();
+            var original = ToolbarLayout.CreateDefault().Buttons.FirstOrDefault(b => b.Item == button.Item);
 
-            int index = neighbours.IndexOf(button);
-            int other = index + direction;
-
-            if (index < 0 || other < 0 || other >= neighbours.Count)
-                return;
-
-            // Give everything distinct orders first, then swap.
-            for (int i = 0; i < neighbours.Count; i++)
-                neighbours[i].Order = i;
-
-            (neighbours[index].Order, neighbours[other].Order) = (neighbours[other].Order, neighbours[index].Order);
-
-            save();
+            button.Bar = 0;
+            button.Side = original?.Side ?? ToolbarSide.End;
+            button.Order = layout.Buttons.Where(b => b != button && b.Bar == button.Bar && b.Side == button.Side).Select(b => b.Order).DefaultIfEmpty(-1).Max() + 1;
         }
 
+        /// <summary>
+        /// oily (ilo, 2026-11-26): each button is just its name with a tick box to show it, and where its popup slides in from.
+        /// </summary>
         private partial class ButtonRow : CompositeDrawable
         {
             public ButtonRow(ToolbarLayoutEditor settings, ToolbarItem item)
@@ -245,78 +222,64 @@ namespace osu.Game.Overlays.SkinEditor
                 AutoSizeAxes = Axes.Y;
 
                 var button = settings.getOrCreate(item);
-                var place = new Bindable<ToolbarPlace>(button.Bar == ToolbarLayout.BOTTOM_BAR
-                    ? ToolbarPlace.BOTTOM_BAR
-                    : button.Bar >= 0 && button.Bar < settings.layout.Bars.Count ? new ToolbarPlace(button.Bar, button.Side) : ToolbarPlace.HIDDEN);
 
-                place.BindValueChanged(p =>
+                var shown = new BindableBool(button.Bar != -1);
+                shown.BindValueChanged(v =>
                 {
-                    button.Bar = p.NewValue.Bar;
-                    button.Side = p.NewValue.Side;
-                    // New arrivals go at the end of their part of the bar.
-                    button.Order = settings.layout.Buttons.Where(b => b != button && b.Bar == button.Bar && b.Side == button.Side).Select(b => b.Order).DefaultIfEmpty(-1).Max() + 1;
+                    if (v.NewValue)
+                        settings.show(button);
+                    else
+                        button.Bar = -1;
+
                     settings.save();
                 });
+
+                var popupFrom = new Bindable<ToolbarPopupDirection>(button.PopupFrom);
+                popupFrom.BindValueChanged(d =>
+                {
+                    button.PopupFrom = d.NewValue;
+                    settings.save();
+                });
+
+                var checkBox = new SettingsItemV2(new FormCheckBox
+                {
+                    Caption = item.GetDescription(),
+                    Current = shown,
+                })
+                {
+                    Keywords = new[] { "toolbar", "button", "show", "hide" },
+                };
+
+                if (!ToolbarLayout.HasPopup(item))
+                {
+                    InternalChild = checkBox;
+                    return;
+                }
 
                 InternalChild = new GridContainer
                 {
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y,
-                    ColumnDimensions = new[]
-                    {
-                        new Dimension(),
-                        new Dimension(GridSizeMode.Absolute, 40),
-                        new Dimension(GridSizeMode.Absolute, 40),
-                    },
+                    ColumnDimensions = new[] { new Dimension(), new Dimension() },
                     RowDimensions = new[] { new Dimension(GridSizeMode.AutoSize) },
                     Content = new[]
                     {
                         new Drawable[]
                         {
-                            new SettingsItemV2(new FormDropdown<ToolbarPlace>
+                            checkBox,
+                            new SettingsItemV2(new FormEnumDropdown<ToolbarPopupDirection>
                             {
-                                Caption = item.GetDescription(),
-                                Items = settings.places().ToList(),
-                                Current = place,
+                                Caption = "Popup comes from",
+                                HintText = "Which side of the screen this button's popup slides in from.",
+                                Current = popupFrom,
                             })
                             {
-                                Keywords = new[] { "toolbar", "button", "move" },
-                            },
-                            new IconButton
-                            {
-                                Anchor = Anchor.Centre,
-                                Origin = Anchor.Centre,
-                                Icon = FontAwesome.Solid.ChevronUp,
-                                TooltipText = "Move earlier (left, or up on a sidebar)",
-                                Action = () => settings.move(item, -1),
-                            },
-                            new IconButton
-                            {
-                                Anchor = Anchor.Centre,
-                                Origin = Anchor.Centre,
-                                Icon = FontAwesome.Solid.ChevronDown,
-                                TooltipText = "Move later (right, or down on a sidebar)",
-                                Action = () => settings.move(item, 1),
+                                Keywords = new[] { "toolbar", "popup", "direction", "slide" },
                             },
                         }
                     }
                 };
             }
-        }
-
-        /// <summary>
-        /// Where a button goes: a part of one toolbar, or hidden.
-        /// </summary>
-        public record ToolbarPlace(int Bar, ToolbarSide Side)
-        {
-            public static readonly ToolbarPlace HIDDEN = new ToolbarPlace(-1, ToolbarSide.Start);
-
-            /// <summary>
-            /// On the song select bottom bar (next to Mods, Random and so on).
-            /// </summary>
-            public static readonly ToolbarPlace BOTTOM_BAR = new ToolbarPlace(ToolbarLayout.BOTTOM_BAR, ToolbarSide.Start);
-
-            public override string ToString() => Bar == ToolbarLayout.BOTTOM_BAR ? "Bottom bar (song select)" : Bar < 0 ? "Hidden" : $"Toolbar {Bar + 1}, {Side.ToString().ToLowerInvariant()}";
         }
     }
 }

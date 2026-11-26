@@ -20,6 +20,7 @@ using osu.Framework.Screens;
 using osu.Framework.Testing;
 using osu.Framework.Threading;
 using osu.Game.Graphics.Containers;
+using osu.Game.Graphics.UserInterface;
 using osu.Game.Online.API;
 using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Overlays.Toolbar;
@@ -436,7 +437,13 @@ namespace osu.Game.Tests.Visual.Navigation
             AddUntilStep("toolbars shrunk the same", () => toolbarPreview.ScreenSpaceDrawQuad.AlmostEquals(screenPreview.ScreenSpaceDrawQuad));
             AddAssert("toolbars can't be clicked", () => Game.Toolbar.PropagatePositionalInputSubTree, () => Is.False);
 
-            AddStep("click toolbars tab", () => skinEditor.ChildrenOfType<SkinEditorSceneLibrary.SceneButton>().Single(b => b.Text == "Toolbars").TriggerClick());
+            AddAssert("no toolbars or PP simulator scenes", () => skinEditor.ChildrenOfType<SkinEditorSceneLibrary.SceneButton>().Select(b => b.Text.ToString()),
+                () => Has.None.EqualTo("Toolbars").And.None.EqualTo("PP Simulator"));
+            AddUntilStep("only song select parts offered", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().Any());
+            AddAssert("no sprites, boxes or texts", () => skinEditor.ChildrenOfType<SkinComponentToolbox>().Single().ChildrenOfType<ISkinComponentWithLabel>().Count(),
+                () => Is.EqualTo(skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().Count()));
+            AddAssert("PP simulator button in components", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxActionButton>().Count(), () => Is.EqualTo(2));
+            AddStep("click toolbars button", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxActionButton>().First().TriggerClick());
             AddUntilStep("toolbar options shown", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Count(), () => Is.EqualTo(1));
             AddUntilStep("bottom bar options shown", () => skinEditor.ChildrenOfType<BottomBarLayoutEditor>().Count(), () => Is.EqualTo(1));
             AddUntilStep("drag boxes shown", () => Game.ChildrenOfType<BarEditLayer.DragBox>().Count(), () => Is.GreaterThan(1));
@@ -444,6 +451,17 @@ namespace osu.Game.Tests.Visual.Navigation
             AddStep("make the toolbars transparent", () => skinEditor.ChildrenOfType<PanelOpacitySlider>().First().ChildrenOfType<FormSliderBar<float>>().Single().Current.Value = 0);
             AddUntilStep("toolbars transparent", () => OilyPanelColours.Parse(Game.LocalConfig.Get<string>(OsuSetting.OilyPanelColours)).Get(OilyPanel.Toolbar).Opacity, () => Is.Zero);
             AddStep("toolbars back to normal", () => Game.LocalConfig.SetValue(OsuSetting.OilyPanelColours, string.Empty));
+
+            AddAssert("no buttons to move toolbar buttons", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Single().ChildrenOfType<IconButton>().Count(), () => Is.Zero);
+            AddAssert("bottom bar has only its two sliders", () => skinEditor.ChildrenOfType<BottomBarLayoutEditor>().Single().ChildrenOfType<ISettingsItem>().Count(), () => Is.EqualTo(2));
+            AddStep("untick the settings button", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Single().ChildrenOfType<FormCheckBox>().First(c => c.Caption.ToString() == "Settings").Current.Value = false);
+            AddUntilStep("settings button gone", () => Game.Toolbar.ChildrenOfType<ToolbarSettingsButton>().Count(), () => Is.Zero);
+            AddStep("tick it again", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Single().ChildrenOfType<FormCheckBox>().First(c => c.Caption.ToString() == "Settings").Current.Value = true);
+            AddUntilStep("settings button back", () => Game.Toolbar.ChildrenOfType<ToolbarSettingsButton>().Count(), () => Is.EqualTo(1));
+            AddStep("settings come from the right", () => skinEditor.ChildrenOfType<ToolbarLayoutEditor>().Single().ChildrenOfType<FormEnumDropdown<ToolbarPopupDirection>>().First().Current.Value = ToolbarPopupDirection.Right);
+            AddUntilStep("saved", () => ToolbarLayout.Parse(Game.LocalConfig.Get<string>(OsuSetting.OilyToolbarLayout)).Buttons.Single(b => b.Item == ToolbarItem.Settings).PopupFrom,
+                () => Is.EqualTo(ToolbarPopupDirection.Right));
+            AddUntilStep("settings on the right", () => ((ToolbarPopupContainer)Game.Settings.Parent!).OnRight);
 
             AddStep("drag the toolbar down", () =>
             {

@@ -109,6 +109,11 @@ namespace osu.Game.Overlays.Toolbar
         /// <summary>
         /// The buttons moved onto the song select bottom bar, in order.
         /// </summary>
+        /// <summary>
+        /// oily: whether this button opens a popup (so it can choose where the popup comes from).
+        /// </summary>
+        public static bool HasPopup(ToolbarItem item) => item != ToolbarItem.Home && item != ToolbarItem.Rulesets && item != ToolbarItem.Clock;
+
         public IEnumerable<ToolbarItem> ItemsOnBottomBar()
             => Buttons.Where(b => b.Bar == BOTTOM_BAR).OrderBy(b => b.Order).Select(b => b.Item);
     }
@@ -157,6 +162,30 @@ namespace osu.Game.Overlays.Toolbar
         /// Lower comes first (left to right, or top to bottom).
         /// </summary>
         public int Order { get; set; }
+
+        /// <summary>
+        /// oily: which side of the screen the button's popup (settings, chat, now playing...) slides in from.
+        /// </summary>
+        [JsonConverter(typeof(StringEnumConverter))]
+        public ToolbarPopupDirection PopupFrom { get; set; }
+    }
+
+    public enum ToolbarPopupDirection
+    {
+        [Description("lazer's default")]
+        Default,
+
+        [Description("Left")]
+        Left,
+
+        [Description("Right")]
+        Right,
+
+        [Description("Top")]
+        Top,
+
+        [Description("Bottom")]
+        Bottom,
     }
 
     public enum ToolbarEdge

@@ -5,7 +5,6 @@ using System;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Game.Skinning;
-using osu.Game.Skinning.Components;
 
 namespace osu.Game.Screens.Select
 {
@@ -65,13 +64,8 @@ namespace osu.Game.Screens.Select
     {
         private static readonly Type[] allowed =
         {
+            // oily: only song select's own parts (ilo, 2026-11-26: no sprites, boxes, texts or player info).
             typeof(SongSelectPieceLayout),
-            typeof(SkinnableSprite),
-            typeof(BoxElement),
-            typeof(TextElement),
-            typeof(BeatmapAttributeText),
-            typeof(PlayerName),
-            typeof(GlobalRankDisplay),
         };
 
         public static bool IsAllowed(Type type)

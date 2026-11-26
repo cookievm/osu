@@ -60,6 +60,13 @@ namespace osu.Game.Overlays.SkinEditor
         {
             fill.Clear();
 
+            // oily: the toolbar and PP Simulator settings live with song select's parts.
+            if (target.Lookup.Lookup == GlobalSkinnableContainers.SongSelect)
+            {
+                fill.Add(new ToolboxActionButton("Toolbars", () => skinEditor?.ShowToolbarSettings()));
+                fill.Add(new ToolboxActionButton("PP Simulator", showPerformanceSimulator));
+            }
+
             var skinnableTypes = SerialisedDrawableInfo.GetAllAvailableDrawables(ruleset);
             foreach (var type in skinnableTypes)
                 attemptAddComponent(type);
@@ -98,6 +105,52 @@ namespace osu.Game.Overlays.SkinEditor
             }
         }
 
+        [Resolved]
+        private SkinEditor? skinEditor { get; set; }
+
+        [Resolved]
+        private SkinEditorOverlay? skinEditorOverlay { get; set; }
+
+        /// <summary>
+        /// oily: song select with the Universal PP Simulator open, working on its own layer.
+        /// </summary>
+        private void showPerformanceSimulator()
+        {
+            (target.FindClosestParent<Screens.Select.SongSelect>())?.ShowPerformanceSimulatorScene();
+            skinEditorOverlay?.SelectTarget(GlobalSkinnableContainers.PpSimulator);
+        }
+
+        /// <summary>
+        /// oily: a button in the component list that opens some settings instead of adding a component.
+        /// </summary>
+        public partial class ToolboxActionButton : OsuButton
+        {
+            public ToolboxActionButton(string text, Action action)
+            {
+                RelativeSizeAxes = Axes.X;
+                Height = LABELLED_SIZE;
+                Enabled.Value = true;
+                Action = action;
+
+                Add(new SkinComponentLabel(text)
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                });
+            }
+
+            [BackgroundDependencyLoader]
+            private void load(OverlayColourProvider colourProvider)
+            {
+                BackgroundColour = colourProvider.Background3;
+            }
+        }
+
+        /// <summary>
+        /// oily: how tall the buttons are for components that just show their name.
+        /// </summary>
+        public const float LABELLED_SIZE = 36;
+
         private void contractOtherButtons(ToolboxComponentButton obj)
         {
             foreach (var b in fill.OfType<ToolboxComponentButton>())
@@ -132,13 +185,19 @@ namespace osu.Game.Overlays.SkinEditor
                 Enabled.Value = true;
 
                 RelativeSizeAxes = Axes.X;
-                Height = contracted_size;
+                Height = component is ISkinComponentWithLabel ? LABELLED_SIZE : contracted_size;
             }
+
+            // oily: components that just show their name are small and don't grow on hover.
+            private bool labelled => component is ISkinComponentWithLabel;
 
             private const double animation_duration = 500;
 
             protected override bool OnHover(HoverEvent e)
             {
+                if (labelled)
+                    return base.OnHover(e);
+
                 expandContractAction?.Cancel();
                 expandContractAction = Scheduler.AddDelayed(() =>
                 {
@@ -182,7 +241,7 @@ namespace osu.Game.Overlays.SkinEditor
                     new Container
                     {
                         RelativeSizeAxes = Axes.Both,
-                        Padding = new MarginPadding(10) { Bottom = 20 },
+                        Padding = labelled ? new MarginPadding(5) : new MarginPadding(10) { Bottom = 20 },
                         Masking = true,
                         Child = innerContainer = new DependencyBorrowingContainer(dependencySource)
                         {
@@ -217,6 +276,10 @@ namespace osu.Game.Overlays.SkinEditor
                     float bestScale = Math.Min(
                         innerContainer.DrawWidth / component.DrawWidth,
                         innerContainer.DrawHeight / component.DrawHeight);
+
+                    // oily: names stay at their own text size.
+                    if (labelled)
+                        bestScale = Math.Min(bestScale, 1);
 
                     innerContainer.Scale = new Vector2(bestScale);
                 }

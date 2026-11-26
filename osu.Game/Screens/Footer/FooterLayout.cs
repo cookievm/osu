@@ -77,6 +77,11 @@ namespace osu.Game.Screens.Footer
                 layout.ToolbarButtonsOffsetY = float.IsFinite(layout.ToolbarButtonsOffsetY) ? layout.ToolbarButtonsOffsetY : 0;
                 layout.Buttons = layout.Buttons.Where(b => Enum.IsDefined(b.Item)).GroupBy(b => b.Item).Select(g => g.First()).ToList();
 
+                // oily: buttons and the bar can't be hidden any more (ilo, 2026-11-26: no one needs to remove them), so older layouts show everything again.
+                layout.Bar = FooterBarMode.Shown;
+                foreach (var button in layout.Buttons)
+                    button.Visible = true;
+
                 // Buttons added in later versions go at the end.
                 foreach (var item in Enum.GetValues<FooterItem>().Where(i => layout.Buttons.All(b => b.Item != i)))
                     layout.Buttons.Add(new FooterButtonLayout { Item = item, Visible = true });

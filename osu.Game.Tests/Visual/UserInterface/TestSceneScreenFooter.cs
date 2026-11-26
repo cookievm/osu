@@ -58,7 +58,7 @@ namespace osu.Game.Tests.Visual.UserInterface
         [Test]
         public void TestBottomBarLayout()
         {
-            AddStep("hide random, options first, back on the right, no background", () =>
+            AddStep("hide random (old layout), options first, back on the right, no background", () =>
             {
                 var layout = FooterLayout.CreateDefault();
                 layout.Bar = FooterBarMode.ButtonsOnly;
@@ -83,12 +83,13 @@ namespace osu.Game.Tests.Visual.UserInterface
                 },
             }));
 
-            AddUntilStep("random gone", () => ScreenFooter.ChildrenOfType<FooterButtonRandom>().Any(), () => Is.False);
-            AddUntilStep("options before where random was, other button kept first", () => ScreenFooter.ChildrenOfType<FillFlowContainer<ScreenFooterButton>>().First().FlowingChildren.Cast<ScreenFooterButton>().Select(b => b.GetType().Name),
-                () => Is.EqualTo(new[] { nameof(ScreenFooterButton), nameof(FooterButtonOptions) }));
+            // oily (ilo, 2026-11-26): buttons and the bar can't be hidden any more.
+            AddUntilStep("random still shown", () => ScreenFooter.ChildrenOfType<FooterButtonRandom>().Any(), () => Is.True);
+            AddUntilStep("options before random, other button kept first", () => ScreenFooter.ChildrenOfType<FillFlowContainer<ScreenFooterButton>>().First().FlowingChildren.Cast<ScreenFooterButton>().Select(b => b.GetType().Name),
+                () => Is.EqualTo(new[] { nameof(ScreenFooterButton), nameof(FooterButtonOptions), nameof(FooterButtonRandom) }));
             AddAssert("back button on the right", () => ScreenFooter.BackButton.Anchor, () => Is.EqualTo(Anchor.BottomRight));
             AddAssert("back button right of the buttons", () => ScreenFooter.BackButton.ScreenSpaceDrawQuad.Centre.X > ScreenFooter.ChildrenOfType<FooterButtonOptions>().Single().ScreenSpaceDrawQuad.Centre.X);
-            AddAssert("no background", () => ScreenFooter.ChildrenOfType<Box>().First().Alpha, () => Is.Zero);
+            AddAssert("background still shown", () => ScreenFooter.ChildrenOfType<Box>().First().Alpha, () => Is.GreaterThan(0));
 
             AddStep("make the bar bigger", () =>
             {
@@ -105,7 +106,7 @@ namespace osu.Game.Tests.Visual.UserInterface
                 layout.Bar = FooterBarMode.Hidden;
                 config.SetValue(OsuSetting.OilyFooterLayout, layout.Serialise());
             });
-            AddUntilStep("bar out of sight", () => ScreenFooter.Alpha, () => Is.Zero);
+            AddUntilStep("bar still shown", () => ScreenFooter.Alpha, () => Is.EqualTo(1));
 
             AddStep("reset", () => config.SetValue(OsuSetting.OilyFooterLayout, string.Empty));
             AddStep("reset colours", () => config.SetValue(OsuSetting.OilyPanelColours, string.Empty));

@@ -16,6 +16,7 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Input.Events;
 using osu.Framework.IO.Stores;
+using osu.Game.Configuration;
 using osu.Game.Rulesets;
 using osuTK;
 using osuTK.Graphics;
@@ -73,12 +74,20 @@ namespace osu.Game.Overlays.Toolbar
             }
         }
 
+        private OpaqueBackground opaqueBackground;
+
+        // oily: keeps the background following the toolbar's background opacity.
+        private IBindable<string> panelSetting;
+
+        [Resolved(canBeNull: true)]
+        private OsuConfigManager config { get; set; }
+
         [BackgroundDependencyLoader]
         private void load(AudioManager audio, OsuGameBase game)
         {
             AddRangeInternal(new[]
             {
-                new OpaqueBackground
+                opaqueBackground = new OpaqueBackground
                 {
                     Depth = 1,
                     Masking = true,
@@ -120,6 +129,9 @@ namespace osu.Game.Overlays.Toolbar
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            if (config != null)
+                panelSetting = OilyPanelColours.Track(config, OilyPanel.Toolbar, style => opaqueBackground.Alpha = Math.Clamp(style.Opacity, 0, 1));
 
             Current.BindDisabledChanged(_ => Scheduler.AddOnce(currentDisabledChanged));
             currentDisabledChanged();

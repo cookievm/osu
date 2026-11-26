@@ -1266,7 +1266,7 @@ namespace osu.Game
             {
                 d.Anchor = Anchor.TopRight;
                 d.Origin = Anchor.TopRight;
-            }), rightFloatingOverlayContent.Add, true);
+            }), popup(ToolbarItem.Notifications, rightFloatingOverlayContent.Add), true);
 
             loadComponentSingleFile(legacyImportManager, Add);
 
@@ -1278,14 +1278,14 @@ namespace osu.Game
             // overlay elements
             loadComponentSingleFile(FirstRunOverlay = new FirstRunSetupOverlay(), footerBasedOverlayContent.Add, true);
             loadComponentSingleFile(new ManageCollectionsDialog(), overlayContent.Add, true);
-            loadComponentSingleFile(beatmapListing = new BeatmapListingOverlay(), overlayContent.Add, true);
-            loadComponentSingleFile(dashboard = new DashboardOverlay(), overlayContent.Add, true);
+            loadComponentSingleFile(beatmapListing = new BeatmapListingOverlay(), popup(ToolbarItem.BeatmapListing, overlayContent.Add), true);
+            loadComponentSingleFile(dashboard = new DashboardOverlay(), popup(ToolbarItem.Social, overlayContent.Add), true);
             loadComponentSingleFile(news = new NewsOverlay(), overlayContent.Add, true);
-            var rankingsOverlay = loadComponentSingleFile(new RankingsOverlay(), overlayContent.Add, true);
+            var rankingsOverlay = loadComponentSingleFile(new RankingsOverlay(), popup(ToolbarItem.Rankings, overlayContent.Add), true);
             loadComponentSingleFile(channelManager = new ChannelManager(API), Add, true);
-            loadComponentSingleFile(chatOverlay = new ChatOverlay(), overlayContent.Add, true);
+            loadComponentSingleFile(chatOverlay = new ChatOverlay(), popup(ToolbarItem.Chat, overlayContent.Add), true);
             loadComponentSingleFile(new MessageNotifier(), Add, true);
-            loadComponentSingleFile(Settings = new SettingsOverlay(), leftFloatingOverlayContent.Add, true);
+            loadComponentSingleFile(Settings = new SettingsOverlay(), popup(ToolbarItem.Settings, leftFloatingOverlayContent.Add), true);
             loadComponentSingleFile(changelogOverlay = new ChangelogOverlay(), overlayContent.Add, true);
             loadComponentSingleFile(userProfile = new UserProfileOverlay(), overlayContent.Add, true);
             loadComponentSingleFile(beatmapSetOverlay = new BeatmapSetOverlay(), overlayContent.Add, true);
@@ -1296,13 +1296,13 @@ namespace osu.Game
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-            }, rightFloatingOverlayContent.Add, true);
+            }, popup(ToolbarItem.User, rightFloatingOverlayContent.Add), true);
 
             loadComponentSingleFile(nowPlayingOverlay = new NowPlayingOverlay
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-            }, rightFloatingOverlayContent.Add, true);
+            }, popup(ToolbarItem.Music, rightFloatingOverlayContent.Add), true);
 
             loadComponentSingleFile(new AccountCreationOverlay(), topMostOverlayContent.Add, true);
             loadComponentSingleFile<IDialogOverlay>(dialogOverlay = new DialogOverlay(), topMostOverlayContent.Add, true);
@@ -1601,6 +1601,11 @@ namespace osu.Game
         }
 
         private Task asyncLoadStream;
+
+        /// <summary>
+        /// oily: adds a toolbar button's popup inside a <see cref="ToolbarPopupContainer"/>, so it can slide in from the side the toolbar settings pick.
+        /// </summary>
+        private static Action<Drawable> popup(ToolbarItem item, Action<Drawable> add) => d => add(new ToolbarPopupContainer(item, (VisibilityContainer)d));
 
         /// <summary>
         /// Queues loading the provided component in sequential fashion.
@@ -1908,10 +1913,11 @@ namespace osu.Game
         {
             float adjust = 0f;
 
+            // oily: side panels moved to the other side (toolbar "Popup comes from") nudge the game the other way.
             if (Settings.IsLoaded && Settings.State.Value == Visibility.Visible)
-                adjust += SettingsPanel.WIDTH * SIDE_OVERLAY_OFFSET_RATIO;
+                adjust += SettingsPanel.WIDTH * SIDE_OVERLAY_OFFSET_RATIO * ((Settings.Parent as ToolbarPopupContainer)?.OnRight == true ? -1 : 1);
             if (Notifications.IsLoaded && Notifications.State.Value == Visibility.Visible)
-                adjust -= NotificationOverlay.WIDTH * SIDE_OVERLAY_OFFSET_RATIO;
+                adjust -= NotificationOverlay.WIDTH * SIDE_OVERLAY_OFFSET_RATIO * ((Notifications.Parent as ToolbarPopupContainer)?.OnRight == false ? -1 : 1);
 
             horizontalOffsetAdjust = (float)Interpolation.DampContinuously(horizontalOffsetAdjust, adjust, 100, Time.Elapsed);
             // Avoid having everything on the screen moving by miniscule amounts (can create overhead on busy screens).

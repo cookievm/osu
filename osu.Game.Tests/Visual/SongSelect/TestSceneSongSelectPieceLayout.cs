@@ -91,7 +91,7 @@ namespace osu.Game.Tests.Visual.SongSelect
         {
             AddAssert("gameplay combo counter not offered", () => SongSelectSkinComponents.IsAllowed(typeof(ArgonComboCounter)), () => Is.False);
             AddAssert("health bar not offered", () => SongSelectSkinComponents.IsAllowed(typeof(ArgonHealthDisplay)), () => Is.False);
-            AddAssert("beatmap attribute text offered", () => SongSelectSkinComponents.IsAllowed(typeof(BeatmapAttributeText)), () => Is.True);
+            AddAssert("beatmap attribute text not offered", () => SongSelectSkinComponents.IsAllowed(typeof(BeatmapAttributeText)), () => Is.False);
             AddAssert("simulated pp text not offered (cards show it)", () => SongSelectSkinComponents.IsAllowed(typeof(SimulatedPerformanceText)), () => Is.False);
             AddAssert("pp simulator colours not offered (own scene)", () => SongSelectSkinComponents.IsAllowed(typeof(PpSimulatorColours)), () => Is.False);
             AddAssert("song select pieces offered", () => SongSelectSkinComponents.IsAllowed(typeof(SongSelectDifficultyStatsLayout)), () => Is.True);
