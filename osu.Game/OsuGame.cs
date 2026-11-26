@@ -1862,6 +1862,8 @@ namespace osu.Game
             GlobalCursorDisplay.ShowCursor = (ScreenStack.CurrentScreen as IOsuScreen)?.CursorVisible ?? false;
         }
 
+        private const float toolbar_panel_gap = 8;
+
         private readonly Dictionary<OverlayContainer, float> toolbarPanelSlide = new Dictionary<OverlayContainer, float>();
 
         /// <summary>
@@ -1885,9 +1887,19 @@ namespace osu.Game
             var size = panel.DrawSize;
 
             Vector2 buttonCentre = parentSize / 2;
+            float? buttonTop = null;
 
             if (found?.Button is Drawable button && button.IsLoaded)
+            {
                 buttonCentre = panel.Parent.ToLocalSpace(button.ScreenSpaceDrawQuad.Centre) - panel.Parent.ChildOffset;
+
+                // where the button's top would be if the popup's container weren't mid-slide (so the panel still slides with it).
+                buttonTop = panel.Parent.ToLocalSpace(button.ScreenSpaceDrawQuad.TopLeft).Y - panel.Parent.ChildOffset.Y + panel.Parent.Y;
+            }
+
+            // oily (ilo, 2026-11-26): a toolbar along the top edge that sits low on the screen (the fixed bottom bar) opens the panel just above the button.
+            if (edge == ToolbarEdge.Top && buttonTop > parentSize.Y / 2)
+                edge = ToolbarEdge.Bottom;
 
             panel.Anchor = Anchor.TopLeft;
             panel.Origin = Anchor.TopLeft;
@@ -1898,7 +1910,8 @@ namespace osu.Game
             switch (edge)
             {
                 case ToolbarEdge.Bottom:
-                    position = new Vector2(Math.Clamp(buttonCentre.X - size.X / 2, 0, Math.Max(0, parentSize.X - size.X)), parentSize.Y - size.Y);
+                    position = new Vector2(Math.Clamp(buttonCentre.X - size.X / 2, 0, Math.Max(0, parentSize.X - size.X)),
+                        buttonTop is float above ? Math.Clamp(above - size.Y - toolbar_panel_gap, 0, Math.Max(0, parentSize.Y - size.Y)) : parentSize.Y - size.Y);
                     slideFrom = new Vector2(0, 1);
                     break;
 
