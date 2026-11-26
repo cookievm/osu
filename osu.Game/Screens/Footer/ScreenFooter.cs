@@ -223,7 +223,7 @@ namespace osu.Game.Screens.Footer
                 {
                     f.Anchor = Anchor.BottomRight;
                     f.Origin = Anchor.Centre;
-                    f.Position = new Vector2(-76, -36);
+                    f.Position = new Vector2(-92, -46); // oily: nudged up-left so the whole o!ily lettering stays on screen
                 })),
             };
         }
