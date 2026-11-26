@@ -74,6 +74,8 @@ namespace osu.Game.Screens.Select
 
         private BeatmapInfo beatmap => ((GroupedBeatmap)Item!.Model).Beatmap;
 
+        protected override bool SupportsStableLook => true;
+
         public PanelBeatmapStandalone()
         {
             PanelXOffset = 20;
@@ -241,6 +243,12 @@ namespace osu.Game.Screens.Select
             difficultyText.Text = beatmap.DifficultyName;
             authorText.Text = BeatmapsetsStrings.ShowDetailsMappedBy(beatmap.Metadata.Author.Username);
 
+            StableContent.Kind = StablePanelKind.Difficulty;
+            StableContent.Title = StablePanelContent.TitleOf(beatmapSet.Metadata);
+            StableContent.Subtitle = StablePanelContent.ArtistAndMapper(beatmap.Metadata);
+            StableContent.DifficultyName = beatmap.DifficultyName;
+            StableContent.Stars = null;
+
             computeStarRating();
             spreadDisplay.Beatmap.Value = beatmap;
             updateKeyCount();
@@ -277,6 +285,7 @@ namespace osu.Game.Screens.Select
                 starRatingDisplay.Current.Value = starDifficulty.NewValue;
                 performanceDisplay.Difficulty = starDifficulty.NewValue;
                 spreadDisplay.StarDifficulty.Value = starDifficulty.NewValue;
+                StableContent.Stars = starDifficulty.NewValue.Stars;
             }, true);
         }
 

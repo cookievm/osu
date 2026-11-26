@@ -448,6 +448,9 @@ namespace osu.Game.Screens.Select
 
         public override string DisplayName => "Beatmap list";
 
+        [SettingSource("Style", "Lazer's cards, or osu!stable's cards. Stable cards use your skin's stable pictures (menu-button-background, star) and colours when it has them.", -1)]
+        public Bindable<SongSelectPieceStyle> Style { get; } = new Bindable<SongSelectPieceStyle>();
+
         [SettingSource("Flip cards", "Cards come in from the left side instead of the right.")]
         public BindableBool FlipCards { get; } = new BindableBool();
 
@@ -513,6 +516,7 @@ namespace osu.Game.Screens.Select
             style.Tint.Value = CardTint.Value;
             style.ShowPerformance.Value = ShowPerformance.Value;
             style.ShowSimulatedPerformance.Value = ShowSimulatedPerformance.Value;
+            style.Stable.Value = Style.Value == SongSelectPieceStyle.Stable;
         }
 
         protected override void ResetPieceStyle() => Registry.CardStyle.Reset();

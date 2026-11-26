@@ -27,6 +27,11 @@ namespace osu.Game.Screens.Select
         public float HeightScale { get; set; } = 1;
 
         /// <summary>
+        /// oily: cards use osu!stable's look, where every difficulty card is as tall as a set card.
+        /// </summary>
+        public bool StableCards { get; set; }
+
+        /// <summary>
         /// oily: the SS pp of a beatmap with the selected mods, or <c>null</c> while it is being worked out.
         /// </summary>
         public Func<BeatmapInfo, double?>? GetPerformance { get; set; }
@@ -138,7 +143,7 @@ namespace osu.Game.Screens.Select
 
                         addItem(new CarouselItem(new GroupedBeatmap(group, beatmap))
                         {
-                            DrawHeight = HeightScale * (BeatmapSetsGroupedTogether ? PanelBeatmap.HEIGHT : PanelBeatmapStandalone.HEIGHT),
+                            DrawHeight = HeightScale * (StableCards ? Panel.STABLE_HEIGHT : BeatmapSetsGroupedTogether ? PanelBeatmap.HEIGHT : PanelBeatmapStandalone.HEIGHT),
                         });
                         lastBeatmap = beatmap;
                         displayedBeatmapsCount++;

@@ -28,6 +28,10 @@ namespace osu.Game.Screens.Select
     {
         public const float HEIGHT = CarouselItem.DEFAULT_HEIGHT * 1.2f;
 
+        protected override bool SupportsStableLook => GetType() == typeof(PanelGroup);
+
+        protected override float StableHeight => HEIGHT;
+
         private Drawable iconContainer = null!;
         private OsuSpriteText titleText = null!;
         private TrianglesV2 triangles = null!;
@@ -151,6 +155,9 @@ namespace osu.Game.Screens.Select
 
             titleText.Text = group.Title;
             countText.Text = Item.NestedItemCount.ToString("N0");
+
+            StableContent.Kind = StablePanelKind.Group;
+            StableContent.Title = group.Title;
         }
 
         protected override void UpdateAfterChildren()

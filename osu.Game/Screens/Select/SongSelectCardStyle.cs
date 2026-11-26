@@ -41,6 +41,9 @@ namespace osu.Game.Screens.Select
         /// <summary>Shows each card's pretend score and its simulated pp.</summary>
         public readonly BindableBool ShowSimulatedPerformance = new BindableBool(true);
 
+        /// <summary>Cards are drawn like osu!stable's (using the skin's stable images when it has them).</summary>
+        public readonly BindableBool Stable = new BindableBool();
+
         public void Reset()
         {
             ShowPerformance.SetDefault();
@@ -52,7 +55,17 @@ namespace osu.Game.Screens.Select
             CornerRadius.SetDefault();
             BackgroundOpacity.SetDefault();
             Tint.SetDefault();
+            Stable.SetDefault();
         }
+    }
+
+    /// <summary>
+    /// oily: whether a part of song select looks like lazer's or osu!stable's.
+    /// </summary>
+    public enum SongSelectPieceStyle
+    {
+        Lazer,
+        Stable,
     }
 
     /// <summary>

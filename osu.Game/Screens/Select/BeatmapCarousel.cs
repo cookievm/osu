@@ -132,6 +132,7 @@ namespace osu.Game.Screens.Select
         private SongSelectPieceRegistry? pieceRegistry { get; set; }
 
         private readonly BindableFloat cardHeight = new BindableFloat(1);
+        private readonly BindableBool stableCards = new BindableBool();
 
         // oily: SS pp for sorting and grouping by pp.
         [Resolved]
@@ -166,6 +167,15 @@ namespace osu.Game.Screens.Select
                 {
                     // Card heights decide where each card sits, so the list is laid out again.
                     grouping.HeightScale = h.NewValue;
+                    FilterAsync();
+                });
+
+                // oily: stable's difficulty cards are taller, so the list is laid out again when the style changes.
+                stableCards.BindTo(pieceRegistry.CardStyle.Stable);
+                grouping.StableCards = stableCards.Value;
+                stableCards.BindValueChanged(st =>
+                {
+                    grouping.StableCards = st.NewValue;
                     FilterAsync();
                 });
             }

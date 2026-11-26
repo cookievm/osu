@@ -50,6 +50,32 @@ namespace osu.Game.Screens.Select
         private Container contentPaddingContainer = null!;
         protected Container Content { get; private set; } = null!;
 
+        /// <summary>
+        /// oily: the osu!stable look of this card, shown instead of lazer's when the skin's beatmap list style is "Stable".
+        /// Cards that set <see cref="SupportsStableLook"/> fill it in.
+        /// </summary>
+        protected StablePanelContent StableContent { get; private set; } = null!;
+
+        /// <summary>
+        /// oily: whether this card has an osu!stable look. Cards without one keep lazer's look.
+        /// </summary>
+        protected virtual bool SupportsStableLook => false;
+
+        /// <summary>
+        /// oily: how tall this card is with the stable look (stable's cards are all the same size).
+        /// </summary>
+        public const float STABLE_HEIGHT = CarouselItem.DEFAULT_HEIGHT * 1.6f;
+
+        /// <summary>
+        /// oily: how tall this card is with the stable look.
+        /// </summary>
+        protected virtual float StableHeight => STABLE_HEIGHT;
+
+        /// <summary>
+        /// oily: whether the stable look is showing.
+        /// </summary>
+        protected bool StableLookShown { get; private set; }
+
         public Drawable Background
         {
             set => backgroundContainer.Child = value;
@@ -138,6 +164,10 @@ namespace osu.Game.Screens.Select
                             CornerRadius = CORNER_RADIUS,
                             Masking = true,
                         },
+                    },
+                    StableContent = new StablePanelContent
+                    {
+                        Alpha = 0,
                     },
                     hoverLayer = new Box
                     {
@@ -341,6 +371,15 @@ namespace osu.Game.Screens.Select
         {
             bool selectedOrExpanded = Expanded.Value || Selected.Value;
 
+            // oily: stable's cards have no glow or pulsing selection, only colours (see StablePanelContent).
+            if (StableLookShown)
+            {
+                TopLevelContent.EdgeEffect = default;
+                selectionLayer.FadeOut(animated ? 200 : 0, Easing.OutQuint);
+                StableContent.Active = selectedOrExpanded;
+                return;
+            }
+
             var edgeEffectColour = accentColour ?? Color4Extensions.FromHex(@"4EBFFF");
 
             if (selectedOrExpanded)
@@ -433,15 +472,26 @@ namespace osu.Game.Screens.Select
                 updateXOffset(animated: false);
             }
 
+            bool stableLook = style.Stable.Value && SupportsStableLook;
+
+            if (StableLookShown != stableLook)
+            {
+                StableLookShown = stableLook;
+                iconContainer.Alpha = stableLook ? 0 : 1;
+                contentPaddingContainer.Alpha = stableLook ? 0 : 1;
+                StableContent.Alpha = stableLook ? 1 : 0;
+                updateSelectedState(animated: false);
+            }
+
             Rotation = style.Rotation.Value;
             Width = style.Width.Value;
 
             if (baseHeight > 0)
-                Height = baseHeight * style.Height.Value;
+                Height = (stableLook ? StableHeight : baseHeight) * style.Height.Value;
 
-            TopLevelContent.CornerRadius = style.CornerRadius.Value;
+            TopLevelContent.CornerRadius = stableLook ? 0 : style.CornerRadius.Value;
             Content.CornerRadius = style.CornerRadius.Value;
-            backgroundContainer.Alpha = style.BackgroundOpacity.Value;
+            backgroundContainer.Alpha = stableLook ? 0 : style.BackgroundOpacity.Value;
             TopLevelContent.Colour = style.Tint.Value;
         }
 

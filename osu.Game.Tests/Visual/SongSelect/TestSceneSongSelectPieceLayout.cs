@@ -266,6 +266,28 @@ namespace osu.Game.Tests.Visual.SongSelect
         }
 
         [Test]
+        public void TestStableCards()
+        {
+            addLikeSkinEditor();
+
+            AddUntilStep("cards shown", () => Carousel.ChildrenOfType<PanelBeatmapSet>().Any(p => p.Item != null));
+            AddAssert("lazer cards by default", () => Carousel.ChildrenOfType<StablePanelContent>().All(c => c.Alpha == 0));
+
+            AddStep("stable style", () => layout.Style.Value = SongSelectPieceStyle.Stable);
+            AddUntilStep("stable cards shown", () => Carousel.ChildrenOfType<PanelBeatmapSet>().Where(p => p.Item != null)
+                                                             .All(p => p.ChildrenOfType<StablePanelContent>().Single().Alpha == 1));
+            AddUntilStep("difficulty cards as tall as set cards", () => Carousel.ChildrenOfType<PanelBeatmap>().Where(p => p.Item != null)
+                                                                                .All(p => System.Math.Abs(p.DrawHeight - Panel.STABLE_HEIGHT) < 0.5f));
+            AddUntilStep("carousel spaced for stable cards", () => Carousel.ChildrenOfType<PanelBeatmap>().Where(p => p.Item != null)
+                                                                           .All(p => System.Math.Abs(p.Item!.DrawHeight - Panel.STABLE_HEIGHT) < 0.5f));
+            AddUntilStep("selected difficulty is white", () => Carousel.ChildrenOfType<PanelBeatmap>().Where(p => p.Item != null && p.Selected.Value)
+                                                                       .All(p => p.ChildrenOfType<StablePanelContent>().Single().Active));
+
+            AddStep("lazer style", () => layout.Style.Value = SongSelectPieceStyle.Lazer);
+            AddUntilStep("lazer cards back", () => Carousel.ChildrenOfType<StablePanelContent>().All(c => c.Alpha == 0));
+        }
+
+        [Test]
         public void TestPerformanceGroups()
         {
             AddAssert("unknown", () => BeatmapCarouselFilterGrouping.DefineGroupByPerformance(null).Title.ToString(), () => Is.EqualTo("Working out pp..."));
