@@ -4,7 +4,6 @@
 using System;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
-using osu.Game.Skinning;
 
 namespace osu.Game.Screens.Select
 {
