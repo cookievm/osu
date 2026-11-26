@@ -80,6 +80,41 @@ namespace osu.Game.Screens.Select
 
         private FillFlowContainer statisticsFlow = null!;
 
+        // oily: lazer's look and osu!stable's look (see SongSelectBeatmapInfoLayout.Style).
+        private Container lazerBackground = null!;
+        private FillFlowContainer lazerContent = null!;
+        private Container stableContent = null!;
+
+        private bool stableLook;
+
+        /// <summary>
+        /// oily: shows osu!stable's top left text block instead of lazer's card.
+        /// </summary>
+        public bool StableLook
+        {
+            get => stableLook;
+            set
+            {
+                if (stableLook == value)
+                    return;
+
+                stableLook = value;
+
+                if (!IsLoaded)
+                    return;
+
+                updateLook();
+            }
+        }
+
+        private void updateLook()
+        {
+            lazerBackground.Alpha = stableLook ? 0 : 1;
+            lazerContent.Alpha = stableLook ? 0 : 1;
+            stableContent.Alpha = stableLook ? 1 : 0;
+            CornerRadius = stableLook ? 0 : corner_radius;
+        }
+
         public BeatmapTitleWedge()
         {
             RelativeSizeAxes = Axes.X;
@@ -99,14 +134,23 @@ namespace osu.Game.Screens.Select
             InternalChildren = new Drawable[]
             {
                 // oily: the background keeps its rounded corners even when the wedge stops cutting off moved pieces.
-                new Container
+                lazerBackground = new Container
                 {
                     RelativeSizeAxes = Axes.Both,
                     Masking = true,
                     CornerRadius = corner_radius,
                     Child = new WedgeBackground { Panel = OilyPanel.MapTitle },
                 },
-                new FillFlowContainer
+                stableContent = new Container
+                {
+                    RelativeSizeAxes = Axes.X,
+                    AutoSizeAxes = Axes.Y,
+                    Alpha = 0,
+                    Shear = -OsuGame.SHEAR,
+                    Padding = new MarginPadding { Top = TopPadding + SongSelect.WEDGE_CONTENT_MARGIN, Left = SongSelect.WEDGE_CONTENT_MARGIN },
+                    Child = new StableBeatmapInfo(),
+                },
+                lazerContent = new FillFlowContainer
                 {
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y,
@@ -227,6 +271,7 @@ namespace osu.Game.Screens.Select
             });
 
             updateDisplay();
+            updateLook();
 
             statisticsFlow.AutoSizeDuration = 100;
             statisticsFlow.AutoSizeEasing = Easing.OutQuint;

@@ -288,6 +288,23 @@ namespace osu.Game.Tests.Visual.SongSelect
         }
 
         [Test]
+        public void TestStableBeatmapInfo()
+        {
+            SongSelectBeatmapInfoLayout info = null!;
+
+            AddUntilStep("default layouts added", () => skinLayer.Components.OfType<SongSelectBeatmapInfoLayout>().Any());
+            AddStep("find beatmap info layout", () => info = skinLayer.Components.OfType<SongSelectBeatmapInfoLayout>().First());
+
+            AddStep("stable style", () => info.Style.Value = SongSelectPieceStyle.Stable);
+            AddUntilStep("stable text block shown", () => SongSelect.ChildrenOfType<StableBeatmapInfo>().Single().Parent!.IsPresent);
+            AddUntilStep("shows length and objects", () => SongSelect.ChildrenOfType<StableBeatmapInfo>().Single().ChildrenOfType<OsuSpriteText>()
+                                                                      .Any(t => t.Text.ToString().StartsWith("Length:", System.StringComparison.Ordinal)));
+
+            AddStep("lazer style", () => info.Style.Value = SongSelectPieceStyle.Lazer);
+            AddUntilStep("stable text block hidden", () => !SongSelect.ChildrenOfType<StableBeatmapInfo>().Single().Parent!.IsPresent);
+        }
+
+        [Test]
         public void TestPerformanceGroups()
         {
             AddAssert("unknown", () => BeatmapCarouselFilterGrouping.DefineGroupByPerformance(null).Title.ToString(), () => Is.EqualTo("Working out pp..."));

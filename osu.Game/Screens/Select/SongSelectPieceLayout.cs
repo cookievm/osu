@@ -433,6 +433,23 @@ namespace osu.Game.Screens.Select
         public override SongSelectPiece Piece => SongSelectPiece.BeatmapInfo;
 
         public override string DisplayName => "Beatmap info";
+
+        [SettingSource("Style", "Lazer's card, or osu!stable's text block (artist - title [difficulty], length, BPM, objects, CS/AR/OD/HP, stars). Stable uses your skin's songselect-top picture when it has one.", -1)]
+        public Bindable<SongSelectPieceStyle> Style { get; } = new Bindable<SongSelectPieceStyle>();
+
+        protected override void UpdatePieceStyle()
+        {
+            if (wedge != null)
+                wedge.StableLook = Style.Value == SongSelectPieceStyle.Stable;
+        }
+
+        protected override void ResetPieceStyle()
+        {
+            if (wedge != null)
+                wedge.StableLook = false;
+        }
+
+        private BeatmapTitleWedge? wedge => Registry.Get(Piece)?.ChildrenOfType<BeatmapTitleWedge>().FirstOrDefault();
     }
 
     public partial class SongSelectBeatmapDetailsLayout : SongSelectPieceLayout
