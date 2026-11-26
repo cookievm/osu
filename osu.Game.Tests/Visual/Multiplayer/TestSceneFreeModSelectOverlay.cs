@@ -74,6 +74,10 @@ namespace osu.Game.Tests.Visual.Multiplayer
             AddStep("apply search term", () => freeModSelectOverlay.SearchTerm = "ea");
 
             AddAssert("select all button enabled", () => this.ChildrenOfType<SelectAllModsButton>().Single().Enabled.Value);
+            AddAssert("both buttons beside the search bar", () => this.ChildrenOfType<DeselectAllModsButton>().Single().ScreenSpaceDrawQuad.TopLeft.X,
+                () => Is.GreaterThan(this.ChildrenOfType<SelectAllModsButton>().Single().ScreenSpaceDrawQuad.TopLeft.X));
+            AddAssert("deselect all not under the customisation panel", () => this.ChildrenOfType<DeselectAllModsButton>().Single().ScreenSpaceDrawQuad.TopRight.X,
+                () => Is.LessThan(this.ChildrenOfType<ModCustomisationPanel>().Single().ScreenSpaceDrawQuad.TopLeft.X));
 
             AddStep("click select all button", () =>
             {

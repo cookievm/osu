@@ -37,6 +37,11 @@ namespace osu.Game.Overlays.Mods
 
         public BindableBool Collapsed { get; } = new BindableBool(true);
 
+        /// <summary>
+        /// oily: how wide this is with only the left part (stars and BPM) shown.
+        /// </summary>
+        public float CollapsedWidth => LeftContent.DrawWidth + LeftContent.Margin.TotalHorizontal;
+
         private ModSettingChangeTracker? modSettingChangeTracker;
 
         [Resolved]

@@ -736,8 +736,10 @@ namespace osu.Game.Tests.Visual.UserInterface
             createScreen();
             changeRuleset(0);
 
-            AddAssert("same size as search bar", () => this.ChildrenOfType<DeselectAllModsButton>().Single().DrawSize,
-                () => Is.EqualTo(modSelectOverlay.SearchTextBox.DrawSize));
+            AddAssert("as tall as search bar", () => this.ChildrenOfType<DeselectAllModsButton>().Single().DrawHeight,
+                () => Is.EqualTo(modSelectOverlay.SearchTextBox.DrawHeight));
+            AddAssert("narrower than search bar", () => this.ChildrenOfType<DeselectAllModsButton>().Single().DrawWidth,
+                () => Is.LessThan(modSelectOverlay.SearchTextBox.DrawWidth));
             AddAssert("to the right of search bar", () => this.ChildrenOfType<DeselectAllModsButton>().Single().ScreenSpaceDrawQuad.TopLeft.X,
                 () => Is.GreaterThan(modSelectOverlay.SearchTextBox.ScreenSpaceDrawQuad.TopRight.X));
             AddAssert("level with search bar", () => this.ChildrenOfType<DeselectAllModsButton>().Single().ScreenSpaceDrawQuad.TopLeft.Y,

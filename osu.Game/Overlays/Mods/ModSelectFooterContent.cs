@@ -51,26 +51,8 @@ namespace osu.Game.Overlays.Mods
         {
             RelativeSizeAxes = Axes.Both;
 
-            var buttons = CreateButtons().ToArray();
-
-            // oily (ilo, 2026-11-26): "Deselect All" sits next to mod select's search bar, not on the bottom bar.
-            // Multiplayer's free mods (Select All + Deselect All) don't fit there, so they stay on the bottom bar like lazer.
-            if (buttons.Length == 1)
-                overlay.SetHeaderButtons(buttons);
-            else
-            {
-                AddInternal(new FillFlowContainer<ShearedButton>
-                {
-                    RelativeSizeAxes = Axes.X,
-                    AutoSizeAxes = Axes.Y,
-                    Direction = FillDirection.Horizontal,
-                    Anchor = Anchor.BottomLeft,
-                    Origin = Anchor.BottomLeft,
-                    Padding = new MarginPadding { Horizontal = 20 },
-                    Spacing = new Vector2(10),
-                    Children = buttons,
-                });
-            }
+            // oily (ilo, 2026-11-26): the buttons sit next to mod select's search bar, not on the bottom bar.
+            overlay.SetHeaderButtons(CreateButtons().ToArray());
 
             if (ShowModEffects)
             {
@@ -81,7 +63,6 @@ namespace osu.Game.Overlays.Mods
                     {
                         Anchor = Anchor.BottomLeft,
                         Origin = Anchor.BottomLeft,
-                        Margin = new MarginPadding { Horizontal = 20 },
                         BeatmapInfo = { Value = Beatmap.Value?.BeatmapInfo },
                     },
                     // Ranked / unranked and the score multiplier stay on the far right.
@@ -152,19 +133,41 @@ namespace osu.Game.Overlays.Mods
             if (beatmapAttributesDisplay == null || Alpha < 1)
                 return;
 
-            // Show every attribute only if there's room before the bottom bar's toolbar icons (or the ranked display).
-            float limit = rankingInformationDisplay!.ScreenSpaceDrawQuad.TopLeft.X;
+            var footer = this.FindClosestParent<Screens.Footer.ScreenFooter>();
 
-            if (this.FindClosestParent<Screens.Footer.ScreenFooter>()?.ToolbarButtons is Drawable toolbarButtons && toolbarButtons.IsPresent && toolbarButtons.DrawWidth > 0)
+            // The space between the bottom bar's buttons (like Mods) and its toolbar icons (or the ranked display).
+            float left = 0;
+            float right = ToLocalSpace(rankingInformationDisplay!.ScreenSpaceDrawQuad.TopLeft).X - 20;
+
+            if (footer != null)
             {
-                float toolbarLeft = toolbarButtons.ScreenSpaceDrawQuad.TopLeft.X;
-                if (toolbarLeft > beatmapAttributesDisplay.ScreenSpaceDrawQuad.TopLeft.X)
-                    limit = Math.Min(limit, toolbarLeft);
+                foreach (var button in footer.ShownButtons.Where(b => b.IsPresent))
+                    left = Math.Max(left, ToLocalSpace(button.ScreenSpaceDrawQuad.TopRight).X);
+
+                if (footer.ToolbarButtons is Drawable toolbarButtons && toolbarButtons.IsPresent && toolbarButtons.DrawWidth > 0)
+                {
+                    float toolbarLeft = ToLocalSpace(toolbarButtons.ScreenSpaceDrawQuad.TopLeft).X;
+                    if (toolbarLeft > left)
+                        right = Math.Min(right, toolbarLeft);
+                }
             }
 
-            float room = ToLocalSpace(new Vector2(limit, 0)).X - ToLocalSpace(beatmapAttributesDisplay.ScreenSpaceDrawQuad.TopLeft).X;
-            beatmapAttributesDisplay.Collapsed.Value = room < expanded_attributes_width;
+            float room = right - left;
+
+            // Every attribute only if there's room; otherwise just the stars and BPM (hover shows the rest).
+            bool collapsed = room < expanded_attributes_width + 20;
+            beatmapAttributesDisplay.Collapsed.Value = collapsed;
+
+            float width = collapsed ? collapsedWidth() : expanded_attributes_width;
+
+            // Sit in the middle of that space.
+            beatmapAttributesDisplay.X = left + Math.Max(10, (room - width) / 2);
         }
+
+        /// <summary>
+        /// How wide the map's details are with only the stars and BPM shown.
+        /// </summary>
+        private float collapsedWidth() => beatmapAttributesDisplay!.CollapsedWidth;
 
         protected virtual IEnumerable<ShearedButton> CreateButtons() => new[]
         {

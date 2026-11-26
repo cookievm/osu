@@ -1,7 +1,12 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using osu.Framework.Extensions;
+using osu.Framework.Testing;
+using osu.Game.Overlays.Mods;
 using NUnit.Framework;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Allocation;
@@ -72,6 +77,23 @@ namespace osu.Game.Tests.Visual.Navigation
             }
 
             AddStep("put the toolbar back", () => Game.LocalConfig.SetValue(OsuSetting.OilyToolbarLayout, string.Empty));
+        }
+
+        [Test]
+        public void TestMapDetailsCentredInBottomBar()
+        {
+            PushAndConfirm(() => new SoloSongSelect());
+            AddStep("import beatmap", () => osu.Game.Tests.Beatmaps.IO.BeatmapImportHelper.LoadQuickOszIntoOsu(Game).WaitSafely());
+            AddUntilStep("wait for selected", () => !Game.Beatmap.IsDefault);
+            AddStep("open mods", () => press(new[] { Key.F1 }));
+            AddUntilStep("map details shown", () => Game.ChildrenOfType<BeatmapAttributesDisplay>().SingleOrDefault()?.Alpha == 1);
+            AddUntilStep("map details centred between Mods and the ranked display", () =>
+            {
+                var details = Game.ChildrenOfType<BeatmapAttributesDisplay>().Single().ScreenSpaceDrawQuad;
+                float left = Game.ChildrenOfType<FooterButtonMods>().Single().ScreenSpaceDrawQuad.TopRight.X;
+                float right = Game.ChildrenOfType<RankingInformationDisplay>().Single().ScreenSpaceDrawQuad.TopLeft.X;
+                return details.TopLeft.X > left && Math.Abs((details.TopLeft.X - left) - (right - details.TopRight.X)) < 60;
+            });
         }
 
         private VisibilityContainer overlayFor(string name)
