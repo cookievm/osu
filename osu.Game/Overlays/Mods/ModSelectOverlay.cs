@@ -115,6 +115,24 @@ namespace osu.Game.Overlays.Mods
         private ColumnFlowContainer columnFlow = null!;
 
         private Container aboveColumnsContent = null!;
+        private FillFlowContainer<ShearedButton> headerButtonFlow = null!;
+
+        /// <summary>
+        /// oily: puts the footer content's buttons (like "Deselect All") next to the search bar, the same size as it.
+        /// </summary>
+        public void SetHeaderButtons(IEnumerable<ShearedButton> buttons)
+        {
+            headerButtonFlow.Clear();
+
+            foreach (var button in buttons)
+            {
+                button.Anchor = Anchor.TopLeft;
+                button.Origin = Anchor.TopLeft;
+                button.Width = SearchTextBox.Width;
+                button.Height = SearchTextBox.Height;
+                headerButtonFlow.Add(button);
+            }
+        }
         private ModCustomisationPanel customisationPanel = null!;
 
         protected virtual SelectAllModsButton? SelectAllModsButton => null;
@@ -186,10 +204,26 @@ namespace osu.Game.Overlays.Mods
                             Padding = new MarginPadding { Horizontal = 100, Bottom = 15f },
                             Children = new Drawable[]
                             {
-                                SearchTextBox = new ShearedSearchTextBox
+                                // oily (ilo, 2026-11-26): "Deselect All" (and "Select All") sit to the right of the search bar, the same size as it.
+                                new FillFlowContainer
                                 {
-                                    HoldFocus = false,
-                                    Width = 300,
+                                    AutoSizeAxes = Axes.Both,
+                                    Direction = FillDirection.Horizontal,
+                                    Spacing = new Vector2(10),
+                                    Children = new Drawable[]
+                                    {
+                                        SearchTextBox = new ShearedSearchTextBox
+                                        {
+                                            HoldFocus = false,
+                                            Width = 300,
+                                        },
+                                        headerButtonFlow = new FillFlowContainer<ShearedButton>
+                                        {
+                                            AutoSizeAxes = Axes.Both,
+                                            Direction = FillDirection.Horizontal,
+                                            Spacing = new Vector2(10),
+                                        },
+                                    }
                                 },
                                 customisationPanel = new ModCustomisationPanel
                                 {
