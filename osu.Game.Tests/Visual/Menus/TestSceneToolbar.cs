@@ -283,7 +283,7 @@ namespace osu.Game.Tests.Visual.Menus
             AddUntilStep("gaps are equal", () =>
             {
                 var icons = iconsLeftToRight().ToArray();
-                var gaps = icons.Zip(icons.Skip(1), (a, b) => b.ScreenSpaceDrawQuad.TopLeft.X - a.ScreenSpaceDrawQuad.TopRight.X).ToArray();
+                float[] gaps = icons.Zip(icons.Skip(1), (a, b) => b.ScreenSpaceDrawQuad.TopLeft.X - a.ScreenSpaceDrawQuad.TopRight.X).ToArray();
                 return gaps.Max() - gaps.Min() < 1 && gaps.Min() > 0;
             });
 
