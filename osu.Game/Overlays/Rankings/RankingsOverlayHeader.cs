@@ -1,6 +1,8 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
+using System.Linq;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Game.Graphics;
@@ -28,6 +30,32 @@ namespace osu.Game.Overlays.Rankings
 
         protected override Drawable CreateBackground() => new OverlayHeaderBackground("Headers/rankings");
 
+        /// <summary>
+        /// oily (ilo, 2026-11-26): the relax pages only exist for osu!, so taiko, catch and mania only show the normal pages.
+        /// </summary>
+        public static bool HasRelaxPages(RulesetInfo? ruleset) => ruleset == null || ruleset.OnlineID == 0;
+
+        public static bool IsRelaxScope(RankingsScope scope) => scope == RankingsScope.PerformanceRelax || scope == RankingsScope.CountryRelax;
+
+        private void updateRelaxTabs()
+        {
+            bool relaxShown = HasRelaxPages(Ruleset.Value);
+
+            var scope = Current.Value;
+
+            // a relax page moves to its normal page.
+            if (!relaxShown && IsRelaxScope(scope))
+                scope = scope == RankingsScope.CountryRelax ? RankingsScope.Country : RankingsScope.Performance;
+
+            var items = Enum.GetValues<RankingsScope>().Where(s => relaxShown || !IsRelaxScope(s)).ToArray();
+
+            if (!TabControl.Items.SequenceEqual(items))
+                TabControl.Items = items;
+
+            // replacing the tabs can reset the current page, so put the right one back.
+            Current.Value = scope;
+        }
+
         private partial class RankingsTitle : OverlayTitle
         {
             public RankingsTitle()
@@ -46,6 +74,8 @@ namespace osu.Game.Overlays.Rankings
             {
                 rulesetSelector.FadeTo(showRulesetSelector(scope.NewValue) ? 1 : 0, 200, Easing.OutQuint);
             }, true);
+
+            Ruleset.BindValueChanged(_ => updateRelaxTabs(), true);
 
             bool showRulesetSelector(RankingsScope scope)
             {
