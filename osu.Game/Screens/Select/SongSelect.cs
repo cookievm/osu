@@ -1323,6 +1323,10 @@ namespace osu.Game.Screens.Select
         {
             foreach (var type in piece_layout_types)
             {
+                // A skin can end up with two layouts for one piece (older builds added a new one when it was picked in the list); keep the first.
+                foreach (var extra in skinnableContent.Components.Where(c => c.GetType() == type).Skip(1).ToArray())
+                    skinnableContent.Remove(extra, true);
+
                 if (skinnableContent.Components.Any(c => c.GetType() == type))
                     continue;
 

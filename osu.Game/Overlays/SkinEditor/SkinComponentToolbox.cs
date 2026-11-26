@@ -97,8 +97,9 @@ namespace osu.Game.Overlays.SkinEditor
             if (container.Lookup.Lookup == GlobalSkinnableContainers.SongSelect && !Screens.Select.SongSelectSkinComponents.IsAllowed(type))
                 return;
 
-            // oily: the PP Simulator layer only holds its colours.
-            if (container.Lookup.Lookup == GlobalSkinnableContainers.PpSimulator && type != typeof(Screens.Select.PpSimulatorColours))
+            // oily: the PP Simulator layer's colours are already in it (and edited from the PP Simulator tab), so nothing is offered for it.
+            // (ilo, 2026-11-26: "PP Simulator colours" was a duplicate.)
+            if (container.Lookup.Lookup == GlobalSkinnableContainers.PpSimulator || type == typeof(Screens.Select.PpSimulatorColours))
                 return;
 
             try
@@ -204,8 +205,10 @@ namespace osu.Game.Overlays.SkinEditor
                 Enabled.Value = true;
 
                 RelativeSizeAxes = Axes.X;
-                Height = component is ISkinComponentWithLabel ? LABELLED_SIZE : contracted_size;
+                Height = restingSize;
             }
+
+            private float restingSize => component is ISkinComponentWithLabel ? LABELLED_SIZE : contracted_size;
 
             // oily: components that just show their name are small and don't grow on hover.
             private bool labelled => component is ISkinComponentWithLabel;
@@ -244,7 +247,8 @@ namespace osu.Game.Overlays.SkinEditor
                 if (expandContractAction == null)
                     return;
 
-                this.ResizeHeightTo(contracted_size, animation_duration, Easing.OutQuint);
+                // oily: back to its own size (labelled ones are smaller), so the list doesn't slowly grow.
+                this.ResizeHeightTo(restingSize, animation_duration, Easing.OutQuint);
 
                 expandContractAction?.Cancel();
                 expandContractAction = null;

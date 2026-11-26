@@ -435,17 +435,36 @@ namespace osu.Game.Tests.Visual.Navigation
                 var popup = songSelect.ChildrenOfType<PerformanceSimulationPopup>().Single();
                 return popup.IsPresent && popup.Alpha > 0.99f && Game.ScreenStack.ScreenSpaceDrawQuad.Contains(popup.ScreenSpaceDrawQuad.Centre);
             });
-            AddUntilStep("working on the simulator layer", () => skinEditor.ChildrenOfType<SkinComponentToolbox>().Single().ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>()
-                                                                          .Any(b => b.ChildrenOfType<PpSimulatorColours>().Any()));
+            AddUntilStep("working on the simulator layer", () => skinEditor.SelectedTargetLookup, () => Is.EqualTo(GlobalSkinnableContainers.PpSimulator));
+            AddAssert("no PP simulator colours in the list", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().Any(b => b.ChildrenOfType<PpSimulatorColours>().Any()), () => Is.False);
             AddAssert("song select parts still offered", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().Count(b => b.ChildrenOfType<SongSelectPieceLayout>().Any()),
                 () => Is.GreaterThan(1));
             AddAssert("PP simulator button still there", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxActionButton>().Count(), () => Is.EqualTo(1));
 
+            for (int i = 0; i < 3; i++)
+            {
+                int index = i;
+                AddStep($"hover part {index + 1}", () => InputManager.MoveMouseTo(skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>()
+                                                                                         .Where(b => b.ChildrenOfType<ISkinComponentWithLabel>().Any()).ElementAt(index)));
+                AddWaitStep("wait", 3);
+            }
+
+            AddStep("move away", () => InputManager.MoveMouseTo(Game.ScreenStack.ScreenSpaceDrawQuad.Centre));
+            AddWaitStep("let them settle", 20);
+            AddUntilStep("parts stay their own size", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().Where(b => b.ChildrenOfType<ISkinComponentWithLabel>().Any())
+                                                                       .Select(b => b.Height).Distinct(),
+                () => Is.EquivalentTo(new[] { SkinComponentToolbox.LABELLED_SIZE }));
+
             AddStep("pick a song select part", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().First(b => b.ChildrenOfType<SongSelectPieceLayout>().Any()).TriggerClick());
             AddUntilStep("simulator closed", () => songSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().State.Value, () => Is.EqualTo(Visibility.Hidden));
-            AddUntilStep("back on song select layer", () => skinEditor.ChildrenOfType<SkinComponentToolbox>().Single().ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>()
-                                                                      .All(b => !b.ChildrenOfType<PpSimulatorColours>().Any()));
+            AddUntilStep("back on song select layer", () => skinEditor.SelectedTargetLookup, () => Is.EqualTo(GlobalSkinnableContainers.SongSelect));
             AddUntilStep("part selected", () => skinEditor.SelectedComponents.OfType<SongSelectPieceLayout>().Count(), () => Is.EqualTo(1));
+            AddStep("pick it again", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().First(b => b.ChildrenOfType<SongSelectPieceLayout>().Any()).TriggerClick());
+            AddAssert("no second copy added", () =>
+            {
+                var type = skinEditor.SelectedComponents.OfType<SongSelectPieceLayout>().Single().GetType();
+                return songSelect.ChildrenOfType<SkinnableContainer>().Single(c => c.Lookup.Lookup == GlobalSkinnableContainers.SongSelect).Components.Count(c => c.GetType() == type);
+            }, () => Is.EqualTo(1));
         }
 
         [Test]
@@ -578,23 +597,20 @@ namespace osu.Game.Tests.Visual.Navigation
             Guid editedSkinId = Guid.Empty;
             AddStep("save skin id", () => editedSkinId = Game.Dependencies.Get<SkinManager>().CurrentSkinInfo.Value.ID);
 
-            // oily: song select's own pieces are always there to pick, so count blueprints instead of expecting none.
-            int before = 0;
-            int withAdded = 0;
-            AddUntilStep("song select pieces shown", () => (before = skinEditor.ChildrenOfType<SkinBlueprint>().Count()) > 0);
-            AddStep("add skinnable component", () =>
-            {
-                skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().First().TriggerClick();
-            });
-            AddUntilStep("component added", () => (withAdded = skinEditor.ChildrenOfType<SkinBlueprint>().Count()) > before);
+            // oily: song select only has its own parts (each there once), so change one of them instead of adding a component.
+            SongSelectPieceLayout songSelectLayer() => Game.ChildrenOfType<SkinnableContainer>().Single(c => c.Lookup.Lookup == GlobalSkinnableContainers.SongSelect)
+                                                           .Components.OfType<SongSelectBeatmapInfoLayout>().Single();
+
+            AddUntilStep("song select pieces shown", () => skinEditor.ChildrenOfType<SkinBlueprint>().Any());
+            AddStep("hide beatmap info", () => songSelectLayer().Hidden.Value = true);
 
             AddStep("change to triangles skin", () => Game.Dependencies.Get<SkinManager>().SetSkinFromConfiguration(SkinInfo.TRIANGLES_SKIN.ToString()));
             AddUntilStep("components loaded", () => Game.ChildrenOfType<SkinnableContainer>().All(c => c.ComponentsLoaded));
-            AddUntilStep("skin changed", () => skinEditor.ChildrenOfType<SkinBlueprint>().Count() < withAdded);
+            AddUntilStep("skin changed", () => !songSelectLayer().Hidden.Value);
 
             AddStep("change back to modified skin", () => Game.Dependencies.Get<SkinManager>().SetSkinFromConfiguration(editedSkinId.ToString()));
             AddUntilStep("components loaded", () => Game.ChildrenOfType<SkinnableContainer>().All(c => c.ComponentsLoaded));
-            AddUntilStep("changes saved", () => skinEditor.ChildrenOfType<SkinBlueprint>().Count() == withAdded);
+            AddUntilStep("changes saved", () => songSelectLayer().Hidden.Value);
         }
 
         private void advanceToSongSelect()

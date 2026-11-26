@@ -380,8 +380,14 @@ namespace osu.Game.Overlays.SkinEditor
         private int preferredTargetTries;
 
         /// <summary>
+        /// oily: the layer being worked on.
+        /// </summary>
+        public GlobalSkinnableContainers? SelectedTargetLookup => selectedTarget.Value?.Lookup;
+
+        /// <summary>
         /// oily: switches the working layer to <paramref name="lookup"/> as soon as the screen offers it (used by the scene library).
         /// </summary>
+
         public void SelectTarget(GlobalSkinnableContainers lookup)
         {
             preferredTarget = lookup;
@@ -535,7 +541,8 @@ namespace osu.Game.Overlays.SkinEditor
         private void placeOfType(Type type)
         {
             // oily: a settings-only component is kept once per layer; picking it opens its settings.
-            if (typeof(ISettingsOnlySkinComponent).IsAssignableFrom(type) && getTarget(selectedTarget.Value)?.Components.FirstOrDefault(c => c.GetType() == type) is ISerialisableDrawable existing)
+            // (ilo, 2026-11-26) song select's parts too: each one moves a real piece, so a second copy would just be an empty box.
+            if ((typeof(ISettingsOnlySkinComponent).IsAssignableFrom(type) || type.IsSubclassOf(typeof(Screens.Select.SongSelectPieceLayout))) && getTarget(selectedTarget.Value)?.Components.FirstOrDefault(c => c.GetType() == type) is ISerialisableDrawable existing)
             {
                 SelectedComponents.Clear();
                 SelectedComponents.Add(existing);
