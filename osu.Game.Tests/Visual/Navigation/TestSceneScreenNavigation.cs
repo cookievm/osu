@@ -899,7 +899,8 @@ namespace osu.Game.Tests.Visual.Navigation
         {
             AddUntilStep("Wait for toolbar to load", () => Game.Toolbar.IsLoaded);
 
-            AddStep("Enter menu", () => InputManager.Key(Key.Enter));
+            // oily: the main menu has no toolbar, so hide it from a plain screen that shows it.
+            PushAndConfirm(() => new ToolbarTestScreen());
             AddUntilStep("Toolbar is visible", () => Game.Toolbar.State.Value == Visibility.Visible);
 
             AddStep("Hide toolbar", () =>
@@ -1019,7 +1020,8 @@ namespace osu.Game.Tests.Visual.Navigation
 
             AddUntilStep("Wait for now playing load", () => (nowPlayingOverlay = Game.ChildrenOfType<NowPlayingOverlay>().FirstOrDefault()) != null);
 
-            AddStep("enter menu", () => InputManager.Key(Key.Enter));
+            // oily: the main menu has no toolbar, so use a plain screen that shows it.
+            PushAndConfirm(() => new ToolbarTestScreen());
             AddUntilStep("toolbar displayed", () => Game.Toolbar.State.Value == Visibility.Visible);
 
             AddStep("open now playing", () => InputManager.Key(Key.F6));
@@ -1434,6 +1436,35 @@ namespace osu.Game.Tests.Visual.Navigation
             AddStep("Move mouse to backButton", () => InputManager.MoveMouseTo(backButtonPosition));
             AddStep("Click back button", () => InputManager.Click(MouseButton.Left));
             ConfirmAtMainMenu();
+        }
+
+        [Test]
+        public void TestNoToolbarOnMainMenu()
+        {
+            // oily (ilo, 2026-11-26): the main menu never shows the toolbar, even after Ctrl+T.
+            AddUntilStep("Wait for toolbar to load", () => Game.Toolbar.IsLoaded);
+            AddStep("Enter menu", () => InputManager.Key(Key.Enter));
+            AddUntilStep("Wait for main menu buttons", () => Game.ScreenStack.CurrentScreen is MainMenu && Game.ChildrenOfType<ButtonSystem>().Single().State != ButtonSystemState.Initial);
+            AddWaitStep("Wait", 5);
+            AddAssert("Toolbar is hidden", () => Game.Toolbar.State.Value == Visibility.Hidden);
+
+            AddStep("Toggle toolbar", () =>
+            {
+                InputManager.PressKey(Key.ControlLeft);
+                InputManager.Key(Key.T);
+                InputManager.ReleaseKey(Key.ControlLeft);
+            });
+            AddAssert("Toolbar is still hidden", () => Game.Toolbar.State.Value == Visibility.Hidden);
+
+            PushAndConfirm(() => new ToolbarTestScreen());
+            AddUntilStep("Toolbar shows on other screens", () => Game.Toolbar.State.Value == Visibility.Visible);
+        }
+
+        /// <summary>
+        /// oily: a plain screen that shows the toolbar, now that the main menu doesn't.
+        /// </summary>
+        public partial class ToolbarTestScreen : Screens.OsuScreen
+        {
         }
     }
 }

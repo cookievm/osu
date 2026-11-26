@@ -21,7 +21,9 @@ namespace osu.Game.Tests.Visual.Navigation
         public void TestNotificationsButtonClosesOverlay()
         {
             AddUntilStep("wait for toolbar", () => Game.Toolbar.IsLoaded);
-            AddStep("show toolbar", () => Game.Toolbar.Show());
+            // oily: the main menu has no toolbar, so use a plain screen that shows it.
+            PushAndConfirm(() => new TestSceneScreenNavigation.ToolbarTestScreen());
+            AddUntilStep("toolbar shown", () => Game.Toolbar.State.Value == Visibility.Visible);
 
             AddStep("click notifications", () => clickButton<ToolbarNotificationButton>());
             AddUntilStep("notifications open", () => Game.ChildrenOfType<NotificationOverlay>().Single().State.Value == Visibility.Visible);
@@ -35,7 +37,9 @@ namespace osu.Game.Tests.Visual.Navigation
         public void TestSettingsButtonClosesOverlay()
         {
             AddUntilStep("wait for toolbar", () => Game.Toolbar.IsLoaded);
-            AddStep("show toolbar", () => Game.Toolbar.Show());
+            // oily: the main menu has no toolbar, so use a plain screen that shows it.
+            PushAndConfirm(() => new TestSceneScreenNavigation.ToolbarTestScreen());
+            AddUntilStep("toolbar shown", () => Game.Toolbar.State.Value == Visibility.Visible);
 
             // oily: the fixed toolbar hides the settings button, so bring back lazer's layout for this one.
             AddStep("show settings button", () => Game.LocalConfig.SetValue(OsuSetting.OilyToolbarLayout, ToolbarLayout.CreateDefault().Serialise()));

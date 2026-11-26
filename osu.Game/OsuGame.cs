@@ -2021,6 +2021,9 @@ namespace osu.Game
                 // Handle various configuration updates based on new screen settings.
                 GlobalCursorDisplay.MenuCursor.HideCursorOnNonMouseInput = newScreen.HideMenuCursorOnNonMouseInput;
 
+                // oily (ilo, 2026-11-26): no toolbar on the main menu at all.
+                Toolbar.HiddenByScreen = newScreen is MainMenu;
+
                 if (newScreen.HideOverlaysOnEnter)
                     CloseAllOverlays();
                 else

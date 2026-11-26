@@ -58,6 +58,22 @@ namespace osu.Game.Overlays.Toolbar
         /// </summary>
         public bool BlockInput { get; set; }
 
+        private bool hiddenByScreen;
+
+        /// <summary>
+        /// oily (ilo, 2026-11-26): set while the current screen never shows the toolbar (the main menu). It hides the toolbar and stops it being shown.
+        /// </summary>
+        public bool HiddenByScreen
+        {
+            get => hiddenByScreen;
+            set
+            {
+                hiddenByScreen = value;
+                if (value)
+                    Hide();
+            }
+        }
+
         public override bool PropagatePositionalInputSubTree => !BlockInput && base.PropagatePositionalInputSubTree;
 
         /// <summary>
@@ -838,7 +854,7 @@ namespace osu.Game.Overlays.Toolbar
 
         protected override void UpdateState(ValueChangedEvent<Visibility> state)
         {
-            bool blockShow = hiddenByUser || OverlayActivationMode.Value == OverlayActivation.Disabled;
+            bool blockShow = hiddenByUser || hiddenByScreen || OverlayActivationMode.Value == OverlayActivation.Disabled;
 
             if (state.NewValue == Visibility.Visible && blockShow)
             {
