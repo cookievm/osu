@@ -18,7 +18,8 @@ namespace osu.Game.Rulesets
     /// </remarks>
     /// <param name="NoteLock">Stable's notelock: a later object can't be hit until earlier ones are judged.</param>
     /// <param name="SliderAccuracy">Lazer's slider head accuracy. When off, sliders are judged like stable (head timing doesn't matter).</param>
-    public record OilyGameRules(bool NoteLock, bool SliderAccuracy)
+    /// <param name="HitTiming">Lazer's or stable's hit timing (stable counts hit times in whole milliseconds).</param>
+    public record OilyGameRules(bool NoteLock, bool SliderAccuracy, OilyHitTiming HitTiming = OilyHitTiming.Lazer)
     {
         /// <summary>
         /// The default o!ily rules.
@@ -33,13 +34,15 @@ namespace osu.Game.Rulesets
         private const string tag = "-oily";
         private const string no_note_lock_flag = "nonotelock";
         private const string no_slider_accuracy_flag = "noslideracc";
+        private const string stable_timing_flag = "stabletiming";
 
         public static OilyGameRules FromConfig(OsuConfigManager? config)
         {
             if (config == null)
                 return DEFAULT;
 
-            return new OilyGameRules(config.Get<bool>(OsuSetting.GameRulesNoteLock), config.Get<bool>(OsuSetting.GameRulesSliderAccuracy));
+            return new OilyGameRules(config.Get<bool>(OsuSetting.GameRulesNoteLock), config.Get<bool>(OsuSetting.GameRulesSliderAccuracy),
+                config.Get<OilyHitTiming>(OsuSetting.GameRulesHitTiming));
         }
 
         /// <summary>
@@ -54,6 +57,7 @@ namespace osu.Game.Rulesets
             var flags = new List<string>();
             if (!NoteLock) flags.Add(no_note_lock_flag);
             if (!SliderAccuracy) flags.Add(no_slider_accuracy_flag);
+            if (HitTiming == OilyHitTiming.Stable) flags.Add(stable_timing_flag);
 
             return version + tag + string.Concat(flags.Select(f => "." + f));
         }
@@ -72,7 +76,20 @@ namespace osu.Game.Rulesets
 
             return new OilyGameRules(
                 NoteLock: !flags.Contains(no_note_lock_flag),
-                SliderAccuracy: !flags.Contains(no_slider_accuracy_flag));
+                SliderAccuracy: !flags.Contains(no_slider_accuracy_flag),
+                HitTiming: flags.Contains(stable_timing_flag) ? OilyHitTiming.Stable : OilyHitTiming.Lazer);
         }
+    }
+
+    /// <summary>
+    /// oily: whose hit timing is used to judge hits.
+    /// </summary>
+    public enum OilyHitTiming
+    {
+        /// <summary>Lazer's: hit times are exact, to fractions of a millisecond.</summary>
+        Lazer,
+
+        /// <summary>Stable's: hit times are counted in whole milliseconds, like stable's clock.</summary>
+        Stable,
     }
 }

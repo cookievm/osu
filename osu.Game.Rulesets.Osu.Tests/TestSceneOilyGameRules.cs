@@ -55,9 +55,26 @@ namespace osu.Game.Rulesets.Osu.Tests
                 }
             }
 
+            var stableTiming = new OilyGameRules(true, true, OilyHitTiming.Stable);
+            AddAssert("stable timing round trips", () => OilyGameRules.FromClientVersion(stableTiming.TagClientVersion(lazer_version)), () => Is.EqualTo(stableTiming));
+            AddAssert("stable timing tag", () => stableTiming.TagClientVersion(lazer_version), () => Is.EqualTo(lazer_version + "-oily.stabletiming"));
+
             AddAssert("default tag", () => OilyGameRules.DEFAULT.TagClientVersion(lazer_version), () => Is.EqualTo(lazer_version + "-oily"));
             AddAssert("retagging replaces the tag", () => OilyGameRules.DEFAULT.TagClientVersion(new OilyGameRules(false, false).TagClientVersion(lazer_version)),
                 () => Is.EqualTo(lazer_version + "-oily"));
+        }
+
+        [Test]
+        public void TestStableHitTiming()
+        {
+            var windows = new osu.Game.Rulesets.Osu.Scoring.OsuHitWindows();
+            windows.SetDifficulty(5);
+
+            // OD5: the 300 window is 49.5ms, so a hit 49.6ms late is a 100 for lazer but counts as 49ms (a 300) on stable's clock.
+            AddAssert("lazer: 49.6ms late is a 100", () => windows.ResultFor(49.6), () => Is.EqualTo(osu.Game.Rulesets.Scoring.HitResult.Ok));
+            AddStep("stable timing", () => windows.StableTiming = true);
+            AddAssert("stable: 49.6ms late is a 300", () => windows.ResultFor(49.6), () => Is.EqualTo(osu.Game.Rulesets.Scoring.HitResult.Great));
+            AddAssert("stable: 49.6ms early is a 100", () => windows.ResultFor(-49.6), () => Is.EqualTo(osu.Game.Rulesets.Scoring.HitResult.Ok));
         }
 
         [TestCase(true, true)]

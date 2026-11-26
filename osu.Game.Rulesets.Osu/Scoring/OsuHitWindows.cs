@@ -22,6 +22,13 @@ namespace osu.Game.Rulesets.Osu.Scoring
         private double ok;
         private double meh;
 
+        /// <summary>
+        /// oily: stable's hit timing. Stable's clock counts whole milliseconds, so a hit's time is rounded down before judging.
+        /// </summary>
+        public bool StableTiming { get; set; }
+
+        public override HitResult ResultFor(double timeOffset) => base.ResultFor(StableTiming ? Math.Floor(timeOffset) : timeOffset);
+
         public override bool IsHitResultAllowed(HitResult result)
         {
             switch (result)

@@ -22,6 +22,7 @@ using osu.Game.Rulesets.Configuration;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Edit;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Legacy;
 using osu.Game.Rulesets.Osu.Beatmaps;
 using osu.Game.Rulesets.Osu.Configuration;
@@ -64,11 +65,27 @@ namespace osu.Game.Rulesets.Osu
         // oily: with "Slider accuracy" off in the Gamerules settings, sliders are judged like stable (same as the Classic mod's option).
         public override void ApplyGameRules(IBeatmap playableBeatmap, OilyGameRules rules)
         {
+            // oily: with "Hit timing: Stable", hits are judged in whole milliseconds like stable.
+            if (rules.HitTiming == OilyHitTiming.Stable)
+            {
+                foreach (var hitObject in playableBeatmap.HitObjects)
+                    useStableTiming(hitObject);
+            }
+
             if (rules.SliderAccuracy)
                 return;
 
             foreach (var slider in playableBeatmap.HitObjects.OfType<Slider>())
                 slider.ClassicSliderBehaviour = true;
+        }
+
+        private static void useStableTiming(HitObject hitObject)
+        {
+            if (hitObject.HitWindows is OsuHitWindows windows)
+                windows.StableTiming = true;
+
+            foreach (var nested in hitObject.NestedHitObjects)
+                useStableTiming(nested);
         }
 
         /// <summary>

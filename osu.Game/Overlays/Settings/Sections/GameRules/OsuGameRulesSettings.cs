@@ -6,6 +6,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Localisation;
 using osu.Game.Configuration;
 using osu.Game.Graphics.UserInterfaceV2;
+using osu.Game.Rulesets;
 
 namespace osu.Game.Overlays.Settings.Sections.GameRules
 {
@@ -38,6 +39,15 @@ namespace osu.Game.Overlays.Settings.Sections.GameRules
                 })
                 {
                     Keywords = new[] { "slider head", "stable", "classic" },
+                },
+                new SettingsItemV2(new FormEnumDropdown<OilyHitTiming>
+                {
+                    Caption = "Hit timing",
+                    HintText = "Lazer judges hits to fractions of a millisecond. Stable judges them in whole milliseconds, like stable's clock. The hit windows are the same.",
+                    Current = config.GetBindable<OilyHitTiming>(OsuSetting.GameRulesHitTiming),
+                })
+                {
+                    Keywords = new[] { "timing", "hit window", "stable", "lazer", "accuracy" },
                 },
             };
         }

@@ -79,7 +79,8 @@ namespace osu.Game.Rulesets.Scoring
         /// </summary>
         /// <param name="timeOffset">The time offset.</param>
         /// <returns>The hit result, or <see cref="HitResult.None"/> if <paramref name="timeOffset"/> doesn't result in a judgement.</returns>
-        public HitResult ResultFor(double timeOffset)
+        // oily: virtual so stable's hit timing can count whole milliseconds (see OsuHitWindows).
+        public virtual HitResult ResultFor(double timeOffset)
         {
             timeOffset = Math.Abs(timeOffset);
 

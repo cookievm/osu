@@ -12,6 +12,7 @@ using osu.Framework.Localisation;
 using osu.Framework.Platform;
 using osu.Game.Beatmaps.Drawables.Cards;
 using osu.Game.Input;
+using osu.Game.Rulesets;
 using osu.Game.Input.Bindings;
 using osu.Game.Localisation;
 using osu.Game.Online.Leaderboards;
@@ -157,6 +158,7 @@ namespace osu.Game.Configuration
             // oily: Gamerules tab.
             SetDefault(OsuSetting.GameRulesNoteLock, true);
             SetDefault(OsuSetting.GameRulesSliderAccuracy, true);
+            SetDefault(OsuSetting.GameRulesHitTiming, OilyHitTiming.Lazer);
 
             // oily: the default pretend score for simulated pp in song select.
             SetDefault(OsuSetting.OilySimulationAccuracy, 98.0, 0, 100, 0.01);
@@ -511,6 +513,7 @@ namespace osu.Game.Configuration
         // oily: Gamerules tab.
         GameRulesNoteLock,
         GameRulesSliderAccuracy,
+        GameRulesHitTiming,
         OilySimulationAccuracy,
         OilySimulationMisses,
         OilySimulationComboPercent,
