@@ -183,6 +183,35 @@ namespace osu.Game.Tests.Visual.SongSelect
         }
 
         [Test]
+        public void TestCropAndResizeWithoutStretching()
+        {
+            Quad natural = default;
+
+            AddUntilStep("every piece has a layout", () =>
+                SongSelect.ChildrenOfType<SongSelectPieceContainer>().All(p => skinLayer.Components.OfType<SongSelectPieceLayout>().Any(l => l.Piece == p.Piece && l.FollowLazer.Value)));
+            AddStep("remember list position", () => natural = listPiece.NaturalScreenSpaceQuad);
+
+            AddStep("crop the left half", () => listLayout.CropLeft.Value = 0.5f);
+            AddUntilStep("list cut off on the left", () => listPiece.Child.ScreenSpaceDrawQuad.TopLeft.X, () => Is.EqualTo(natural.TopLeft.X + natural.Width / 2).Within(2));
+            AddAssert("cut off part hidden", () => ((Container)listPiece.Child).Masking);
+            AddAssert("right edge stays", () => listPiece.Child.ScreenSpaceDrawQuad.TopRight.X, () => Is.EqualTo(natural.TopRight.X).Within(2));
+            AddUntilStep("layout covers what's left", () => listLayout.ScreenSpaceDrawQuad.Width, () => Is.EqualTo(natural.Width / 2).Within(2));
+            AddStep("no crop", () => listLayout.CropLeft.Value = 0);
+            AddUntilStep("nothing cut off", () => ((Container)listPiece.Child).Masking, () => Is.False);
+
+            AddStep("make it half as wide, like a window", () =>
+            {
+                listLayout.FollowLazer.Value = false;
+                listLayout.Width /= 2;
+            });
+            AddUntilStep("cards laid out at half width", () => Carousel.DrawWidth, () => Is.EqualTo(listPiece.DrawWidth / 2).Within(2));
+            AddAssert("cards not squashed", () => listPiece.Child.Scale, () => Is.EqualTo(Vector2.One));
+
+            AddStep("zoom out", () => listLayout.Scale = new Vector2(0.5f));
+            AddUntilStep("cards squashed evenly", () => listPiece.Child.Scale, () => Is.EqualTo(new Vector2(0.5f)));
+        }
+
+        [Test]
         public void TestDetailPiecesRegistered()
         {
             foreach (var piece in System.Enum.GetValues<SongSelectPiece>())

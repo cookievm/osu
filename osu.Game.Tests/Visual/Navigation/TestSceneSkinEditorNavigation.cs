@@ -10,6 +10,10 @@ using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Extensions;
 using osu.Framework.Graphics.Containers;
+using osu.Game.Screens.Edit.Compose.Components;
+using osu.Framework.Graphics.Sprites;
+using osu.Framework.Graphics.Primitives;
+using osu.Framework.Graphics;
 using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Input;
 using osu.Framework.Screens;
@@ -332,6 +336,68 @@ namespace osu.Game.Tests.Visual.Navigation
 
             openSkinEditor();
             AddUntilStep("mod overlay closed", () => modSelect.State.Value == Visibility.Hidden);
+        }
+
+        [Test]
+        public void TestResizeAndCropSongSelectPartWithHandles()
+        {
+            SongSelectBeatmapListLayout layout = null!;
+            Quad cardsBefore = default;
+            float cardsWidth = 0;
+
+            AddStep("import beatmap", () => BeatmapImportHelper.LoadQuickOszIntoOsu(Game).WaitSafely());
+            advanceToSongSelect();
+            openSkinEditor();
+
+            AddUntilStep("find beatmap list layout", () => (layout = Game.ChildrenOfType<SongSelectBeatmapListLayout>().FirstOrDefault(l => l.FollowLazer.Value)!) != null);
+            AddStep("select it", () =>
+            {
+                skinEditor.SelectedComponents.Clear();
+                skinEditor.SelectedComponents.Add(layout);
+            });
+            AddAssert("no crop sliders", () => skinEditor.ChildrenOfType<ISettingsItem>().OfType<Drawable>()
+                                                         .Any(d => d.ChildrenOfType<SpriteText>().Any(t => t.Text.ToString().StartsWith("Crop", StringComparison.Ordinal))), () => Is.False);
+
+            AddStep("remember cards", () =>
+            {
+                var carousel = Game.ChildrenOfType<BeatmapCarousel>().Single();
+                cardsBefore = carousel.ScreenSpaceDrawQuad;
+                cardsWidth = carousel.DrawWidth;
+            });
+
+            dragHandle(Anchor.CentreLeft, new Vector2(200, 0));
+
+            AddUntilStep("cards laid out narrower", () => Game.ChildrenOfType<BeatmapCarousel>().Single().DrawWidth, () => Is.LessThan(cardsWidth - 50));
+            AddAssert("cards not squashed", () => Game.ChildrenOfType<BeatmapCarousel>().Single().DrawInfo.Matrix.ExtractScale().X,
+                () => Is.EqualTo(cardsBefore.Width / cardsWidth).Within(0.01f));
+            AddAssert("not cropped", () => layout.CropLeft.Value, () => Is.EqualTo(0));
+
+            AddStep("remember cards", () => cardsBefore = Game.ChildrenOfType<BeatmapCarousel>().Single().ScreenSpaceDrawQuad);
+            AddStep("hold ctrl", () => InputManager.PressKey(Key.ControlLeft));
+            dragHandle(Anchor.CentreLeft, new Vector2(100, 0));
+            AddStep("let go of ctrl", () => InputManager.ReleaseKey(Key.ControlLeft));
+
+            AddAssert("left side cropped", () => layout.CropLeft.Value, () => Is.GreaterThan(0.05f));
+            AddUntilStep("cards stay where they were", () => Vector2.Distance(Game.ChildrenOfType<BeatmapCarousel>().Single().ScreenSpaceDrawQuad.TopLeft, cardsBefore.TopLeft), () => Is.LessThan(2));
+            AddAssert("cut off part hidden", () => ((Container)Game.ChildrenOfType<SongSelectPieceContainer>().Single(p => p.Piece == SongSelectPiece.BeatmapList).Child).Masking);
+
+            AddStep("hold ctrl", () => InputManager.PressKey(Key.ControlLeft));
+            dragHandle(Anchor.CentreLeft, new Vector2(-500, 0));
+            AddStep("let go of ctrl", () => InputManager.ReleaseKey(Key.ControlLeft));
+            AddAssert("uncropped, but no further", () => layout.CropLeft.Value, () => Is.EqualTo(0));
+            AddUntilStep("cards still where they were", () => Vector2.Distance(Game.ChildrenOfType<BeatmapCarousel>().Single().ScreenSpaceDrawQuad.TopLeft, cardsBefore.TopLeft), () => Is.LessThan(2));
+
+            void dragHandle(Anchor handle, Vector2 by)
+            {
+                AddStep($"drag {handle} handle", () =>
+                {
+                    var h = skinEditor.ChildrenOfType<SelectionBoxScaleHandle>().Single(s => s.Anchor == handle);
+                    InputManager.MoveMouseTo(h);
+                    InputManager.PressButton(MouseButton.Left);
+                });
+                AddStep("move", () => InputManager.MoveMouseTo(InputManager.CurrentState.Mouse.Position + by));
+                AddStep("let go", () => InputManager.ReleaseButton(MouseButton.Left));
+            }
         }
 
         [Test]

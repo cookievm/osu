@@ -9,9 +9,11 @@ using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Primitives;
 using osu.Framework.Utils;
 using osu.Game.Screens.Edit;
 using osu.Game.Screens.Edit.Compose.Components;
+using osu.Game.Screens.Select;
 using osu.Game.Skinning;
 using osu.Game.Utils;
 using osuTK;
@@ -71,6 +73,11 @@ namespace osu.Game.Overlays.SkinEditor
 
             isFlippedX = false;
             isFlippedY = false;
+
+            // oily: song select parts resize like a window, and crop with Ctrl held.
+            piecesInScale = selectedItems.Count > 0 && selectedItems.All(i => i is SongSelectPieceLayout)
+                ? selectedItems.Cast<SongSelectPieceLayout>().ToDictionary(l => l, l => new OriginalPieceState(l))
+                : null;
         }
 
         public override void Update(Vector2 scale, Vector2? origin = null, Axes adjustAxis = Axes.Both, float axisRotation = 0)
@@ -81,6 +88,18 @@ namespace osu.Game.Overlays.SkinEditor
             Debug.Assert(defaultOrigin != null && OriginalSurroundingQuad != null);
 
             var actualOrigin = ToScreenSpace(origin ?? defaultOrigin.Value);
+
+            if (piecesInScale != null)
+            {
+                var keyboard = GetContainingInputManager()?.CurrentState.Keyboard;
+
+                // Shift + corner zooms the part (keeping its shape), like every other skin element.
+                if (!(adjustAxis == Axes.Both && keyboard?.ShiftPressed == true))
+                {
+                    resizePieces(scale, actualOrigin, adjustAxis, keyboard?.ControlPressed == true);
+                    return;
+                }
+            }
 
             if ((adjustAxis == Axes.Y && !allSelectedSupportManualSizing(Axes.Y)) ||
                 (adjustAxis == Axes.X && !allSelectedSupportManualSizing(Axes.X)))
@@ -155,7 +174,104 @@ namespace osu.Game.Overlays.SkinEditor
             changeHandler?.EndChange();
 
             objectsInScale = null;
+            piecesInScale = null;
             defaultOrigin = null;
+        }
+
+        private Dictionary<SongSelectPieceLayout, OriginalPieceState>? piecesInScale;
+
+        /// <summary>
+        /// oily: resizes song select parts like windows (the part is laid out at the new size instead of being stretched).
+        /// With <paramref name="crop"/>, the part stays where it is and the dragged edges cut it off (or uncover it) instead.
+        /// </summary>
+        private void resizePieces(Vector2 scale, Vector2 screenSpaceOrigin, Axes adjustAxis, bool crop)
+        {
+            Debug.Assert(piecesInScale != null);
+
+            scale = new Vector2((adjustAxis & Axes.X) != 0 ? scale.X : 1, (adjustAxis & Axes.Y) != 0 ? scale.Y : 1);
+
+            foreach (var (layout, original) in piecesInScale)
+            {
+                Quad quad = original.ScreenSpaceQuad;
+                Vector2 xAxis = quad.TopRight - quad.TopLeft;
+                Vector2 yAxis = quad.BottomLeft - quad.TopLeft;
+
+                if (xAxis.LengthSquared < 1 || yAxis.LengthSquared < 1)
+                    continue;
+
+                var currentScale = scale;
+                if (Precision.AlmostEquals(MathF.Abs(layout.Rotation) % 180, 90))
+                    currentScale = new Vector2(scale.Y, scale.X);
+
+                // Where the point that stays still is, as a fraction across the part (0 = left/top edge, 1 = right/bottom edge).
+                Vector2 fromCorner = screenSpaceOrigin - quad.TopLeft;
+                var still = new Vector2(Vector2.Dot(fromCorner, xAxis) / xAxis.LengthSquared, Vector2.Dot(fromCorner, yAxis) / yAxis.LengthSquared);
+
+                Vector2 size = Vector2.ComponentMax(original.Size * currentScale, new Vector2(min_piece_size));
+
+                if (crop)
+                {
+                    // The part's whole size stays the same; only how much of it is cut off changes.
+                    Vector2 full = original.FullSize;
+                    size = Vector2.ComponentMin(Vector2.ComponentMax(size, full * (1 - SongSelectPieceLayout.MAX_CROP)), full);
+
+                    Vector2 shrink = original.Size - size;
+                    float left = Math.Max(0, original.Crop.left + still.X * shrink.X / full.X);
+                    float right = Math.Max(0, original.Crop.right + (1 - still.X) * shrink.X / full.X);
+                    float top = Math.Max(0, original.Crop.top + still.Y * shrink.Y / full.Y);
+                    float bottom = Math.Max(0, original.Crop.bottom + (1 - still.Y) * shrink.Y / full.Y);
+
+                    layout.CropLeft.Value = left;
+                    layout.CropRight.Value = right;
+                    layout.CropTop.Value = top;
+                    layout.CropBottom.Value = bottom;
+
+                    // An edge can't be uncovered past the part's own edge.
+                    size = new Vector2(full.X * (1 - left - right), full.Y * (1 - top - bottom));
+                    Vector2 moved = new Vector2((left - original.Crop.left) * full.X, (top - original.Crop.top) * full.Y);
+                    placeOrigin(layout, original, moved, size);
+                }
+                else
+                {
+                    layout.CropLeft.Value = original.Crop.left;
+                    layout.CropRight.Value = original.Crop.right;
+                    layout.CropTop.Value = original.Crop.top;
+                    layout.CropBottom.Value = original.Crop.bottom;
+
+                    Vector2 shrink = original.Size - size;
+                    placeOrigin(layout, original, new Vector2(still.X * shrink.X, still.Y * shrink.Y), size);
+                }
+            }
+        }
+
+        private const float min_piece_size = 10;
+
+        /// <summary>
+        /// Sizes <paramref name="layout"/> and moves it so its top left corner is <paramref name="topLeft"/> (in its original, unscaled units) from where it was.
+        /// </summary>
+        private void placeOrigin(SongSelectPieceLayout layout, OriginalPieceState original, Vector2 topLeft, Vector2 size)
+        {
+            Quad quad = original.ScreenSpaceQuad;
+            Vector2 local = topLeft + layout.RelativeOriginPosition * size;
+
+            layout.Size = size;
+            UpdatePosition(layout, quad.TopLeft + (quad.TopRight - quad.TopLeft) * (local.X / original.Size.X) + (quad.BottomLeft - quad.TopLeft) * (local.Y / original.Size.Y));
+        }
+
+        private readonly struct OriginalPieceState
+        {
+            public Vector2 Size { get; }
+            public Vector2 FullSize { get; }
+            public (float left, float top, float right, float bottom) Crop { get; }
+            public Quad ScreenSpaceQuad { get; }
+
+            public OriginalPieceState(SongSelectPieceLayout layout)
+            {
+                Size = layout.Size;
+                FullSize = layout.FullSize;
+                Crop = layout.Crop;
+                ScreenSpaceQuad = layout.ScreenSpaceDrawQuad;
+            }
         }
 
         private struct OriginalDrawableState

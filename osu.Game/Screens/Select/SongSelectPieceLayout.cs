@@ -45,6 +45,82 @@ namespace osu.Game.Screens.Select
         [SettingSource("Hidden", "Hide this part of song select.")]
         public BindableBool Hidden { get; } = new BindableBool();
 
+        // oily: the crop is set by holding Ctrl while dragging the skin editor's handles (see SkinSelectionScaleHandler), so no sliders are shown.
+        [SettingSource("Crop left", "How much of the part's left side is cut off.", HideControl = true)]
+        public BindableFloat CropLeft { get; } = createCrop();
+
+        [SettingSource("Crop right", "How much of the part's right side is cut off.", HideControl = true)]
+        public BindableFloat CropRight { get; } = createCrop();
+
+        [SettingSource("Crop top", "How much of the part's top is cut off.", HideControl = true)]
+        public BindableFloat CropTop { get; } = createCrop();
+
+        [SettingSource("Crop bottom", "How much of the part's bottom is cut off.", HideControl = true)]
+        public BindableFloat CropBottom { get; } = createCrop();
+
+        /// <summary>
+        /// The most of a part that can be cut off on one axis.
+        /// </summary>
+        public const float MAX_CROP = 0.95f;
+
+        private static BindableFloat createCrop() => new BindableFloat
+        {
+            MinValue = 0,
+            MaxValue = MAX_CROP,
+        };
+
+        /// <summary>
+        /// The crop as fractions of the part's size (left, top, right, bottom), never cutting off everything.
+        /// </summary>
+        public (float left, float top, float right, float bottom) Crop
+        {
+            get
+            {
+                float left = CropLeft.Value, right = CropRight.Value, top = CropTop.Value, bottom = CropBottom.Value;
+
+                if (left + right > MAX_CROP)
+                {
+                    float f = MAX_CROP / (left + right);
+                    left *= f;
+                    right *= f;
+                }
+
+                if (top + bottom > MAX_CROP)
+                {
+                    float f = MAX_CROP / (top + bottom);
+                    top *= f;
+                    bottom *= f;
+                }
+
+                return (left, top, right, bottom);
+            }
+        }
+
+        /// <summary>
+        /// The part's whole size (before cropping) in this component's own space. This component is the size of the part's visible (not cut off) area.
+        /// </summary>
+        public Vector2 FullSize
+        {
+            get
+            {
+                var crop = Crop;
+                return new Vector2(DrawWidth / (1 - crop.left - crop.right), DrawHeight / (1 - crop.top - crop.bottom));
+            }
+        }
+
+        /// <summary>
+        /// The part's whole area (before cropping) in this component's own space.
+        /// </summary>
+        public RectangleF FullRectangle
+        {
+            get
+            {
+                var crop = Crop;
+                Vector2 full = FullSize;
+                return new RectangleF(-crop.left * full.X, -crop.top * full.Y, full.X, full.Y);
+            }
+        }
+
         [SettingSource("Opacity", "How see-through this part of song select is.", SettingControlType = typeof(SettingsPercentageSlider<float>))]
         public BindableFloat PieceOpacity { get; } = new BindableFloat(1)
         {
@@ -144,16 +220,8 @@ namespace osu.Game.Screens.Select
                 return;
             }
 
+            // oily: once moved, this component's size is the part's size (like a window), so lazer's own size no longer matters.
             hasFollowed = false;
-
-            // Keep the same size as lazer's piece, in this component's own space. The skin editor resizes using Scale.
-            Quad natural = piece.NaturalScreenSpaceQuad;
-            Vector2 topLeft = Parent.ToLocalSpace(natural.TopLeft);
-            float width = (Parent.ToLocalSpace(natural.TopRight) - topLeft).Length;
-            float height = (Parent.ToLocalSpace(natural.BottomLeft) - topLeft).Length;
-
-            if (width > 0 && height > 0)
-                Size = new Vector2(width, height);
         }
 
         private bool recolourIsDefault = true;
@@ -267,6 +335,7 @@ namespace osu.Game.Screens.Select
         private bool hasFollowed;
         private Vector2 followedPosition;
         private Vector2 followedScale;
+        private Vector2 followedSize;
         private float followedRotation;
 
         /// <summary>
@@ -274,7 +343,8 @@ namespace osu.Game.Screens.Select
         /// </summary>
         private void followPiece()
         {
-            if (hasFollowed && (Position != followedPosition || Scale != followedScale || Rotation != followedRotation || Anchor != Anchor.TopLeft || Origin != Anchor.TopLeft))
+            if (hasFollowed && (Position != followedPosition || Scale != followedScale || Size != followedSize || Rotation != followedRotation
+                                || Anchor != Anchor.TopLeft || Origin != Anchor.TopLeft))
             {
                 FollowLazer.Value = false;
                 hasFollowed = false;
@@ -285,6 +355,7 @@ namespace osu.Game.Screens.Select
 
             followedPosition = Position;
             followedScale = Scale;
+            followedSize = Size;
             followedRotation = Rotation;
             hasFollowed = true;
         }
@@ -310,7 +381,7 @@ namespace osu.Game.Screens.Select
             Anchor == Anchor.TopCentre && Origin == Anchor.TopCentre && X == 0 && Parent != null && Math.Abs(Y - Parent.DrawHeight / 2) < 1;
 
         /// <summary>
-        /// Puts this component exactly over lazer's piece, so adding it changes nothing until it is moved.
+        /// Puts this component exactly over the visible (not cropped) part of lazer's piece, so adding it changes nothing until it is moved.
         /// </summary>
         private void snapToPiece()
         {
@@ -319,13 +390,16 @@ namespace osu.Game.Screens.Select
 
             Quad natural = piece.NaturalScreenSpaceQuad;
             Vector2 topLeft = Parent.ToLocalSpace(natural.TopLeft);
+            Vector2 xAxis = Parent.ToLocalSpace(natural.TopRight) - topLeft;
+            Vector2 yAxis = Parent.ToLocalSpace(natural.BottomLeft) - topLeft;
+            var crop = Crop;
 
             Anchor = Anchor.TopLeft;
             Origin = Anchor.TopLeft;
             Rotation = 0;
             Scale = Vector2.One;
-            Size = new Vector2((Parent.ToLocalSpace(natural.TopRight) - topLeft).Length, (Parent.ToLocalSpace(natural.BottomLeft) - topLeft).Length);
-            Position = topLeft;
+            Size = new Vector2(xAxis.Length * (1 - crop.left - crop.right), yAxis.Length * (1 - crop.top - crop.bottom));
+            Position = topLeft + xAxis * crop.left + yAxis * crop.top;
         }
 
         private SkinnableContainer? findSkinnableContainer()
