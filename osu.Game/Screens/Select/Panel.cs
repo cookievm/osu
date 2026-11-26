@@ -67,7 +67,7 @@ namespace osu.Game.Screens.Select
         /// <remarks>
         /// Stable's card pictures (85 tall) overlap each other, so cards are spaced closer than the picture is tall.
         /// </remarks>
-        public const float STABLE_HEIGHT = 55;
+        public static readonly float STABLE_HEIGHT = StablePanelContent.DEFAULT_CARD_HEIGHT - BeatmapCarousel.SPACING;
 
         /// <summary>
         /// oily: how tall this card is with the stable look.

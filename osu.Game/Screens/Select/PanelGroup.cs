@@ -30,8 +30,6 @@ namespace osu.Game.Screens.Select
 
         protected override bool SupportsStableLook => GetType() == typeof(PanelGroup);
 
-        protected override float StableHeight => HEIGHT;
-
         private Drawable iconContainer = null!;
         private OsuSpriteText titleText = null!;
         private TrianglesV2 triangles = null!;

@@ -244,6 +244,7 @@ namespace osu.Game.Screens.Select
             authorText.Text = BeatmapsetsStrings.ShowDetailsMappedBy(beatmap.Metadata.Author.Username);
 
             StableContent.Kind = StablePanelKind.Difficulty;
+            StableContent.InsideSet = false;
             StableContent.Title = StablePanelContent.TitleOf(beatmapSet.Metadata);
             StableContent.Subtitle = StablePanelContent.ArtistAndMapper(beatmap.Metadata);
             StableContent.DifficultyName = beatmap.DifficultyName;

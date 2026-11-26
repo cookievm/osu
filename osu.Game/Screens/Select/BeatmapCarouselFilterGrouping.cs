@@ -101,7 +101,7 @@ namespace osu.Game.Screens.Select
 
                         addItem(groupItem = new CarouselItem(group)
                         {
-                            DrawHeight = HeightScale * PanelGroup.HEIGHT,
+                            DrawHeight = HeightScale * (StableCards ? Panel.STABLE_HEIGHT : PanelGroup.HEIGHT),
                             DepthLayer = -2,
                         });
                     }
