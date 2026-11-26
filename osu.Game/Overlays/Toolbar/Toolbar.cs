@@ -564,13 +564,17 @@ namespace osu.Game.Overlays.Toolbar
                 if (Vertical)
                     Width = Thickness;
 
-                if (Spread)
-                {
-                    updateListingFocus();
+                if (Spread && !listingFocused)
+                    spreadButtons();
+            }
 
-                    if (!listingFocused)
-                        spreadButtons();
-                }
+            protected override void UpdateAfterChildren()
+            {
+                base.UpdateAfterChildren();
+
+                // after the row has laid itself out this frame, so the profile button's place in it is up to date.
+                if (Spread)
+                    updateListingFocus();
             }
 
             /// <summary>
@@ -592,7 +596,7 @@ namespace osu.Game.Overlays.Toolbar
             /// <summary>
             /// oily: whether buttons may be (or are) past the bar's ends, so the bar mustn't cut them off.
             /// </summary>
-            public bool ButtonsOutside => listingFocused || middleFlow.X > 0;
+            public bool ButtonsOutside => listingFocused || userRight != null;
 
             /// <summary>
             /// oily: whether the bar, or one of its buttons outside it, is under the cursor.
@@ -633,20 +637,48 @@ namespace osu.Game.Overlays.Toolbar
                         middleFlow.Spacing = new Vector2(listing_focus_gap, 0);
                 }
 
-                float targetX = 0;
+                // The profile button's right edge is moved smoothly (never past where it stops), and the row is offset to match.
+                // The rest of the row (the listing button closing up to it, the others reappearing) is animated by the flow itself.
+                if (!Items.TryGetValue(ToolbarItem.User, out var user))
+                    return;
+
+                float userRightInFlow = user.X + user.DrawWidth;
 
                 if (listingFocused)
                 {
                     float keptWidth = LISTING_FOCUS_ITEMS.Sum(i => Items.TryGetValue(i, out var d) ? d.DrawWidth : 0) + listing_focus_gap * (LISTING_FOCUS_ITEMS.Length - 1);
-                    float listingRight = ToLocalSpace(listing!.ScreenSpaceDrawQuad.BottomRight).X - listing_focus_margin;
+                    float target = Math.Max(ToLocalSpace(listing!.ScreenSpaceDrawQuad.BottomRight).X - listing_focus_margin, keptWidth);
 
-                    targetX = Math.Max(listingRight, keptWidth) - keptWidth;
+                    userRight ??= middleFlow.X + userRightInFlow;
+                    userRight = approach(userRight.Value, target);
                 }
+                else if (userRight != null)
+                {
+                    // back to the spread row, where the profile button is last and ends at the bar's end.
+                    userRight = approach(userRight.Value, DrawWidth);
 
-                middleFlow.X = (float)Interpolation.DampContinuously(middleFlow.X, targetX, 60, Time.Elapsed);
+                    if (userRight == DrawWidth && Math.Abs(DrawWidth - userRightInFlow) < 0.5f)
+                    {
+                        userRight = null;
+                        middleFlow.X = 0;
+                        return;
+                    }
+                }
+                else
+                    return;
 
-                if (Math.Abs(middleFlow.X - targetX) < 0.5f)
-                    middleFlow.X = targetX;
+                middleFlow.X = userRight.Value - userRightInFlow;
+            }
+
+            /// <summary>
+            /// oily: where the profile button's right edge is while it moves for the beatmap listing (null when it's in its normal place).
+            /// </summary>
+            private float? userRight;
+
+            private float approach(float current, float target)
+            {
+                float next = (float)Interpolation.DampContinuously(current, target, 50, Time.Elapsed);
+                return Math.Abs(next - target) < 0.5f ? target : next;
             }
 
             /// <summary>

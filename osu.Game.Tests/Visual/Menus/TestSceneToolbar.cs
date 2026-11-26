@@ -319,7 +319,13 @@ namespace osu.Game.Tests.Visual.Menus
                 toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Single().StateContainer = listing;
             });
 
-            AddStep("open the listing", () => listing.Show());
+            var rights = new List<float>();
+
+            AddStep("open the listing", () =>
+            {
+                listing.Show();
+                toolbar.OnUpdate += _ => rights.Add(toolbar.ChildrenOfType<ToolbarUserButton>().Single().ScreenSpaceDrawQuad.TopRight.X);
+            });
 
             AddUntilStep("other buttons gone", () => toolbar.ChildrenOfType<ToolbarButton>()
                                                            .Where(b => b is not ToolbarBeatmapListingButton && b is not ToolbarUserButton && b.FindClosestParent<ToolbarRulesetSelector>() == null)
@@ -334,6 +340,14 @@ namespace osu.Game.Tests.Visual.Menus
                 float right = listing.ScreenSpaceDrawQuad.BottomRight.X;
 
                 return listingButton.TopRight.X <= user.TopLeft.X && user.TopRight.X <= right && right - user.TopRight.X < 30;
+            });
+
+            AddWaitStep("let it settle", 10);
+            AddAssert("profile button moved one way only (no overshoot)", () =>
+            {
+                float end = rights.Last();
+                float start = rights.First();
+                return rights.All(r => r >= Math.Min(start, end) - 1 && r <= Math.Max(start, end) + 1);
             });
 
             AddStep("close the listing", () => listing.Hide());
