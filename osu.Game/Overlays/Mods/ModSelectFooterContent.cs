@@ -8,6 +8,7 @@ using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Testing;
 using osu.Game.Beatmaps;
 using osu.Game.Configuration;
 using osu.Game.Graphics.UserInterface;
@@ -144,11 +145,15 @@ namespace osu.Game.Overlays.Mods
                 foreach (var button in footer.ShownButtons.Where(b => b.IsPresent))
                     left = Math.Max(left, ToLocalSpace(button.ScreenSpaceDrawQuad.TopRight).X);
 
-                if (footer.ToolbarButtons is Drawable toolbarButtons && toolbarButtons.IsPresent && toolbarButtons.DrawWidth > 0)
+                // The first toolbar icon on the bar that's actually showing (and right of the buttons).
+                if (footer.ToolbarButtons is CompositeDrawable toolbarButtons && toolbarButtons.IsPresent)
                 {
-                    float toolbarLeft = ToLocalSpace(toolbarButtons.ScreenSpaceDrawQuad.TopLeft).X;
-                    if (toolbarLeft > left)
-                        right = Math.Min(right, toolbarLeft);
+                    foreach (var icon in toolbarButtons.ChildrenOfType<Drawable>().Where(d => d.IsPresent && d.DrawWidth > 1 && d.DrawWidth < 200))
+                    {
+                        float iconLeft = ToLocalSpace(icon.ScreenSpaceDrawQuad.TopLeft).X;
+                        if (iconLeft > left)
+                            right = Math.Min(right, iconLeft);
+                    }
                 }
             }
 
