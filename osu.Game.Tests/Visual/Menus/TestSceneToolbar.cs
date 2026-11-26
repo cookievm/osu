@@ -355,6 +355,41 @@ namespace osu.Game.Tests.Visual.Menus
                                                      && toolbar.ChildrenOfType<ToolbarRulesetSelector>().Single().Alpha == 1);
         }
 
+        [Test]
+        public void TestChatFocus()
+        {
+            // oily (ilo, 2026-11-26): with chat open, only its button and the profile button stay,
+            // sliding to the bottom right corner of the chat box.
+            TestListing chat = null;
+
+            AddStep("add a chat box", () =>
+            {
+                Add(chat = new TestListing { Anchor = Anchor.BottomCentre, Origin = Anchor.BottomCentre, Height = 0.4f });
+                toolbar.ChildrenOfType<ToolbarChatButton>().Single().StateContainer = chat;
+            });
+
+            AddStep("open chat", () => chat.Show());
+
+            AddUntilStep("other buttons gone", () => toolbar.ChildrenOfType<ToolbarButton>()
+                                                           .Where(b => b is not ToolbarChatButton && b is not ToolbarUserButton && b.FindClosestParent<ToolbarRulesetSelector>() == null)
+                                                           .All(b => !b.IsPresent)
+                                                       && !toolbar.ChildrenOfType<ToolbarClock>().Single().IsPresent);
+
+            AddUntilStep("chat then profile, at the chat box's bottom right", () =>
+            {
+                var chatButton = toolbar.ChildrenOfType<ToolbarChatButton>().Single().ScreenSpaceDrawQuad;
+                var user = toolbar.ChildrenOfType<ToolbarUserButton>().Single().ScreenSpaceDrawQuad;
+                float right = chat.ScreenSpaceDrawQuad.BottomRight.X;
+
+                return chatButton.TopRight.X <= user.TopLeft.X && user.TopLeft.X - chatButton.TopRight.X < 30
+                       && user.TopRight.X <= right && right - user.TopRight.X < 30;
+            });
+
+            AddStep("close chat", () => chat.Hide());
+            AddUntilStep("other buttons back", () => toolbar.ChildrenOfType<ToolbarClock>().Single().Alpha == 1
+                                                     && toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Single().Alpha == 1);
+        }
+
         private partial class TestListing : OverlayContainer
         {
             public TestListing()

@@ -564,7 +564,7 @@ namespace osu.Game.Overlays.Toolbar
                 if (Vertical)
                     Width = Thickness;
 
-                if (Spread && !listingFocused)
+                if (Spread && focusedItem == null)
                     spreadButtons();
             }
 
@@ -578,45 +578,73 @@ namespace osu.Game.Overlays.Toolbar
             }
 
             /// <summary>
-            /// oily (ilo, 2026-11-26): the buttons kept while the beatmap listing is open, left to right.
+            /// oily (ilo, 2026-11-26): overlays that make the toolbar focus on their own button. While one is open,
+            /// only its button and the profile button stay, sliding to the overlay's bottom right corner.
             /// </summary>
-            public static readonly ToolbarItem[] LISTING_FOCUS_ITEMS = { ToolbarItem.BeatmapListing, ToolbarItem.User };
+            public static readonly ToolbarItem[] FOCUS_OVERLAY_ITEMS = { ToolbarItem.BeatmapListing, ToolbarItem.Chat };
 
             private const float listing_focus_gap = 6;
             private const float listing_focus_margin = 10;
             private const double listing_focus_fade = 250;
 
-            private bool listingFocused;
+            /// <summary>
+            /// oily: the button whose overlay the toolbar is focused on (null when none is open).
+            /// </summary>
+            private ToolbarItem? focusedItem;
+
+            /// <summary>
+            /// oily: the button the buttons last moved for, kept while they slide back so input still reaches them.
+            /// </summary>
+            private ToolbarItem? movedItem;
 
             /// <summary>
             /// oily: whether the beatmap listing is open and only its button and the profile button are showing.
             /// </summary>
-            public bool ListingFocused => listingFocused;
+            public bool ListingFocused => focusedItem == ToolbarItem.BeatmapListing;
+
+            /// <summary>
+            /// oily: whether chat is open and only its button and the profile button are showing.
+            /// </summary>
+            public bool ChatFocused => focusedItem == ToolbarItem.Chat;
 
             /// <summary>
             /// oily: whether buttons may be (or are) past the bar's ends, so the bar mustn't cut them off.
             /// </summary>
-            public bool ButtonsOutside => listingFocused || userRight != null;
+            public bool ButtonsOutside => focusedItem != null || userRight != null;
+
+            private bool isKept(ToolbarItem item) => item == ToolbarItem.User || item == (focusedItem ?? movedItem);
 
             /// <summary>
             /// oily: whether the bar, or one of its buttons outside it, is under the cursor.
             /// </summary>
             public bool TakesInputAt(Vector2 screenSpacePos)
                 => ReceivePositionalInputAt(screenSpacePos)
-                   || (ButtonsOutside && LISTING_FOCUS_ITEMS.Any(i => Items.TryGetValue(i, out var d) && d.IsPresent && d.ReceivePositionalInputAt(screenSpacePos)));
+                   || (ButtonsOutside && Items.Any(kv => isKept(kv.Key) && kv.Value.IsPresent && kv.Value.ReceivePositionalInputAt(screenSpacePos)));
+
+            private OverlayContainer overlayFor(ToolbarItem item) => (Items.GetValueOrDefault(item) as ToolbarOverlayToggleButton)?.StateContainer;
 
             /// <summary>
-            /// oily (ilo, 2026-11-26): while the beatmap listing is open, every other button fades away (and can't be clicked),
-            /// and the beatmap listing and profile buttons slide to the bottom right corner of the listing.
+            /// oily (ilo, 2026-11-26): while the beatmap listing or chat is open, every other button fades away (and can't be clicked),
+            /// and that overlay's button and the profile button slide to the bottom right corner of the overlay.
             /// </summary>
             private void updateListingFocus()
             {
-                var listing = (Items.GetValueOrDefault(ToolbarItem.BeatmapListing) as ToolbarOverlayToggleButton)?.StateContainer;
-                bool focus = listing?.State.Value == Visibility.Visible && Items.ContainsKey(ToolbarItem.User);
+                ToolbarItem? focus = null;
 
-                if (focus != listingFocused)
+                if (Items.ContainsKey(ToolbarItem.User))
                 {
-                    listingFocused = focus;
+                    // stay on the current overlay while it's open, otherwise take whichever one is open.
+                    if (focusedItem is ToolbarItem current && overlayFor(current)?.State.Value == Visibility.Visible)
+                        focus = current;
+                    else
+                        focus = FOCUS_OVERLAY_ITEMS.Cast<ToolbarItem?>().FirstOrDefault(i => overlayFor(i!.Value)?.State.Value == Visibility.Visible);
+                }
+
+                if (focus != focusedItem)
+                {
+                    focusedItem = focus;
+                    if (focus != null)
+                        movedItem = focus;
 
                     // the flow slides the buttons into their new places as the others disappear (or come back).
                     middleFlow.LayoutDuration = 400;
@@ -624,30 +652,27 @@ namespace osu.Game.Overlays.Toolbar
 
                     foreach (var (item, drawable) in Items)
                     {
-                        if (LISTING_FOCUS_ITEMS.Contains(item))
-                            continue;
-
-                        if (focus)
-                            drawable.FadeOut(listing_focus_fade, Easing.OutQuint);
-                        else
+                        if (focus == null || isKept(item))
                             drawable.FadeIn(listing_focus_fade, Easing.OutQuint);
+                        else
+                            drawable.FadeOut(listing_focus_fade, Easing.OutQuint);
                     }
 
-                    if (focus)
+                    if (focus != null)
                         middleFlow.Spacing = new Vector2(listing_focus_gap, 0);
                 }
 
                 // The profile button's right edge is moved smoothly (never past where it stops), and the row is offset to match.
-                // The rest of the row (the listing button closing up to it, the others reappearing) is animated by the flow itself.
+                // The rest of the row (the kept button closing up to it, the others reappearing) is animated by the flow itself.
                 if (!Items.TryGetValue(ToolbarItem.User, out var user))
                     return;
 
                 float userRightInFlow = user.X + user.DrawWidth;
 
-                if (listingFocused)
+                if (focusedItem is ToolbarItem focused)
                 {
-                    float keptWidth = LISTING_FOCUS_ITEMS.Sum(i => Items.TryGetValue(i, out var d) ? d.DrawWidth : 0) + listing_focus_gap * (LISTING_FOCUS_ITEMS.Length - 1);
-                    float target = Math.Max(ToLocalSpace(listing!.ScreenSpaceDrawQuad.BottomRight).X - listing_focus_margin, keptWidth);
+                    float keptWidth = Items.Where(kv => isKept(kv.Key)).Sum(kv => kv.Value.DrawWidth) + listing_focus_gap;
+                    float target = Math.Max(ToLocalSpace(overlayFor(focused)!.ScreenSpaceDrawQuad.BottomRight).X - listing_focus_margin, keptWidth);
 
                     userRight ??= middleFlow.X + userRightInFlow;
                     userRight = approach(userRight.Value, target);
@@ -660,6 +685,7 @@ namespace osu.Game.Overlays.Toolbar
                     if (userRight == DrawWidth && Math.Abs(DrawWidth - userRightInFlow) < 0.5f)
                     {
                         userRight = null;
+                        movedItem = null;
                         middleFlow.X = 0;
                         return;
                     }
@@ -671,7 +697,7 @@ namespace osu.Game.Overlays.Toolbar
             }
 
             /// <summary>
-            /// oily: where the profile button's right edge is while it moves for the beatmap listing (null when it's in its normal place).
+            /// oily: where the profile button's right edge is while it moves for an overlay (null when it's in its normal place).
             /// </summary>
             private float? userRight;
 
