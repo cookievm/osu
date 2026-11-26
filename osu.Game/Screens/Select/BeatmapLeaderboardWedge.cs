@@ -115,6 +115,11 @@ namespace osu.Game.Screens.Select
 
         private Sample? swishSample;
 
+        [Resolved]
+        private SongSelectPieceRegistry? pieceRegistry { get; set; }
+
+        private readonly BindableBool stableLeaderboard = new BindableBool();
+
         private readonly List<ScheduledDelegate> scoreSfxDelegates = new List<ScheduledDelegate>();
 
         [BackgroundDependencyLoader]
@@ -219,6 +224,13 @@ namespace osu.Game.Screens.Select
             beatmap.BindValueChanged(_ => RefetchScores());
             ruleset.BindValueChanged(_ => RefetchScores());
             mods.BindValueChanged(_ => refetchScoresFromMods());
+
+            // oily: rows are made again in the other look when the skin switches between lazer's and stable's leaderboard.
+            if (pieceRegistry != null)
+            {
+                stableLeaderboard.BindTo(pieceRegistry.StableLeaderboard);
+                stableLeaderboard.BindValueChanged(_ => RefetchScores());
+            }
 
             RefetchScores();
         }
@@ -325,6 +337,7 @@ namespace osu.Game.Screens.Select
 
                 return new BeatmapLeaderboardScore(s)
                 {
+                    StableLook = stableLeaderboard.Value,
                     Rank = i + 1,
                     Highlight = highlightType,
                     SelectedMods = { BindTarget = mods },
@@ -384,6 +397,7 @@ namespace osu.Game.Screens.Select
                 personalBestDisplay.FadeIn(600, Easing.OutQuint);
                 personalBestScoreContainer.Child = new BeatmapLeaderboardScore(userScore)
                 {
+                    StableLook = stableLeaderboard.Value,
                     Highlight = BeatmapLeaderboardScore.HighlightType.Own,
                     Rank = userScore.Position,
                     SelectedMods = { BindTarget = mods },

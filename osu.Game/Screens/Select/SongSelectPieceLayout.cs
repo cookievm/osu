@@ -457,6 +457,13 @@ namespace osu.Game.Screens.Select
         public override SongSelectPiece Piece => SongSelectPiece.BeatmapDetails;
 
         public override string DisplayName => "Beatmap details";
+
+        [SettingSource("Style", "Lazer's leaderboard rows, or osu!stable's (grade, name, score and combo, mods and accuracy). Stable uses your skin's ranking-X-small pictures when it has them.", -1)]
+        public Bindable<SongSelectPieceStyle> Style { get; } = new Bindable<SongSelectPieceStyle>();
+
+        protected override void UpdatePieceStyle() => Registry.StableLeaderboard.Value = Style.Value == SongSelectPieceStyle.Stable;
+
+        protected override void ResetPieceStyle() => Registry.StableLeaderboard.Value = false;
     }
 
     public partial class SongSelectBeatmapListLayout : SongSelectPieceLayout

@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Primitives;
@@ -47,6 +48,11 @@ namespace osu.Game.Screens.Select
         /// oily: colours of the Universal PP Simulator's sliders and buttons (set by the "PP Simulator colours" skin component).
         /// </summary>
         public readonly PerformanceSimulatorStyle SimulatorStyle = new PerformanceSimulatorStyle();
+
+        /// <summary>
+        /// oily: leaderboard rows are drawn like osu!stable's (set by the "Beatmap details" skin component).
+        /// </summary>
+        public readonly BindableBool StableLeaderboard = new BindableBool();
 
         /// <summary>
         /// Wraps a piece of song select so skins can move and style it. Without a registry (outside song select) the piece is still wrapped, but nothing controls it.
