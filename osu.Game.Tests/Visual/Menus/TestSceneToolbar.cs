@@ -355,29 +355,33 @@ namespace osu.Game.Tests.Visual.Menus
                                                      && toolbar.ChildrenOfType<ToolbarRulesetSelector>().Single().Alpha == 1);
         }
 
-        [Test]
-        public void TestChatFocus()
+        [TestCase(typeof(ToolbarChatButton))]
+        [TestCase(typeof(ToolbarSocialButton))]
+        [TestCase(typeof(ToolbarRankingsButton))]
+        public void TestOverlayFocus(Type buttonType)
         {
-            // oily (ilo, 2026-11-26): with chat open, only its button and the profile button stay,
+            // oily (ilo, 2026-11-26): with chat, the dashboard or rankings open, only its button and the profile button stay,
             // sliding to the bottom right corner of the chat box.
             TestListing chat = null;
 
             AddStep("add a chat box", () =>
             {
                 Add(chat = new TestListing { Anchor = Anchor.BottomCentre, Origin = Anchor.BottomCentre, Height = 0.4f });
-                toolbar.ChildrenOfType<ToolbarChatButton>().Single().StateContainer = chat;
+                button().StateContainer = chat;
             });
+
+            ToolbarOverlayToggleButton button() => toolbar.ChildrenOfType<ToolbarOverlayToggleButton>().Single(b => b.GetType() == buttonType);
 
             AddStep("open chat", () => chat.Show());
 
             AddUntilStep("other buttons gone", () => toolbar.ChildrenOfType<ToolbarButton>()
-                                                           .Where(b => b is not ToolbarChatButton && b is not ToolbarUserButton && b.FindClosestParent<ToolbarRulesetSelector>() == null)
+                                                           .Where(b => b.GetType() != buttonType && b is not ToolbarUserButton && b.FindClosestParent<ToolbarRulesetSelector>() == null)
                                                            .All(b => !b.IsPresent)
                                                        && !toolbar.ChildrenOfType<ToolbarClock>().Single().IsPresent);
 
             AddUntilStep("chat then profile, at the chat box's bottom right", () =>
             {
-                var chatButton = toolbar.ChildrenOfType<ToolbarChatButton>().Single().ScreenSpaceDrawQuad;
+                var chatButton = button().ScreenSpaceDrawQuad;
                 var user = toolbar.ChildrenOfType<ToolbarUserButton>().Single().ScreenSpaceDrawQuad;
                 float right = chat.ScreenSpaceDrawQuad.BottomRight.X;
 

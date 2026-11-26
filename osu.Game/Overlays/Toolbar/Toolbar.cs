@@ -581,7 +581,7 @@ namespace osu.Game.Overlays.Toolbar
             /// oily (ilo, 2026-11-26): overlays that make the toolbar focus on their own button. While one is open,
             /// only its button and the profile button stay, sliding to the overlay's bottom right corner.
             /// </summary>
-            public static readonly ToolbarItem[] FOCUS_OVERLAY_ITEMS = { ToolbarItem.BeatmapListing, ToolbarItem.Chat };
+            public static readonly ToolbarItem[] FOCUS_OVERLAY_ITEMS = { ToolbarItem.BeatmapListing, ToolbarItem.Chat, ToolbarItem.Social, ToolbarItem.Rankings };
 
             private const float listing_focus_gap = 6;
             private const float listing_focus_margin = 10;
@@ -624,7 +624,7 @@ namespace osu.Game.Overlays.Toolbar
             private OverlayContainer overlayFor(ToolbarItem item) => (Items.GetValueOrDefault(item) as ToolbarOverlayToggleButton)?.StateContainer;
 
             /// <summary>
-            /// oily (ilo, 2026-11-26): while the beatmap listing or chat is open, every other button fades away (and can't be clicked),
+            /// oily (ilo, 2026-11-26): while the beatmap listing, chat, dashboard or rankings is open, every other button fades away (and can't be clicked),
             /// and that overlay's button and the profile button slide to the bottom right corner of the overlay.
             /// </summary>
             private void updateListingFocus()
