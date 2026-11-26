@@ -432,6 +432,11 @@ namespace osu.Game.Tests.Visual.Navigation
             AddUntilStep("song select parts offered", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().Count(), () => Is.GreaterThan(1));
             AddStep("click PP Simulator button", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxActionButton>().Last().TriggerClick());
             AddUntilStep("simulator open", () => songSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().State.Value, () => Is.EqualTo(Visibility.Visible));
+            AddAssert("simulator box drawn", () =>
+            {
+                var popup = songSelect.ChildrenOfType<PerformanceSimulationPopup>().Single();
+                return popup.IsPresent && popup.Alpha > 0.99f && Game.ScreenStack.ScreenSpaceDrawQuad.Contains(popup.ScreenSpaceDrawQuad.Centre);
+            });
             AddUntilStep("working on the simulator layer", () => skinEditor.ChildrenOfType<SkinComponentToolbox>().Single().ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>()
                                                                           .Any(b => b.ChildrenOfType<PpSimulatorColours>().Any()));
             AddAssert("song select parts still offered", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().Count(b => b.ChildrenOfType<SongSelectPieceLayout>().Any()),
