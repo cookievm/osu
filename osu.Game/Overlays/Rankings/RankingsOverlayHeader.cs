@@ -50,7 +50,12 @@ namespace osu.Game.Overlays.Rankings
             var items = Enum.GetValues<RankingsScope>().Where(s => relaxShown || !IsRelaxScope(s)).ToArray();
 
             if (!TabControl.Items.SequenceEqual(items))
+            {
                 TabControl.Items = items;
+
+                // new tabs don't get the colour on their own, which would leave their text invisible until clicked.
+                TabControl.AccentColour = TabControl.AccentColour;
+            }
 
             // replacing the tabs can reset the current page, so put the right one back.
             Current.Value = scope;

@@ -10,6 +10,7 @@ using osu.Framework.Bindables;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Testing;
+using osu.Game.Graphics;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Rankings;
 using osu.Game.Rulesets.Catch;
@@ -89,6 +90,8 @@ namespace osu.Game.Tests.Visual.Online
 
             AddStep("set rankings ruleset to osu!", () => rankingsOverlay.Header.Ruleset.Value = new OsuRuleset().RulesetInfo);
             AddUntilStep("relax tabs back", () => relaxTabs().Count() == 2);
+            AddAssert("every tab's text is coloured", () => rankingsOverlay.Header.ChildrenOfType<TabItem<RankingsScope>>()
+                                                                          .OfType<IHasAccentColour>().All(t => t.AccentColour.A > 0));
 
             IEnumerable<TabItem<RankingsScope>> relaxTabs() => rankingsOverlay.Header.ChildrenOfType<TabItem<RankingsScope>>()
                                                                                 .Where(t => RankingsOverlayHeader.IsRelaxScope(t.Value));
