@@ -376,6 +376,7 @@ namespace osu.Game.Overlays.SkinEditor
         }
 
         private GlobalSkinnableContainers? preferredTarget;
+        private Type? placeAfterSwitch;
         private int preferredTargetTries;
 
         /// <summary>
@@ -384,8 +385,19 @@ namespace osu.Game.Overlays.SkinEditor
         public void SelectTarget(GlobalSkinnableContainers lookup)
         {
             preferredTarget = lookup;
+            placeAfterSwitch = null;
             preferredTargetTries = 0;
             Scheduler.AddOnce(applyPreferredTarget);
+        }
+
+        /// <summary>
+        /// oily: switches the working layer to <paramref name="lookup"/>, then places (or picks) a <paramref name="type"/> there,
+        /// as if it was picked in that layer's component list.
+        /// </summary>
+        public void PlaceInTarget(GlobalSkinnableContainers lookup, Type type)
+        {
+            SelectTarget(lookup);
+            placeAfterSwitch = type;
         }
 
         /// <summary>
@@ -416,9 +428,18 @@ namespace osu.Game.Overlays.SkinEditor
                 preferredTarget = null;
                 selectedTarget.Value = target.Lookup;
 
+                var placement = placeAfterSwitch;
+                placeAfterSwitch = null;
+
                 // A layer that only holds settings opens them straight away.
                 Schedule(() =>
                 {
+                    if (placement != null)
+                    {
+                        placeOfType(placement);
+                        return;
+                    }
+
                     if (target.Components.OfType<ISettingsOnlySkinComponent>().FirstOrDefault() is ISerialisableDrawable settings)
                     {
                         SelectedComponents.Clear();
@@ -432,7 +453,10 @@ namespace osu.Game.Overlays.SkinEditor
             if (++preferredTargetTries < 300)
                 Scheduler.AddDelayed(applyPreferredTarget, 16);
             else
+            {
                 preferredTarget = null;
+                placeAfterSwitch = null;
+            }
         }
 
         private void targetChanged(ValueChangedEvent<GlobalSkinnableContainerLookup?> target)
@@ -498,22 +522,7 @@ namespace osu.Game.Overlays.SkinEditor
                 Schedule(() => bindChangeHandler(container));
             }
 
-            void requestPlacement(Type type)
-            {
-                // oily: a settings-only component is kept once per layer; picking it opens its settings.
-                if (typeof(ISettingsOnlySkinComponent).IsAssignableFrom(type) && getTarget(selectedTarget.Value)?.Components.FirstOrDefault(c => c.GetType() == type) is ISerialisableDrawable existing)
-                {
-                    SelectedComponents.Clear();
-                    SelectedComponents.Add(existing);
-                    return;
-                }
-
-                if (!(Activator.CreateInstance(type) is ISerialisableDrawable component))
-                    throw new InvalidOperationException($"Attempted to instantiate a component for placement which was not an {typeof(ISerialisableDrawable)}.");
-
-                SelectedComponents.Clear();
-                placeComponent(component);
-            }
+            void requestPlacement(Type type) => placeOfType(type);
 
             void bindChangeHandler(SkinnableContainer skinnableContainer)
             {
@@ -521,6 +530,23 @@ namespace osu.Game.Overlays.SkinEditor
                 changeHandler.CanUndo.BindValueChanged(v => undoMenuItem.Action.Disabled = !v.NewValue, true);
                 changeHandler.CanRedo.BindValueChanged(v => redoMenuItem.Action.Disabled = !v.NewValue, true);
             }
+        }
+
+        private void placeOfType(Type type)
+        {
+            // oily: a settings-only component is kept once per layer; picking it opens its settings.
+            if (typeof(ISettingsOnlySkinComponent).IsAssignableFrom(type) && getTarget(selectedTarget.Value)?.Components.FirstOrDefault(c => c.GetType() == type) is ISerialisableDrawable existing)
+            {
+                SelectedComponents.Clear();
+                SelectedComponents.Add(existing);
+                return;
+            }
+
+            if (!(Activator.CreateInstance(type) is ISerialisableDrawable component))
+                throw new InvalidOperationException($"Attempted to instantiate a component for placement which was not an {typeof(ISerialisableDrawable)}.");
+
+            SelectedComponents.Clear();
+            placeComponent(component);
         }
 
         private void skinChanged()

@@ -1337,6 +1337,11 @@ namespace osu.Game.Screens.Select
         }
 
         /// <summary>
+        /// oily: closes the pp simulator (the skin editor goes back to song select's own layer).
+        /// </summary>
+        public void HidePerformanceSimulation() => simulationPopup.Hide();
+
+        /// <summary>
         /// oily: opens the pp simulator for the selected beatmap, or closes it if it is open.
         /// </summary>
         public void TogglePerformanceSimulation()

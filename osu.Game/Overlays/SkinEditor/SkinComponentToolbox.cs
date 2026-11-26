@@ -9,6 +9,7 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osu.Framework.Logging;
+using osu.Framework.Testing;
 using osu.Framework.Threading;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
@@ -60,8 +61,10 @@ namespace osu.Game.Overlays.SkinEditor
         {
             fill.Clear();
 
+            var lookup = target.Lookup.Lookup;
+
             // oily: the toolbar and PP Simulator settings live with song select's parts.
-            if (target.Lookup.Lookup == GlobalSkinnableContainers.SongSelect)
+            if (lookup == GlobalSkinnableContainers.SongSelect || lookup == GlobalSkinnableContainers.PpSimulator)
             {
                 fill.Add(new ToolboxActionButton("Toolbars", () => skinEditor?.ShowToolbarSettings()));
                 fill.Add(new ToolboxActionButton("PP Simulator", showPerformanceSimulator));
@@ -69,17 +72,35 @@ namespace osu.Game.Overlays.SkinEditor
 
             var skinnableTypes = SerialisedDrawableInfo.GetAllAvailableDrawables(ruleset);
             foreach (var type in skinnableTypes)
-                attemptAddComponent(type);
+                attemptAddComponent(type, target, t => RequestPlacement?.Invoke(t));
+
+            // oily (ilo, 2026-11-26): song select's parts stay in the list while the PP Simulator is open.
+            // Picking one closes the simulator and goes back to the song select layer.
+            if (lookup == GlobalSkinnableContainers.PpSimulator && findSongSelectLayer() is SkinnableContainer songSelectLayer)
+            {
+                foreach (var type in skinnableTypes)
+                    attemptAddComponent(type, songSelectLayer, placeInSongSelect);
+            }
         }
 
-        private void attemptAddComponent(Type type)
+        private SkinnableContainer? findSongSelectLayer()
+            => target.FindClosestParent<Screens.Select.SongSelect>()?.ChildrenOfType<SkinnableContainer>()
+                     .FirstOrDefault(c => c.Lookup.Lookup == GlobalSkinnableContainers.SongSelect);
+
+        private void placeInSongSelect(Type type)
+        {
+            target.FindClosestParent<Screens.Select.SongSelect>()?.HidePerformanceSimulation();
+            skinEditor?.PlaceInTarget(GlobalSkinnableContainers.SongSelect, type);
+        }
+
+        private void attemptAddComponent(Type type, SkinnableContainer container, Action<Type> place)
         {
             // oily: song select only offers pieces that make sense there (no gameplay pieces).
-            if (target.Lookup.Lookup == GlobalSkinnableContainers.SongSelect && !Screens.Select.SongSelectSkinComponents.IsAllowed(type))
+            if (container.Lookup.Lookup == GlobalSkinnableContainers.SongSelect && !Screens.Select.SongSelectSkinComponents.IsAllowed(type))
                 return;
 
             // oily: the PP Simulator layer only holds its colours.
-            if (target.Lookup.Lookup == GlobalSkinnableContainers.PpSimulator && type != typeof(Screens.Select.PpSimulatorColours))
+            if (container.Lookup.Lookup == GlobalSkinnableContainers.PpSimulator && type != typeof(Screens.Select.PpSimulatorColours))
                 return;
 
             try
@@ -88,9 +109,9 @@ namespace osu.Game.Overlays.SkinEditor
 
                 if (!((ISerialisableDrawable)instance).IsEditable) return;
 
-                fill.Add(new ToolboxComponentButton(instance, target)
+                fill.Add(new ToolboxComponentButton(instance, container)
                 {
-                    RequestPlacement = t => RequestPlacement?.Invoke(t),
+                    RequestPlacement = place,
                     Expanding = contractOtherButtons,
                 });
             }

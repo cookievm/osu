@@ -422,6 +422,30 @@ namespace osu.Game.Tests.Visual.Navigation
         }
 
         [Test]
+        public void TestPpSimulatorKeepsSongSelectComponents()
+        {
+            advanceToSongSelect();
+            AddStep("import beatmap", () => BeatmapImportHelper.LoadQuickOszIntoOsu(Game).WaitSafely());
+            AddUntilStep("wait for selected", () => !Game.Beatmap.IsDefault);
+            openSkinEditor();
+
+            AddUntilStep("song select parts offered", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().Count(), () => Is.GreaterThan(1));
+            AddStep("click PP Simulator button", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxActionButton>().Last().TriggerClick());
+            AddUntilStep("simulator open", () => songSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().State.Value, () => Is.EqualTo(Visibility.Visible));
+            AddUntilStep("working on the simulator layer", () => skinEditor.ChildrenOfType<SkinComponentToolbox>().Single().ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>()
+                                                                          .Any(b => b.ChildrenOfType<PpSimulatorColours>().Any()));
+            AddAssert("song select parts still offered", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().Count(b => b.ChildrenOfType<SongSelectPieceLayout>().Any()),
+                () => Is.GreaterThan(1));
+            AddAssert("toolbars and PP simulator buttons still there", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxActionButton>().Count(), () => Is.EqualTo(2));
+
+            AddStep("pick a song select part", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().First(b => b.ChildrenOfType<SongSelectPieceLayout>().Any()).TriggerClick());
+            AddUntilStep("simulator closed", () => songSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().State.Value, () => Is.EqualTo(Visibility.Hidden));
+            AddUntilStep("back on song select layer", () => skinEditor.ChildrenOfType<SkinComponentToolbox>().Single().ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>()
+                                                                      .All(b => !b.ChildrenOfType<PpSimulatorColours>().Any()));
+            AddUntilStep("part selected", () => skinEditor.SelectedComponents.OfType<SongSelectPieceLayout>().Count(), () => Is.EqualTo(1));
+        }
+
+        [Test]
         public void TestScreenShrinksEvenlyWithToolbars()
         {
             Vector2 screenSize = Vector2.Zero;
