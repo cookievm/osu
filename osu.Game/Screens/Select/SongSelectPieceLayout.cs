@@ -449,7 +449,10 @@ namespace osu.Game.Screens.Select
                 wedge.StableLook = false;
         }
 
-        private BeatmapTitleWedge? wedge => Registry.Get(Piece)?.ChildrenOfType<BeatmapTitleWedge>().FirstOrDefault();
+        private BeatmapTitleWedge? cachedWedge;
+
+        // Found once; walking the piece every frame would cost too much.
+        private BeatmapTitleWedge? wedge => cachedWedge ??= Registry.Get(Piece)?.ChildrenOfType<BeatmapTitleWedge>().FirstOrDefault();
     }
 
     public partial class SongSelectBeatmapDetailsLayout : SongSelectPieceLayout
@@ -551,6 +554,26 @@ namespace osu.Game.Screens.Select
         public override SongSelectPiece Piece => SongSelectPiece.SearchBar;
 
         public override string DisplayName => "Search bar";
+
+        [SettingSource("Style", "Lazer's search bar, or osu!stable's (a dark bar with \"Search: ...\" text, no star rating bar). Sort, group and collection stay.", -1)]
+        public Bindable<SongSelectPieceStyle> Style { get; } = new Bindable<SongSelectPieceStyle>();
+
+        protected override void UpdatePieceStyle()
+        {
+            if (filter != null)
+                filter.StableLook = Style.Value == SongSelectPieceStyle.Stable;
+        }
+
+        protected override void ResetPieceStyle()
+        {
+            if (filter != null)
+                filter.StableLook = false;
+        }
+
+        private FilterControl? cachedFilter;
+
+        // Found once; walking the piece every frame would cost too much.
+        private FilterControl? filter => cachedFilter ??= Registry.Get(Piece)?.ChildrenOfType<FilterControl>().FirstOrDefault();
 
         [SettingSource("Search box colour", "White keeps lazer's colour.")]
         public BindableColour4 SearchBoxColour { get; } = new BindableColour4(Colour4.White);

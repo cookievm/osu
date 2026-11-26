@@ -28,6 +28,10 @@ using osu.Game.Online.API.Requests.Responses;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Screens.Select.Filter;
+using osu.Framework.Graphics.Shapes;
+using osu.Game.Graphics.Sprites;
+using osu.Game.Graphics;
+using osu.Framework.Extensions.Color4Extensions;
 using osuTK;
 using osuTK.Input;
 
@@ -48,6 +52,49 @@ namespace osu.Game.Screens.Select
         private ShearedDropdown<SortMode> sortDropdown = null!;
         private ShearedDropdown<GroupModeDropdownItem> groupDropdown = null!;
         private Drawable collectionDropdown = null!;
+
+        // oily: lazer's look and osu!stable's look (see SongSelectSearchBarLayout.Style).
+        private Container lazerBackground = null!;
+        private Box stableBackground = null!;
+        private Drawable starRatingRow = null!;
+        private Drawable stableSearchLabel = null!;
+        private OsuSpriteText stableSearchText = null!;
+
+        private bool stableLook;
+
+        /// <summary>
+        /// oily: draws the search like osu!stable's: a dark bar with "Search: ..." text instead of lazer's text box, and no star rating bar.
+        /// Typing still goes to the (now invisible) text box.
+        /// </summary>
+        public bool StableLook
+        {
+            get => stableLook;
+            set
+            {
+                if (stableLook == value)
+                    return;
+
+                stableLook = value;
+
+                if (IsLoaded)
+                    updateLook();
+            }
+        }
+
+        private void updateLook()
+        {
+            lazerBackground.Alpha = stableLook ? 0 : 1;
+            stableBackground.Alpha = stableLook ? 1 : 0;
+            starRatingRow.Alpha = stableLook ? 0 : 1;
+            stableSearchLabel.Alpha = stableLook ? 1 : 0;
+            searchTextBox.Colour = stableLook ? Colour4.Transparent : Colour4.White;
+        }
+
+        private void updateStableSearchText(string text)
+        {
+            stableSearchText.Text = string.IsNullOrEmpty(text) ? "type to search!" : text;
+            stableSearchText.Colour = string.IsNullOrEmpty(text) ? Colour4.White.Opacity(0.5f) : new Colour4(255, 204, 34, 255);
+        }
 
         // oily: the parts a skin can colour one by one.
         public Drawable SearchBox => searchTextBox;
@@ -104,7 +151,13 @@ namespace osu.Game.Screens.Select
 
             InternalChildren = new Drawable[]
             {
-                new Container
+                stableBackground = new Box
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Colour = Colour4.Black,
+                    Alpha = 0,
+                },
+                lazerBackground = new Container
                 {
                     RelativeSizeAxes = Axes.Both,
                     CornerRadius = corner_radius,
@@ -137,14 +190,39 @@ namespace osu.Game.Screens.Select
                                     RelativeSizeAxes = Axes.X,
                                     AutoSizeAxes = Axes.Y,
                                     Shear = -OsuGame.SHEAR,
-                                    Child = searchTextBox = new SongSelectSearchTextBox
+                                    Children = new Drawable[]
                                     {
-                                        RelativeSizeAxes = Axes.X,
-                                        HoldFocus = true,
-                                        ScopedBeatmapSet = { BindTarget = ScopedBeatmapSet },
+                                        searchTextBox = new SongSelectSearchTextBox
+                                        {
+                                            RelativeSizeAxes = Axes.X,
+                                            HoldFocus = true,
+                                            ScopedBeatmapSet = { BindTarget = ScopedBeatmapSet },
+                                        },
+                                        stableSearchLabel = new FillFlowContainer
+                                        {
+                                            Anchor = Anchor.CentreLeft,
+                                            Origin = Anchor.CentreLeft,
+                                            AutoSizeAxes = Axes.Both,
+                                            Direction = FillDirection.Horizontal,
+                                            Spacing = new Vector2(6, 0),
+                                            Padding = new MarginPadding { Left = 12 },
+                                            Alpha = 0,
+                                            Children = new Drawable[]
+                                            {
+                                                new OsuSpriteText
+                                                {
+                                                    Text = "Search:",
+                                                    Font = OsuFont.GetFont(size: 20, weight: FontWeight.Bold),
+                                                },
+                                                stableSearchText = new OsuSpriteText
+                                                {
+                                                    Font = OsuFont.GetFont(size: 20, weight: FontWeight.SemiBold),
+                                                },
+                                            },
+                                        },
                                     },
                                 },
-                                new GridContainer
+                                starRatingRow = new GridContainer
                                 {
                                     RelativeSizeAxes = Axes.X,
                                     AutoSizeAxes = Axes.Y,
@@ -231,6 +309,10 @@ namespace osu.Game.Screens.Select
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            // oily: stable's search text follows what's typed.
+            searchTextBox.Current.BindValueChanged(t => updateStableSearchText(t.NewValue), true);
+            updateLook();
 
             difficultyRangeSlider.LowerBound = config.GetBindable<double>(OsuSetting.DisplayStarsMinimum);
             difficultyRangeSlider.UpperBound = config.GetBindable<double>(OsuSetting.DisplayStarsMaximum);

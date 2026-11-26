@@ -305,6 +305,26 @@ namespace osu.Game.Tests.Visual.SongSelect
         }
 
         [Test]
+        public void TestStableSearchBar()
+        {
+            SongSelectSearchBarLayout search = null!;
+
+            AddUntilStep("default layouts added", () => skinLayer.Components.OfType<SongSelectSearchBarLayout>().Any());
+            AddStep("find search bar layout", () => search = skinLayer.Components.OfType<SongSelectSearchBarLayout>().First());
+
+            AddStep("stable style", () => search.Style.Value = SongSelectPieceStyle.Stable);
+            AddUntilStep("filter in stable look", () => SongSelect.ChildrenOfType<FilterControl>().Single().StableLook);
+            AddUntilStep("shows type to search", () => SongSelect.ChildrenOfType<FilterControl>().Single().ChildrenOfType<OsuSpriteText>()
+                                                                 .Any(t => t.Text.ToString() == "type to search!"));
+            AddStep("type a search", () => ((osu.Framework.Graphics.UserInterface.IHasCurrentValue<string>)SongSelect.ChildrenOfType<FilterControl>().Single().SearchBox).Current.Value = "hello");
+            AddUntilStep("shows the search", () => SongSelect.ChildrenOfType<FilterControl>().Single().ChildrenOfType<OsuSpriteText>()
+                                                              .Any(t => t.Text.ToString() == "hello"));
+
+            AddStep("lazer style", () => search.Style.Value = SongSelectPieceStyle.Lazer);
+            AddUntilStep("filter in lazer look", () => !SongSelect.ChildrenOfType<FilterControl>().Single().StableLook);
+        }
+
+        [Test]
         public void TestPerformanceGroups()
         {
             AddAssert("unknown", () => BeatmapCarouselFilterGrouping.DefineGroupByPerformance(null).Title.ToString(), () => Is.EqualTo("Working out pp..."));
