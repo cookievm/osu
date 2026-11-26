@@ -220,6 +220,38 @@ namespace osu.Game.Tests.Visual.Menus
         }
 
         [Test]
+        public void TestDiscordButton()
+        {
+            // oily (ilo, 2026-11-26): a Discord button at the far right of the toolbar, after Rankings.
+            string opened = null;
+
+            AddUntilStep("discord button shown", () => toolbar.ChildrenOfType<ToolbarDiscordButton>().SingleOrDefault()?.IsPresent == true);
+            AddAssert("far right, after rankings", () =>
+            {
+                var discord = toolbar.ChildrenOfType<ToolbarDiscordButton>().Single().ScreenSpaceDrawQuad;
+                return toolbar.ChildrenOfType<ToolbarButton>().Where(b => b is not ToolbarDiscordButton && b.IsPresent).All(b => b.ScreenSpaceDrawQuad.Centre.X < discord.Centre.X)
+                       && toolbar.ChildrenOfType<ToolbarRankingsButton>().Single().ScreenSpaceDrawQuad.TopRight.X <= discord.TopLeft.X + 1;
+            });
+
+            AddStep("click with the app installed", () =>
+            {
+                var button = toolbar.ChildrenOfType<ToolbarDiscordButton>().Single();
+                button.DiscordInstalled = () => true;
+                button.OpenLink = l => opened = l;
+                button.TriggerClick();
+            });
+            AddAssert("opened in the app", () => opened, () => Is.EqualTo(ToolbarDiscordButton.APP_LINK));
+
+            AddStep("click without the app", () =>
+            {
+                var button = toolbar.ChildrenOfType<ToolbarDiscordButton>().Single();
+                button.DiscordInstalled = () => false;
+                button.TriggerClick();
+            });
+            AddAssert("opened in the browser", () => opened, () => Is.EqualTo("https://discord.gg/ilystudios"));
+        }
+
+        [Test]
         public void TestRulesetSelectorOverflow()
         {
             AddStep("set toolbar width", () =>

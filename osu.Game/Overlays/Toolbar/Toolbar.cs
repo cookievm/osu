@@ -217,6 +217,9 @@ namespace osu.Game.Overlays.Toolbar
                 case ToolbarItem.Notifications:
                     return new ToolbarNotificationButton();
 
+                case ToolbarItem.Discord:
+                    return new ToolbarDiscordButton();
+
                 default:
                     return null;
             }
