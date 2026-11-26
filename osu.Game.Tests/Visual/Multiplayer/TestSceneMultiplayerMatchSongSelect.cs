@@ -142,7 +142,7 @@ namespace osu.Game.Tests.Visual.Multiplayer
 
             AddStep("open free mod overlay", () =>
             {
-                InputManager.MoveMouseTo(this.ChildrenOfType<FooterButtonFreeMods>().Single());
+                InputManager.MoveMouseTo(this.ChildrenOfType<FooterButtonFreeMods>().Single().ScreenSpaceDrawQuad.Centre);
                 InputManager.Click(MouseButton.Left);
             });
 
@@ -169,7 +169,7 @@ namespace osu.Game.Tests.Visual.Multiplayer
 
             AddStep("open free mod overlay", () =>
             {
-                InputManager.MoveMouseTo(this.ChildrenOfType<FooterButtonFreeMods>().Single());
+                InputManager.MoveMouseTo(this.ChildrenOfType<FooterButtonFreeMods>().Single().ScreenSpaceDrawQuad.Centre);
                 InputManager.Click(MouseButton.Left);
             });
 

@@ -240,7 +240,7 @@ namespace osu.Game.Tests.Visual.Navigation
 
             AddStep("hit random", () =>
             {
-                InputManager.MoveMouseTo(Game.ChildrenOfType<FooterButtonRandom>().Single());
+                InputManager.MoveMouseTo(Game.ChildrenOfType<FooterButtonRandom>().Single().ScreenSpaceDrawQuad.Centre);
                 InputManager.Click(MouseButton.Left);
             });
             AddUntilStep("wait for selection changed", () => Game.Beatmap.Value.BeatmapInfo.ID, () => Is.Not.EqualTo(originalSelection));
