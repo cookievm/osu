@@ -15,6 +15,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
+using osu.Framework.Graphics.Sprites;
 using osu.Framework.Testing;
 using osu.Game.Configuration;
 using osu.Game.Graphics.Containers;
@@ -237,6 +238,9 @@ namespace osu.Game.Tests.Visual.Menus
                 return rankings < discord && toolbar.ChildrenOfType<ToolbarButton>().Where(b => b.IsPresent)
                                                    .All(b => b.ScreenSpaceDrawQuad.Centre.X <= rankings + 1 || b.ScreenSpaceDrawQuad.Centre.X >= discord - 1);
             });
+
+            AddAssert("icon is the outlined logo", () => toolbar.ChildrenOfType<ToolbarDiscordButton>().Single().ChildrenOfType<Sprite>()
+                                                                 .Any(s => s.GetType() == typeof(Sprite) && s.Texture != null && s.Texture.Width > s.Texture.Height));
 
             AddStep("click with the app installed", () =>
             {

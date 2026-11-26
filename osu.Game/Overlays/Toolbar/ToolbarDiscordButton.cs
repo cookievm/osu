@@ -1,4 +1,4 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -8,6 +8,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Logging;
 using osu.Framework.Platform;
+using osu.Game.Graphics;
 
 namespace osu.Game.Overlays.Toolbar
 {
@@ -36,11 +37,19 @@ namespace osu.Game.Overlays.Toolbar
         public Func<bool> DiscordInstalled = isDiscordInstalled;
 
         [BackgroundDependencyLoader]
-        private void load()
+        private void load(OilyTextures? oilyTextures)
         {
             TooltipMain = "Discord";
             TooltipSub = "Join the ilystudios Discord server";
-            SetIcon(FontAwesome.Brands.Discord);
+
+            // oily (ilo, 2026-11-26): a white outline of the Discord logo (eyes outlined too), to match the other toolbar icons.
+            // Traced from the Font Awesome Free 6.5.1 "discord" icon (CC BY 4.0, https://fontawesome.com/license/free).
+            var outline = oilyTextures?.Get(@"discord");
+
+            if (outline != null)
+                SetIcon(new Sprite { Texture = outline, Size = outline.Size });
+            else
+                SetIcon(FontAwesome.Brands.Discord);
             Action = open;
         }
 
