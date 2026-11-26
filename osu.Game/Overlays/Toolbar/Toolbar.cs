@@ -20,6 +20,7 @@ using osu.Game.Rulesets;
 using osu.Framework.Input.Bindings;
 using osu.Game.Graphics.Containers;
 using osu.Game.Input.Bindings;
+using osu.Framework.Utils;
 using osuTK;
 
 namespace osu.Game.Overlays.Toolbar
@@ -50,7 +51,7 @@ namespace osu.Game.Overlays.Toolbar
         // Clicks on the bars stop there, so an open overlay doesn't close on mouse down and get reopened by the button's click.
         protected override bool BlockPositionalInput => true;
 
-        public override bool ReceivePositionalInputAt(osuTK.Vector2 screenSpacePos) => strips.Any(s => s.ReceivePositionalInputAt(screenSpacePos));
+        public override bool ReceivePositionalInputAt(osuTK.Vector2 screenSpacePos) => strips.Any(s => s.TakesInputAt(screenSpacePos));
 
         /// <summary>
         /// oily: stops the buttons taking clicks and keys (while the skin editor shows the toolbars shrunk).
@@ -272,7 +273,8 @@ namespace osu.Game.Overlays.Toolbar
 
                 strip.Width = DrawWidth * bar.Length;
                 strip.Height = thickness;
-                strip.Masking = bar.Length < 1;
+                // oily: the beatmap listing and profile buttons may slide past the bar's end to reach the listing's corner.
+                strip.Masking = bar.Length < 1 && !strip.ButtonsOutside;
 
                 float x = (DrawWidth - strip.Width) / 2;
 
@@ -563,7 +565,88 @@ namespace osu.Game.Overlays.Toolbar
                     Width = Thickness;
 
                 if (Spread)
-                    spreadButtons();
+                {
+                    updateListingFocus();
+
+                    if (!listingFocused)
+                        spreadButtons();
+                }
+            }
+
+            /// <summary>
+            /// oily (ilo, 2026-11-26): the buttons kept while the beatmap listing is open, left to right.
+            /// </summary>
+            public static readonly ToolbarItem[] LISTING_FOCUS_ITEMS = { ToolbarItem.BeatmapListing, ToolbarItem.User };
+
+            private const float listing_focus_gap = 6;
+            private const float listing_focus_margin = 10;
+            private const double listing_focus_fade = 250;
+
+            private bool listingFocused;
+
+            /// <summary>
+            /// oily: whether the beatmap listing is open and only its button and the profile button are showing.
+            /// </summary>
+            public bool ListingFocused => listingFocused;
+
+            /// <summary>
+            /// oily: whether buttons may be (or are) past the bar's ends, so the bar mustn't cut them off.
+            /// </summary>
+            public bool ButtonsOutside => listingFocused || middleFlow.X > 0;
+
+            /// <summary>
+            /// oily: whether the bar, or one of its buttons outside it, is under the cursor.
+            /// </summary>
+            public bool TakesInputAt(Vector2 screenSpacePos)
+                => ReceivePositionalInputAt(screenSpacePos)
+                   || (ButtonsOutside && LISTING_FOCUS_ITEMS.Any(i => Items.TryGetValue(i, out var d) && d.IsPresent && d.ReceivePositionalInputAt(screenSpacePos)));
+
+            /// <summary>
+            /// oily (ilo, 2026-11-26): while the beatmap listing is open, every other button fades away (and can't be clicked),
+            /// and the beatmap listing and profile buttons slide to the bottom right corner of the listing.
+            /// </summary>
+            private void updateListingFocus()
+            {
+                var listing = (Items.GetValueOrDefault(ToolbarItem.BeatmapListing) as ToolbarOverlayToggleButton)?.StateContainer;
+                bool focus = listing?.State.Value == Visibility.Visible && Items.ContainsKey(ToolbarItem.User);
+
+                if (focus != listingFocused)
+                {
+                    listingFocused = focus;
+
+                    // the flow slides the buttons into their new places as the others disappear (or come back).
+                    middleFlow.LayoutDuration = 400;
+                    middleFlow.LayoutEasing = Easing.OutQuint;
+
+                    foreach (var (item, drawable) in Items)
+                    {
+                        if (LISTING_FOCUS_ITEMS.Contains(item))
+                            continue;
+
+                        if (focus)
+                            drawable.FadeOut(listing_focus_fade, Easing.OutQuint);
+                        else
+                            drawable.FadeIn(listing_focus_fade, Easing.OutQuint);
+                    }
+
+                    if (focus)
+                        middleFlow.Spacing = new Vector2(listing_focus_gap, 0);
+                }
+
+                float targetX = 0;
+
+                if (listingFocused)
+                {
+                    float keptWidth = LISTING_FOCUS_ITEMS.Sum(i => Items.TryGetValue(i, out var d) ? d.DrawWidth : 0) + listing_focus_gap * (LISTING_FOCUS_ITEMS.Length - 1);
+                    float listingRight = ToLocalSpace(listing!.ScreenSpaceDrawQuad.BottomRight).X - listing_focus_margin;
+
+                    targetX = Math.Max(listingRight, keptWidth) - keptWidth;
+                }
+
+                middleFlow.X = (float)Interpolation.DampContinuously(middleFlow.X, targetX, 60, Time.Elapsed);
+
+                if (Math.Abs(middleFlow.X - targetX) < 0.5f)
+                    middleFlow.X = targetX;
             }
 
             /// <summary>

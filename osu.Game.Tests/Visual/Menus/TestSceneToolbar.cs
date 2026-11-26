@@ -307,6 +307,55 @@ namespace osu.Game.Tests.Visual.Menus
         }
 
         [Test]
+        public void TestBeatmapListingFocus()
+        {
+            // oily (ilo, 2026-11-26): with the beatmap listing open, only its button and the profile button stay,
+            // sliding to the bottom right corner of the listing.
+            TestListing listing = null;
+
+            AddStep("add a listing", () =>
+            {
+                Add(listing = new TestListing());
+                toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Single().StateContainer = listing;
+            });
+
+            AddStep("open the listing", () => listing.Show());
+
+            AddUntilStep("other buttons gone", () => toolbar.ChildrenOfType<ToolbarButton>()
+                                                           .Where(b => b is not ToolbarBeatmapListingButton && b is not ToolbarUserButton && b.FindClosestParent<ToolbarRulesetSelector>() == null)
+                                                           .All(b => !b.IsPresent)
+                                                       && !toolbar.ChildrenOfType<ToolbarRulesetSelector>().Single().IsPresent
+                                                       && !toolbar.ChildrenOfType<ToolbarClock>().Single().IsPresent);
+
+            AddUntilStep("listing then profile, at the listing's bottom right", () =>
+            {
+                var listingButton = toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Single().ScreenSpaceDrawQuad;
+                var user = toolbar.ChildrenOfType<ToolbarUserButton>().Single().ScreenSpaceDrawQuad;
+                float right = listing.ScreenSpaceDrawQuad.BottomRight.X;
+
+                return listingButton.TopRight.X <= user.TopLeft.X && user.TopRight.X <= right && right - user.TopRight.X < 30;
+            });
+
+            AddStep("close the listing", () => listing.Hide());
+            AddUntilStep("other buttons back", () => toolbar.ChildrenOfType<ToolbarClock>().Single().Alpha == 1
+                                                     && toolbar.ChildrenOfType<ToolbarRulesetSelector>().Single().Alpha == 1);
+        }
+
+        private partial class TestListing : OverlayContainer
+        {
+            public TestListing()
+            {
+                RelativeSizeAxes = Axes.Both;
+                Width = 0.85f;
+                Anchor = Origin = Anchor.TopCentre;
+            }
+
+            protected override void PopIn() => this.FadeIn();
+
+            protected override void PopOut() => this.FadeOut();
+        }
+
+        [Test]
         public void TestRulesetSelectorOverflow()
         {
             AddStep("set toolbar width", () =>
