@@ -344,19 +344,14 @@ namespace osu.Game.Screens.Footer
         {
             base.Update();
 
-            // oily: each button sits its layout offset away from its place, without moving the others.
-            // The sideways margins are kept equal on both sides (each one making up for the ones before it),
-            // so a button's layout box stays centred on the button and clicks aimed at its middle land on it.
-            float carried = 0;
-
-            foreach (var button in leftButtonsFlow.FlowingChildren.OfType<ScreenFooterButton>())
+            // oily: buttons dragged in the skin editor sit that far from their place, without moving the others.
+            foreach (var button in leftButtonsFlow)
             {
                 var saved = FooterLayout.ItemOf(button) is FooterItem item ? Layout.Buttons.FirstOrDefault(b => b.Item == item) : null;
-                float x = (saved?.OffsetX ?? 0) - carried;
+                float x = saved?.OffsetX ?? 0;
                 float y = saved?.OffsetY ?? 0;
 
-                button.Margin = new MarginPadding { Left = x, Right = x, Top = y, Bottom = -y };
-                carried += 2 * x;
+                button.Margin = new MarginPadding { Left = x, Right = -x, Top = y, Bottom = -y };
             }
 
             // oily: the back button and the toolbar buttons can be dragged too.
