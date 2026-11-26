@@ -43,10 +43,7 @@ namespace osu.Game.Screens.Menu
         public static readonly Vector2 SCALE_ADJUST = new Vector2(0.94f);
 
         private readonly Sprite logo;
-        // oily (ilo, 2026-11-26): heart-shaped logo. The fill is drawn into a buffer and cut to the heart by logoMask.
-        private readonly BufferedContainer logoContainer;
-        private readonly Sprite logoMask;
-        private readonly Sprite impactSprite;
+        private readonly CircularContainer logoContainer;
         private readonly Container logoBounceContainer;
         private readonly Container logoBeatContainer;
         private readonly Container logoAmplitudeContainer;
@@ -90,13 +87,7 @@ namespace osu.Game.Screens.Menu
             set => colourAndTriangles.FadeTo(value ? 1 : 0, transition_length, Easing.OutQuint);
         }
 
-        public override bool ReceivePositionalInputAt(Vector2 screenSpacePos)
-        {
-            // oily: the fill buffer is square, so keep lazer's round click area.
-            Vector2 local = logoContainer.ToLocalSpace(screenSpacePos);
-            Vector2 centre = logoContainer.DrawSize / 2;
-            return Vector2.Distance(local, centre) < centre.X * SCALE_ADJUST.X;
-        }
+        public override bool ReceivePositionalInputAt(Vector2 screenSpacePos) => logoContainer.ReceivePositionalInputAt(screenSpacePos);
 
         public bool Ripple
         {
@@ -179,11 +170,13 @@ namespace osu.Game.Screens.Menu
                                                     AutoSizeAxes = Axes.Both,
                                                     Children = new Drawable[]
                                                     {
-                                                        logoContainer = new BufferedContainer
+                                                        logoContainer = new CircularContainer
                                                         {
                                                             Anchor = Anchor.Centre,
                                                             Origin = Anchor.Centre,
                                                             RelativeSizeAxes = Axes.Both,
+                                                            Scale = SCALE_ADJUST,
+                                                            Masking = true,
                                                             Children = new Drawable[]
                                                             {
                                                                 colourAndTriangles = new Container
@@ -216,20 +209,6 @@ namespace osu.Game.Screens.Menu
                                                                     Colour = Color4.White,
                                                                     Alpha = 0,
                                                                 },
-                                                                // oily: keeps everything drawn above only where this heart texture is opaque.
-                                                                logoMask = new Sprite
-                                                                {
-                                                                    RelativeSizeAxes = Axes.Both,
-                                                                    Blending = new BlendingParameters
-                                                                    {
-                                                                        Source = BlendingType.Zero,
-                                                                        Destination = BlendingType.SrcAlpha,
-                                                                        SourceAlpha = BlendingType.Zero,
-                                                                        DestinationAlpha = BlendingType.SrcAlpha,
-                                                                        RGBEquation = BlendingEquation.Add,
-                                                                        AlphaEquation = BlendingEquation.Add,
-                                                                    },
-                                                                },
                                                             },
                                                         },
                                                         logo = new Sprite
@@ -239,17 +218,23 @@ namespace osu.Game.Screens.Menu
                                                         },
                                                     }
                                                 },
-                                                // oily: the click flash is a heart outline.
-                                                impactContainer = new Container
+                                                impactContainer = new CircularContainer
                                                 {
                                                     Anchor = Anchor.Centre,
                                                     Origin = Anchor.Centre,
                                                     Alpha = 0,
+                                                    BorderColour = Color4.White,
                                                     RelativeSizeAxes = Axes.Both,
-                                                    Child = impactSprite = new Sprite
+                                                    BorderThickness = 10,
+                                                    Masking = true,
+                                                    Children = new Drawable[]
                                                     {
-                                                        RelativeSizeAxes = Axes.Both,
-                                                        AlwaysPresent = true,
+                                                        new Box
+                                                        {
+                                                            RelativeSizeAxes = Axes.Both,
+                                                            AlwaysPresent = true,
+                                                            Alpha = 0,
+                                                        }
                                                     }
                                                 }
                                             }
@@ -304,9 +289,6 @@ namespace osu.Game.Screens.Menu
             var logoTexture = oilyTextures?.Get(@"logo") ?? textures.Get(@"Menu/logo");
             logo.Texture = logoTexture;
             ripple.Texture = logoTexture;
-
-            logoMask.Texture = oilyTextures?.Get(@"logo-mask");
-            impactSprite.Texture = oilyTextures?.Get(@"logo-impact");
         }
 
         private int lastBeatIndex;
@@ -452,7 +434,7 @@ namespace osu.Game.Screens.Menu
         public void Impact()
         {
             impactContainer.FadeOutFromOne(250, Easing.In);
-            impactContainer.ScaleTo(1);
+            impactContainer.ScaleTo(SCALE_ADJUST);
             impactContainer.ScaleTo(1.12f, 250);
         }
 
