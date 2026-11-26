@@ -1500,11 +1500,14 @@ namespace osu.Game
             if (overlay.IsPresent)
                 return;
 
+            // oily: toolbar popups sit inside a ToolbarPopupContainer, so that is what moves to the front.
+            Drawable front = overlay.Parent is ToolbarPopupContainer popupContainer ? popupContainer : overlay;
+
             // Show above all other overlays.
-            if (overlay.IsLoaded)
-                overlayContent.ChangeChildDepth(overlay, (float)-Clock.CurrentTime);
-            else
-                overlay.Depth = (float)-Clock.CurrentTime;
+            if (front.IsLoaded && front.Parent == overlayContent)
+                overlayContent.ChangeChildDepth(front, (float)-Clock.CurrentTime);
+            else if (front.Parent == null)
+                front.Depth = (float)-Clock.CurrentTime;
         }
 
         private void forwardGeneralLogToNotifications(LogEntry entry)
