@@ -47,10 +47,28 @@ namespace osu.Game.Tests.Visual.Online
         [Test]
         public void TestFlagScopeDependency()
         {
-            AddStep("Set scope to Score", () => scope.Value = RankingsScope.Score);
+            AddStep("Set scope to Country", () => scope.Value = RankingsScope.Country);
             AddAssert("Check country is default", () => countryBindable.IsDefault);
             AddStep("Set country", () => countryBindable.Value = CountryCode.US);
             AddAssert("Check scope is Performance", () => scope.Value == RankingsScope.Performance);
+        }
+
+        [Test]
+        public void TestRelaxKeepsCountry()
+        {
+            // oily: the relax board can be filtered by country without jumping back to normal performance.
+            AddStep("Set scope to relax", () => scope.Value = RankingsScope.PerformanceRelax);
+            AddStep("Set country", () => countryBindable.Value = CountryCode.US);
+            AddAssert("Check scope is still relax", () => scope.Value == RankingsScope.PerformanceRelax);
+            AddAssert("Check country is kept", () => countryBindable.Value == CountryCode.US);
+        }
+
+        [Test]
+        public void TestOnlyOilyPages()
+        {
+            // oily (ilo, 2026-11-26): no score, spotlights or kudosu pages.
+            AddAssert("pages are performance, relax and country", () => System.Enum.GetValues<RankingsScope>(),
+                () => Is.EqualTo(new[] { RankingsScope.Performance, RankingsScope.PerformanceRelax, RankingsScope.Country }));
         }
 
         [Test]

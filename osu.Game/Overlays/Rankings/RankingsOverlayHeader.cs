@@ -52,9 +52,8 @@ namespace osu.Game.Overlays.Rankings
                 switch (scope)
                 {
                     case RankingsScope.Performance:
-                    case RankingsScope.Score:
+                    case RankingsScope.PerformanceRelax:
                     case RankingsScope.Country:
-                    case RankingsScope.Playlists:
                         return true;
 
                     default:

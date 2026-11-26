@@ -43,20 +43,14 @@ namespace osu.Game.Overlays
 
             Country.BindValueChanged(_ =>
             {
-                // if a country is requested, force performance scope.
-                if (!Country.IsDefault)
+                // if a country is requested, force a performance scope (oily: the relax one can filter by country too).
+                if (!Country.IsDefault && !isPerformanceScope(Header.Current.Value))
                     Header.Current.Value = RankingsScope.Performance;
 
                 Scheduler.AddOnce(triggerTabChanged);
             });
 
-            ruleset.BindValueChanged(_ =>
-            {
-                if (Header.Current.Value == RankingsScope.Playlists)
-                    return;
-
-                Scheduler.AddOnce(triggerTabChanged);
-            });
+            ruleset.BindValueChanged(_ => Scheduler.AddOnce(triggerTabChanged));
         }
 
         private bool requiresRulesetUpdate = true;
@@ -74,12 +68,14 @@ namespace osu.Game.Overlays
 
         protected override void OnTabChanged(RankingsScope tab)
         {
-            // country filtering is only valid for performance scope.
-            if (Header.Current.Value != RankingsScope.Performance)
+            // country filtering is only valid for performance scopes.
+            if (!isPerformanceScope(Header.Current.Value))
                 Country.SetDefault();
 
             Scheduler.AddOnce(triggerTabChanged);
         }
+
+        private static bool isPerformanceScope(RankingsScope scope) => scope == RankingsScope.Performance || scope == RankingsScope.PerformanceRelax;
 
         private void triggerTabChanged() => base.OnTabChanged(Header.Current.Value);
 
@@ -98,15 +94,6 @@ namespace osu.Game.Overlays
         protected override void CreateDisplayToLoad(RankingsScope tab)
         {
             lastRequest?.Cancel();
-
-            if (Header.Current.Value == RankingsScope.Playlists)
-            {
-                LoadDisplay(new SpotlightsLayout
-                {
-                    Ruleset = { BindTarget = ruleset }
-                });
-                return;
-            }
 
             var request = createScopedRequest();
             lastRequest = request;
@@ -133,11 +120,8 @@ namespace osu.Game.Overlays
                 case RankingsScope.Country:
                     return new GetCountryRankingsRequest(ruleset.Value);
 
-                case RankingsScope.Score:
-                    return new GetUserRankingsRequest(ruleset.Value, UserRankingsType.Score);
-
-                case RankingsScope.Kudosu:
-                    return new GetKudosuRankingsRequest();
+                case RankingsScope.PerformanceRelax:
+                    return new GetUserRankingsRequest(ruleset.Value, UserRankingsType.Relax, countryCode: Country.Value);
             }
 
             return null;
@@ -154,6 +138,7 @@ namespace osu.Game.Overlays
                     switch (userRequest.Type)
                     {
                         case UserRankingsType.Performance:
+                        case UserRankingsType.Relax:
                             return new PerformanceTable(1, userRequest.Response.Users);
 
                         case UserRankingsType.Score:
@@ -169,12 +154,6 @@ namespace osu.Game.Overlays
 
                     return new CountriesTable(1, countryRequest.Response.Countries);
                 }
-
-                case GetKudosuRankingsRequest kudosuRequest:
-                    if (kudosuRequest.Response == null)
-                        return null;
-
-                    return new KudosuTable(1, kudosuRequest.Response.Users);
             }
 
             return null;

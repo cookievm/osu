@@ -32,7 +32,7 @@ namespace osu.Game.Tests.Visual.Online
             const CountryCode unknown_country = CountryCode.CK;
 
             AddStep("Set country", () => countryBindable.Value = country);
-            AddStep("Set scope to Score", () => scope.Value = RankingsScope.Score);
+            AddStep("Set scope to Country", () => scope.Value = RankingsScope.Country);
             AddStep("Set country with no flag", () => countryBindable.Value = unknown_country);
         }
     }
