@@ -38,6 +38,16 @@ namespace osu.Game.Screens.Select
         private string? shownSS;
         private string? shownSimulated;
 
+        /// <summary>
+        /// oily: always show the SS and simulated pp, whatever the card style says (stable cards always show them).
+        /// </summary>
+        public bool AlwaysShow { get; init; }
+
+        /// <summary>
+        /// oily: draw the text white, so it takes the colour of what it sits in (stable cards colour their text from the skin).
+        /// </summary>
+        public bool PlainColour { get; init; }
+
         public PanelPerformanceDisplay()
         {
             AutoSizeAxes = Axes.Both;
@@ -70,6 +80,9 @@ namespace osu.Game.Screens.Select
         [BackgroundDependencyLoader]
         private void load(OverlayColourProvider colourProvider)
         {
+            if (PlainColour)
+                return;
+
             ssText.Colour = colourProvider.Content2;
             simulatedText.Colour = colourProvider.Content2;
         }
@@ -103,7 +116,7 @@ namespace osu.Game.Screens.Select
         {
             base.Update();
 
-            var style = pieceRegistry?.CardStyle;
+            var style = AlwaysShow ? null : pieceRegistry?.CardStyle;
             Alpha = style?.ShowPerformance.Value == false && style.ShowSimulatedPerformance.Value == false ? 0 : 1;
 
             double? ss;

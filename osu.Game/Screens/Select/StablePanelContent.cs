@@ -11,7 +11,9 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
+using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
+using osu.Framework.Utils;
 using osu.Game.Beatmaps;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
@@ -38,8 +40,10 @@ namespace osu.Game.Screens.Select
 
     /// <summary>
     /// oily: a song select card drawn like osu!stable's.
-    /// Uses the skin's stable images and colours (menu-button-background, star, SongSelectActiveText / SongSelectInactiveText) when the skin has them,
-    /// otherwise draws stable's default look.
+    /// The skin's menu-button-background is drawn at its own size (stable's 1024x768 units, the same as lazer's), from the card's left edge,
+    /// so it looks exactly as it does in stable: nothing is stretched or cut, and it overlaps the cards around it like stable's does.
+    /// It is tinted by the card's state like stable (pink set, blue difficulty, white selected), and the text uses the skin's
+    /// SongSelectActiveText / SongSelectInactiveText colours. Without a menu-button-background, stable's default look is drawn.
     /// </summary>
     public partial class StablePanelContent : CompositeDrawable
     {
@@ -49,7 +53,15 @@ namespace osu.Game.Screens.Select
         public static readonly Color4 GROUP_COLOUR = new Color4(60, 60, 60, 255);
         public static readonly Color4 ACTIVE_COLOUR = Color4.White;
 
+        /// <summary>
+        /// Stable's card picture size (the wiki's minimum for menu-button-background), used when the skin has none.
+        /// </summary>
+        public static readonly Vector2 DEFAULT_CARD_SIZE = new Vector2(690, 85);
+
         private const int max_stars = 10;
+
+        // Stable's star.png is 50x50 and drawn at a bit under half size on the cards.
+        private const float star_size = 50 * 0.4f;
 
         /// <summary>
         /// Stable's second line: "Artist // Mapper".
@@ -74,7 +86,7 @@ namespace osu.Game.Screens.Select
         private bool active;
 
         /// <summary>
-        /// Selected (or an opened set). Stable draws these white with dark text.
+        /// Selected (or an opened set). Stable draws these white with the active text colour.
         /// </summary>
         public bool Active
         {
@@ -119,12 +131,34 @@ namespace osu.Game.Screens.Select
             }
         }
 
+        /// <summary>
+        /// The difficulty's beatmap, for the SS pp and simulated pp (always shown on stable difficulty cards).
+        /// </summary>
+        public BeatmapInfo? Beatmap
+        {
+            set => performance.Beatmap = value;
+        }
+
+        /// <summary>
+        /// The difficulty's lazer star rating and pp, used for pp outside song select.
+        /// </summary>
+        public StarDifficulty Difficulty
+        {
+            set => performance.Difficulty = value;
+        }
+
+        /// <summary>
+        /// The card picture and everything on it, at the picture's own size.
+        /// </summary>
+        private readonly Container card;
+
         private readonly Container backgroundContainer;
         private readonly FillFlowContainer textFlow;
         private readonly OsuSpriteText titleText;
         private readonly OsuSpriteText subtitleText;
         private readonly OsuSpriteText difficultyText;
         private readonly FillFlowContainer starFlow;
+        private readonly PanelPerformanceDisplay performance;
 
         [Resolved]
         private ISkinSource skin { get; set; } = null!;
@@ -137,42 +171,62 @@ namespace osu.Game.Screens.Select
         {
             RelativeSizeAxes = Axes.Both;
 
-            InternalChildren = new Drawable[]
+            InternalChild = card = new Container
             {
-                backgroundContainer = new Container
+                Anchor = Anchor.CentreLeft,
+                Origin = Anchor.CentreLeft,
+                Size = DEFAULT_CARD_SIZE,
+                Children = new Drawable[]
                 {
-                    RelativeSizeAxes = Axes.Both,
-                },
-                textFlow = new FillFlowContainer
-                {
-                    Anchor = Anchor.CentreLeft,
-                    Origin = Anchor.CentreLeft,
-                    AutoSizeAxes = Axes.Both,
-                    Direction = FillDirection.Vertical,
-                    Padding = new MarginPadding { Left = 18 },
-                    Children = new Drawable[]
+                    backgroundContainer = new Container
                     {
-                        titleText = new OsuSpriteText
+                        RelativeSizeAxes = Axes.Both,
+                    },
+                    textFlow = new FillFlowContainer
+                    {
+                        AutoSizeAxes = Axes.Both,
+                        Direction = FillDirection.Vertical,
+                        // Stable puts its text (or thumbnail) 9px in from the picture's left edge.
+                        Position = new Vector2(9 + 6, 7),
+                        Children = new Drawable[]
                         {
-                            Font = OsuFont.GetFont(size: 19, weight: FontWeight.SemiBold),
-                            Shadow = false,
-                        },
-                        subtitleText = new OsuSpriteText
-                        {
-                            Font = OsuFont.GetFont(size: 14),
-                            Shadow = false,
-                        },
-                        difficultyText = new OsuSpriteText
-                        {
-                            Font = OsuFont.GetFont(size: 15, weight: FontWeight.Bold),
-                            Shadow = false,
-                        },
-                        starFlow = new FillFlowContainer
-                        {
-                            AutoSizeAxes = Axes.Both,
-                            Direction = FillDirection.Horizontal,
-                            Spacing = new Vector2(1),
-                            Margin = new MarginPadding { Top = 2 },
+                            titleText = new OsuSpriteText
+                            {
+                                Font = OsuFont.GetFont(size: 21),
+                                Shadow = false,
+                            },
+                            subtitleText = new OsuSpriteText
+                            {
+                                Font = OsuFont.GetFont(size: 15),
+                                Shadow = false,
+                            },
+                            difficultyText = new OsuSpriteText
+                            {
+                                Font = OsuFont.GetFont(size: 15, weight: FontWeight.Bold),
+                                Shadow = false,
+                            },
+                            new FillFlowContainer
+                            {
+                                AutoSizeAxes = Axes.Both,
+                                Direction = FillDirection.Horizontal,
+                                Spacing = new Vector2(8, 0),
+                                Children = new Drawable[]
+                                {
+                                    starFlow = new FillFlowContainer
+                                    {
+                                        Anchor = Anchor.CentreLeft,
+                                        Origin = Anchor.CentreLeft,
+                                        AutoSizeAxes = Axes.Both,
+                                        Direction = FillDirection.Horizontal,
+                                    },
+                                    // oily (ilo, 2026-11-26): SS pp and simulated pp are always on stable cards.
+                                    performance = new PanelPerformanceDisplay
+                                    {
+                                        AlwaysShow = true,
+                                        PlainColour = true,
+                                    },
+                                },
+                            },
                         },
                     },
                 },
@@ -185,38 +239,43 @@ namespace osu.Game.Screens.Select
 
             skin.SourceChanged += onSkinChanged;
             onSkinChanged();
+            updateLayout();
         }
 
         private void onSkinChanged()
         {
-            // Stable's card picture is wide and sticks out past the right edge, so it is drawn at its own aspect ratio from the left.
             var cardTexture = skin.GetTexture("menu-button-background");
 
             if (cardTexture != null)
             {
+                // Drawn at its own size, exactly like stable. Lazer's UI uses the same 1024x768 units as stable, so no extra scaling.
+                card.Size = new Vector2(cardTexture.DisplayWidth, cardTexture.DisplayHeight);
                 backgroundContainer.Child = new Sprite
                 {
-                    Anchor = Anchor.CentreLeft,
-                    Origin = Anchor.CentreLeft,
                     RelativeSizeAxes = Axes.Both,
-                    FillMode = FillMode.Fill,
                     Texture = cardTexture,
                 };
             }
             else
             {
-                // Stable's default card: a see-through panel with a light edge, tinted by the card's colour.
+                // Stable's default card: a see-through panel with a light edge, tinted by the card's state.
+                card.Size = DEFAULT_CARD_SIZE;
                 backgroundContainer.Child = new Container
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Masking = true,
-                    CornerRadius = 4,
-                    BorderThickness = 2.5f,
-                    BorderColour = Color4.White.Opacity(0.8f),
-                    Child = new Box
+                    Padding = new MarginPadding { Vertical = 8 },
+                    Child = new Container
                     {
                         RelativeSizeAxes = Axes.Both,
-                        Colour = ColourInfo.GradientHorizontal(Color4.White.Opacity(0.85f), Color4.White.Opacity(0.6f)),
+                        Masking = true,
+                        CornerRadius = 4,
+                        BorderThickness = 2.5f,
+                        BorderColour = Color4.White.Opacity(0.8f),
+                        Child = new Box
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            Colour = ColourInfo.GradientHorizontal(Color4.White.Opacity(0.85f), Color4.White.Opacity(0.6f)),
+                        },
                     },
                 };
             }
@@ -236,8 +295,25 @@ namespace osu.Game.Screens.Select
         {
             subtitleText.Alpha = kind == StablePanelKind.Group ? 0 : 1;
             difficultyText.Alpha = kind == StablePanelKind.Difficulty ? 1 : 0;
-            titleText.Font = titleText.Font.With(size: kind == StablePanelKind.Group ? 22 : 19);
+            performance.Alpha = kind == StablePanelKind.Difficulty ? 1 : 0;
+            titleText.Font = titleText.Font.With(size: kind == StablePanelKind.Group ? 24 : 21);
+
+            // A group header is one line, so it sits in the middle of the card.
+            textFlow.Y = kind == StablePanelKind.Group ? (card.Height - 24) / 2 : 7;
+
             updateColours(false);
+        }
+
+        protected override bool OnHover(HoverEvent e)
+        {
+            updateColours(true);
+            return false;
+        }
+
+        protected override void OnHoverLost(HoverLostEvent e)
+        {
+            updateColours(true);
+            base.OnHoverLost(e);
         }
 
         private void updateColours(bool animated)
@@ -251,10 +327,16 @@ namespace osu.Game.Screens.Select
                     _ => SET_COLOUR,
                 };
 
+            // Stable brightens a card under the mouse.
+            if (IsHovered && !active)
+                cardColour = Interpolation.ValueAt(0.25, cardColour, Color4.White, 0, 1);
+
             double duration = animated ? 200 : 0;
 
             backgroundContainer.FadeColour(cardColour, duration, Easing.OutQuint);
             textFlow.FadeColour(active ? activeText : inactiveText, duration, Easing.OutQuint);
+            // Stable's stars take the card's tint.
+            starFlow.FadeColour(cardColour, duration, Easing.OutQuint);
         }
 
         private void updateStars()
@@ -269,7 +351,7 @@ namespace osu.Game.Screens.Select
 
             starFlow.Alpha = 1;
 
-            // Stable shows one star per whole star, then a smaller one for the rest.
+            // Stable (skin v2.2+) shows one star per whole star, then scales down the last one for the rest.
             double remaining = Math.Min(stars.Value, max_stars);
 
             while (remaining > 0.05)
@@ -282,8 +364,6 @@ namespace osu.Game.Screens.Select
 
         private Drawable createStar(float fill)
         {
-            const float size = 13;
-
             Drawable star = starTexture != null
                 ? new Sprite
                 {
@@ -303,13 +383,13 @@ namespace osu.Game.Screens.Select
 
             return new Container
             {
-                Size = new Vector2(size),
+                Size = new Vector2(star_size),
                 Child = new Container
                 {
                     RelativeSizeAxes = Axes.Both,
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
-                    Scale = new Vector2(0.5f + fill * 0.5f),
+                    Scale = new Vector2(fill),
                     Child = star,
                 },
             };

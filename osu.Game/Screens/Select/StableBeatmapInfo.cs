@@ -23,6 +23,7 @@ using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Skinning;
 using osu.Game.Utils;
+using osuTK;
 using osuTK.Graphics;
 
 namespace osu.Game.Screens.Select
@@ -70,6 +71,7 @@ namespace osu.Game.Screens.Select
                 backgroundContainer = new Container
                 {
                     RelativeSizeAxes = Axes.Both,
+                    Masking = true,
                 },
                 new FillFlowContainer
                 {
@@ -127,11 +129,21 @@ namespace osu.Game.Screens.Select
 
             if (top != null)
             {
-                backgroundContainer.Child = new Sprite
+                // Drawn at its own size from the top left, like stable (lazer's UI uses stable's 1024x768 units).
+                // Stable repeats the picture's rightmost pixels to fill a wide screen; the last column is stretched here to do the same.
+                backgroundContainer.Children = new Drawable[]
                 {
-                    RelativeSizeAxes = Axes.Both,
-                    FillMode = FillMode.Fill,
-                    Texture = top,
+                    new Sprite
+                    {
+                        Texture = top.Crop(new osu.Framework.Graphics.Primitives.RectangleF(0.995f, 0, 0.005f, 1), Axes.Both),
+                        X = top.DisplayWidth - 1,
+                        Size = new Vector2(4000, top.DisplayHeight),
+                    },
+                    new Sprite
+                    {
+                        Texture = top,
+                        Size = new Vector2(top.DisplayWidth, top.DisplayHeight),
+                    },
                 };
             }
             else

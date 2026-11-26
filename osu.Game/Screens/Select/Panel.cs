@@ -64,7 +64,10 @@ namespace osu.Game.Screens.Select
         /// <summary>
         /// oily: how tall this card is with the stable look (stable's cards are all the same size).
         /// </summary>
-        public const float STABLE_HEIGHT = CarouselItem.DEFAULT_HEIGHT * 1.6f;
+        /// <remarks>
+        /// Stable's card pictures (85 tall) overlap each other, so cards are spaced closer than the picture is tall.
+        /// </remarks>
+        public const float STABLE_HEIGHT = 55;
 
         /// <summary>
         /// oily: how tall this card is with the stable look.
@@ -126,6 +129,11 @@ namespace osu.Game.Screens.Select
         private SongSelectPieceRegistry? pieceRegistry { get; set; }
 
         private float baseHeight;
+
+        private ColourInfo keyboardSelectionColour;
+
+        [Resolved]
+        private OsuColour colours { get; set; } = null!;
         private bool? appliedFlip;
 
         [BackgroundDependencyLoader]
@@ -188,7 +196,7 @@ namespace osu.Game.Screens.Select
                     keyboardSelectionLayer = new Box
                     {
                         Alpha = 0,
-                        Colour = ColourInfo.GradientHorizontal(colourProvider.Highlight1.Opacity(0.1f), colourProvider.Highlight1.Opacity(0.4f)),
+                        Colour = keyboardSelectionColour = ColourInfo.GradientHorizontal(colourProvider.Highlight1.Opacity(0.1f), colourProvider.Highlight1.Opacity(0.4f)),
                         Blending = BlendingParameters.Additive,
                         RelativeSizeAxes = Axes.Both,
                     },
@@ -480,6 +488,12 @@ namespace osu.Game.Screens.Select
                 iconContainer.Alpha = stableLook ? 0 : 1;
                 contentPaddingContainer.Alpha = stableLook ? 0 : 1;
                 StableContent.Alpha = stableLook ? 1 : 0;
+
+                // Stable's card picture is drawn whole, sticking out past the card like in stable, and has its own hover and selection look.
+                TopLevelContent.Masking = !stableLook;
+                hoverLayer.Alpha = 0;
+                hoverLayer.Colour = stableLook ? Color4.Transparent : colours.Blue.Opacity(0.1f);
+                keyboardSelectionLayer.Colour = stableLook ? ColourInfo.SingleColour(Color4.Transparent) : keyboardSelectionColour;
                 updateSelectedState(animated: false);
             }
 

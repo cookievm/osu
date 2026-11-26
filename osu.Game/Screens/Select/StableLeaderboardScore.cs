@@ -39,7 +39,7 @@ namespace osu.Game.Screens.Select
         private ScoreManager scoreManager { get; set; } = null!;
 
         private readonly Container gradeContainer;
-        private readonly Box background;
+        private readonly Container background;
         private readonly OsuSpriteText scoreText;
 
         private Bindable<string> totalScore = null!;
@@ -55,7 +55,7 @@ namespace osu.Game.Screens.Select
 
             InternalChildren = new Drawable[]
             {
-                background = new Box
+                background = new Container
                 {
                     RelativeSizeAxes = Axes.Both,
                     Colour = own ? new Color4(80, 60, 0, 255) : Color4.Black,
@@ -153,6 +153,21 @@ namespace osu.Game.Screens.Select
 
         private void onSkinChanged()
         {
+            // Stable's scoreboards use the skin's menu-button-background, tinted dark, fitted to the row's height.
+            var button = skin.GetTexture("menu-button-background");
+
+            background.Child = button != null
+                ? new Sprite
+                {
+                    Anchor = Anchor.CentreLeft,
+                    Origin = Anchor.CentreLeft,
+                    RelativeSizeAxes = Axes.Y,
+                    Height = 1,
+                    Width = button.DisplayWidth / button.DisplayHeight * BeatmapLeaderboardScore.HEIGHT,
+                    Texture = button,
+                }
+                : new Box { RelativeSizeAxes = Axes.Both };
+
             var texture = skin.GetTexture($"ranking-{score.Rank}-small");
 
             gradeContainer.Child = texture != null

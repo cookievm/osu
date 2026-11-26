@@ -220,6 +220,7 @@ namespace osu.Game.Screens.Select
             StableContent.Subtitle = StablePanelContent.ArtistAndMapper(beatmap.Metadata);
             StableContent.DifficultyName = beatmap.DifficultyName;
             StableContent.Stars = null;
+            StableContent.Beatmap = beatmap;
 
             computeStarRating();
             updateKeyCount();
@@ -242,6 +243,7 @@ namespace osu.Game.Screens.Select
             localRank.Beatmap = null;
             starDifficultyBindable = null;
             performanceDisplay.Beatmap = null;
+            StableContent.Beatmap = null;
 
             starDifficultyCancellationSource?.Cancel();
         }
@@ -262,6 +264,7 @@ namespace osu.Game.Screens.Select
                 performanceDisplay.Difficulty = starDifficulty.NewValue;
                 starCounter.Current = (float)starDifficulty.NewValue.Stars;
                 StableContent.Stars = starDifficulty.NewValue.Stars;
+                StableContent.Difficulty = starDifficulty.NewValue;
             });
         }
 
