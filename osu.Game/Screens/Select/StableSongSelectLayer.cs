@@ -26,11 +26,6 @@ namespace osu.Game.Screens.Select
     /// </summary>
     public partial class StableSongSelectLayer : CompositeDrawable
     {
-        /// <summary>
-        /// Stable's screen is 768 high; everything here is drawn in that space.
-        /// </summary>
-        public const float STABLE_HEIGHT = 768;
-
         [Resolved]
         private SongSelectPieceRegistry registry { get; set; } = null!;
 
@@ -40,21 +35,22 @@ namespace osu.Game.Screens.Select
         [Resolved(CanBeNull = true)]
         private BeatmapSetOverlay? beatmapOverlay { get; set; }
 
-        private readonly Container space;
+        private readonly StableSpace space;
         private readonly SpriteIcon statusIcon;
         private readonly Container noRecords;
 
         private readonly IBindable<bool> shown = new BindableBool();
         private readonly IBindable<bool> noRecordsShown = new BindableBool();
 
-        public StableSongSelectLayer()
+        /// <param name="screen">Song select, whose corners stable's screen matches.</param>
+        public StableSongSelectLayer(Drawable screen)
         {
             RelativeSizeAxes = Axes.Both;
             Alpha = 0;
 
             StableDropdown<StableRanking> ranking;
 
-            InternalChild = space = new Container
+            InternalChild = space = new StableSpace(screen)
             {
                 Children = new Drawable[]
                 {
@@ -179,15 +175,6 @@ namespace osu.Game.Screens.Select
 
             if (id > 0)
                 beatmapOverlay?.FetchAndShowBeatmap(id.Value);
-        }
-
-        protected override void Update()
-        {
-            base.Update();
-
-            float scale = DrawHeight > 0 ? DrawHeight / STABLE_HEIGHT : 1;
-            space.Scale = new Vector2(scale);
-            space.Size = new Vector2(DrawWidth / scale, STABLE_HEIGHT);
         }
 
         /// <summary>

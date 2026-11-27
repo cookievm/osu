@@ -87,11 +87,12 @@ namespace osu.Game.Screens.Select
 
             if (top == null)
             {
-                artHeight = FilterControl.HEIGHT_FROM_SCREEN_TOP;
+                // Like stable's own top bar: dark, down past the ranking box.
+                artHeight = 148;
                 art.Add(new Box
                 {
                     RelativeSizeAxes = Axes.Both,
-                    Colour = Color4.Black.Opacity(0.6f),
+                    Colour = Color4.Black.Opacity(0.8f),
                 });
             }
             else
