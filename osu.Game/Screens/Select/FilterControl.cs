@@ -280,7 +280,7 @@ namespace osu.Game.Screens.Select
                 {
                     Anchor = Anchor.TopRight,
                     Origin = Anchor.TopLeft,
-                    Position = new Vector2(-359, StableFont.SEARCH_BASELINE - StableFont.Ascent(StableFont.SEARCH_SIZE, bold: true)),
+                    Position = new Vector2(-359, StableFont.SEARCH_BASELINE - StableFont.SEARCH_SIZE * 0.78f),
                     AutoSizeAxes = Axes.Both,
                     Direction = FillDirection.Horizontal,
                     Spacing = new Vector2(6, 0),

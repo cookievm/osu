@@ -17,7 +17,6 @@ using osu.Game.Graphics.Sprites;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Utils;
-using osuTK;
 
 namespace osu.Game.Screens.Select
 {
@@ -65,11 +64,11 @@ namespace osu.Game.Screens.Select
             };
         }
 
-        private static OsuSpriteText line(float x, float baseline, FontUsage font) => new OsuSpriteText
+        private static OsuSpriteText line(float x, float baseline, FontUsage font) => new StableBaselineText
         {
-            Position = new Vector2(x, baseline - StableFont.Ascent(font.Size)),
+            X = x,
+            Baseline = baseline,
             Font = font,
-            Shadow = false,
         };
 
         protected override void LoadComplete()

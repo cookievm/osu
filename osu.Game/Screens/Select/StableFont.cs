@@ -1,7 +1,11 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
+using System.Linq;
 using osu.Framework.Graphics.Sprites;
+using osu.Game.Graphics;
+using osu.Game.Graphics.Sprites;
 
 namespace osu.Game.Screens.Select
 {
@@ -13,15 +17,15 @@ namespace osu.Game.Screens.Select
     {
         public const string FAMILY = "Aller";
 
-        public const float TITLE_SIZE = 25;
-        public const float MAPPER_SIZE = 19;
-        public const float LENGTH_SIZE = 19;
-        public const float COUNTS_SIZE = 19;
-        public const float DIFFICULTY_SIZE = 13;
-        public const float RANKING_SIZE = 21;
-        public const float DROPDOWN_SIZE = 19;
-        public const float SEARCH_SIZE = 19;
-        public const float NO_RECORDS_SIZE = 24;
+        public const float TITLE_SIZE = 23;
+        public const float MAPPER_SIZE = 16;
+        public const float LENGTH_SIZE = 15.3f;
+        public const float COUNTS_SIZE = 14.2f;
+        public const float DIFFICULTY_SIZE = 9.8f;
+        public const float RANKING_SIZE = 18;
+        public const float DROPDOWN_SIZE = 17;
+        public const float SEARCH_SIZE = 16;
+        public const float NO_RECORDS_SIZE = 26;
 
         // Baselines (where the letters sit) in stable's space, measured from stable.
         public const float TITLE_BASELINE = 17.07f;
@@ -32,15 +36,35 @@ namespace osu.Game.Screens.Select
         public const float SEARCH_BASELINE = 101.87f;
 
         /// <summary>
-        /// How far the baseline is below the top of a line of text (the font's ascent), for each weight, as a part of the font size.
+        /// Whether o!ily was built with Aller (osu.Game/Resources/Oily/Fonts/Aller, made with oily/tools/make_bmfont.py). Without it, lazer's font stands in.
         /// </summary>
-        private const float ascent_regular = 0.8f;
-
-        private const float ascent_bold = 0.8f;
-
-        public static float Ascent(float size, bool bold = false) => size * (bold ? ascent_bold : ascent_regular);
+        public static readonly bool AVAILABLE = typeof(StableFont).Assembly.GetManifestResourceNames().Any(n => n.EndsWith("Aller-Regular.bin", StringComparison.Ordinal));
 
         public static FontUsage Get(float size, bool bold = false, bool light = false)
-            => new FontUsage(FAMILY, size, bold ? "Bold" : light ? "Light" : "Regular");
+            => AVAILABLE
+                ? new FontUsage(FAMILY, size, bold ? "Bold" : light ? "Light" : "Regular")
+                : OsuFont.GetFont(size: size, weight: bold ? FontWeight.Bold : light ? FontWeight.Light : FontWeight.Regular);
+    }
+
+    /// <summary>
+    /// oily: text placed by its baseline (where the letters sit), so lines land where stable's do whatever the font.
+    /// </summary>
+    public partial class StableBaselineText : OsuSpriteText
+    {
+        /// <summary>
+        /// Where the baseline goes, in the parent's space.
+        /// </summary>
+        public float Baseline { get; set; }
+
+        public StableBaselineText()
+        {
+            Shadow = false;
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+            Y = Baseline - LineBaseHeight;
+        }
     }
 }
