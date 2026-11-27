@@ -291,6 +291,9 @@ namespace osu.Game
             largeStore.AddTextureSource(Host.CreateTextureLoaderStore(CreateOnlineStore()));
             dependencies.Cache(largeStore);
 
+            // oily: o!ily's own textures (logo, hearts).
+            dependencies.Cache(new OilyTextures(Host.Renderer, Host));
+
             dependencies.Cache(onlineAssetStore = new OnlineAssetCachingStore(Host, realm));
 
             dependencies.CacheAs(LocalConfig);
@@ -473,6 +476,15 @@ namespace osu.Game
         protected virtual void InitialiseFonts()
         {
             AddFont(Resources, @"Fonts/Torus/Torus-Regular");
+
+            // oily (ilo, 2026-11-27): osu!stable's font, for the Stable "Menu UI" (see Screens.Select.StableFont).
+            if (Screens.Select.StableFont.AVAILABLE)
+            {
+                var oilyFonts = new NamespacedResourceStore<byte[]>(new DllResourceStore(typeof(OsuGameBase).Assembly), @"Resources/Oily");
+                AddFont(oilyFonts, @"Fonts/Aller/Aller-Regular");
+                AddFont(oilyFonts, @"Fonts/Aller/Aller-Bold");
+                AddFont(oilyFonts, @"Fonts/Aller/Aller-Light");
+            }
             AddFont(Resources, @"Fonts/Torus/Torus-Light");
             AddFont(Resources, @"Fonts/Torus/Torus-SemiBold");
             AddFont(Resources, @"Fonts/Torus/Torus-Bold");

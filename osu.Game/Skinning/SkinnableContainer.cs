@@ -41,6 +41,11 @@ namespace osu.Game.Skinning
 
         public bool ComponentsLoaded { get; private set; }
 
+        /// <summary>
+        /// oily: whether the skin editor offers this layer right now. <c>null</c> means always.
+        /// </summary>
+        public Func<bool>? AvailableInEditor { get; init; }
+
         private CancellationTokenSource? cancellationSource;
 
         public SkinnableContainer(GlobalSkinnableContainerLookup lookup)

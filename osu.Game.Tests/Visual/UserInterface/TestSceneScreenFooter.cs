@@ -7,9 +7,11 @@ using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
+using osu.Game.Configuration;
 using osu.Game.Graphics;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Input.Bindings;
@@ -26,6 +28,91 @@ namespace osu.Game.Tests.Visual.UserInterface
     {
         [Resolved]
         private OsuColour colours { get; set; } = null!;
+
+        [Resolved]
+        private OsuConfigManager config { get; set; } = null!;
+
+        [Test]
+        public void TestButtonColours()
+        {
+            AddStep("set colours", () =>
+            {
+                var colours = new OilyPanelColours();
+                colours.Colours[OilyColour.OptionsIcon] = "#ff0000";
+                colours.Colours[OilyColour.OptionsBar] = "#00ff00";
+                colours.Colours[OilyColour.BackButton] = "#0000ff";
+                config.SetValue(OsuSetting.OilyPanelColours, colours.Serialise());
+            });
+
+            AddStep("push screen", () => LoadScreen(new TestScreen
+            {
+                FooterContent = { Value = ScreenFooterContent.Argon(leftButtons: () => new ScreenFooterButton[] { new FooterButtonOptions() }) },
+            }));
+
+            AddUntilStep("options icon red", () => ScreenFooter.ChildrenOfType<FooterButtonOptions>().SingleOrDefault()?.ChildrenOfType<SpriteIcon>().First().Colour.TopLeft.SRGB.R, () => Is.EqualTo(1).Within(0.01f));
+            AddUntilStep("options bar green", () => ScreenFooter.ChildrenOfType<FooterButtonOptions>().Single().ChildrenOfType<Box>().Single(b => b.Colour.TopLeft.SRGB.G > 0.99f && b.Colour.TopLeft.SRGB.R < 0.01f), () => Is.Not.Null);
+
+            AddStep("reset colours", () => config.SetValue(OsuSetting.OilyPanelColours, string.Empty));
+        }
+
+        [Test]
+        public void TestBottomBarLayout()
+        {
+            AddStep("hide random (old layout), options first, back on the right, no background", () =>
+            {
+                var layout = FooterLayout.CreateDefault();
+                layout.Bar = FooterBarMode.ButtonsOnly;
+                layout.BackButton = FooterBackSide.Right;
+                layout.Buttons.Single(b => b.Item == FooterItem.Random).Visible = false;
+                var options = layout.Buttons.Single(b => b.Item == FooterItem.Options);
+                layout.Buttons.Remove(options);
+                layout.Buttons.Insert(0, options);
+                config.SetValue(OsuSetting.OilyFooterLayout, layout.Serialise());
+            });
+
+            AddStep("push screen", () => LoadScreen(new TestScreen
+            {
+                FooterContent =
+                {
+                    Value = ScreenFooterContent.Argon(leftButtons: () => new ScreenFooterButton[]
+                    {
+                        new ScreenFooterButton { Text = "Other", Action = () => { } },
+                        new FooterButtonRandom(),
+                        new FooterButtonOptions(),
+                    }),
+                },
+            }));
+
+            // oily (ilo, 2026-11-26): buttons and the bar can't be hidden any more.
+            AddUntilStep("random still shown", () => ScreenFooter.ChildrenOfType<FooterButtonRandom>().Any(), () => Is.True);
+            AddUntilStep("options before random, other button kept first", () => ScreenFooter.ChildrenOfType<FillFlowContainer<ScreenFooterButton>>().First().FlowingChildren.Cast<ScreenFooterButton>().Select(b => b.GetType().Name),
+                () => Is.EqualTo(new[] { nameof(ScreenFooterButton), nameof(FooterButtonOptions), nameof(FooterButtonRandom) }));
+            AddAssert("back button on the right", () => ScreenFooter.BackButton.Anchor, () => Is.EqualTo(Anchor.BottomRight));
+            AddAssert("back button right of the buttons", () => ScreenFooter.BackButton.ScreenSpaceDrawQuad.Centre.X > ScreenFooter.ChildrenOfType<FooterButtonOptions>().Single().ScreenSpaceDrawQuad.Centre.X);
+            AddAssert("background still shown", () => ScreenFooter.ChildrenOfType<Box>().First().Alpha, () => Is.GreaterThan(0));
+
+            AddStep("make the bar bigger", () =>
+            {
+                var layout = FooterLayout.Parse(config.Get<string>(OsuSetting.OilyFooterLayout));
+                layout.Size = 1.5f;
+                config.SetValue(OsuSetting.OilyFooterLayout, layout.Serialise());
+            });
+            AddUntilStep("bar bigger", () => ScreenFooter.DrawHeight * ScreenFooter.Scale.Y, () => Is.EqualTo(ScreenFooter.HEIGHT * 1.5f).Within(0.01f));
+            AddAssert("bar still fills the width", () => ScreenFooter.ScreenSpaceDrawQuad.Width, () => Is.EqualTo(ScreenFooter.Parent!.ScreenSpaceDrawQuad.Width).Within(1));
+
+            AddStep("hide the bar", () =>
+            {
+                var layout = FooterLayout.Parse(config.Get<string>(OsuSetting.OilyFooterLayout));
+                layout.Bar = FooterBarMode.Hidden;
+                config.SetValue(OsuSetting.OilyFooterLayout, layout.Serialise());
+            });
+            AddUntilStep("bar still shown", () => ScreenFooter.Alpha, () => Is.EqualTo(1));
+
+            AddStep("reset", () => config.SetValue(OsuSetting.OilyFooterLayout, string.Empty));
+            AddStep("reset colours", () => config.SetValue(OsuSetting.OilyPanelColours, string.Empty));
+            AddUntilStep("bar back", () => ScreenFooter.Alpha, () => Is.EqualTo(1));
+            AddAssert("back button on the left", () => ScreenFooter.BackButton.Anchor, () => Is.EqualTo(Anchor.BottomLeft));
+        }
 
         [Test]
         public void TestButtonsIn()

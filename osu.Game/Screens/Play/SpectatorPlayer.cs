@@ -6,9 +6,11 @@ using osu.Framework.Extensions.ObjectExtensions;
 using osu.Framework.Graphics;
 using osu.Framework.Screens;
 using osu.Game.Beatmaps;
+using osu.Game.Configuration;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
 using osu.Game.Online.Spectator;
+using osu.Game.Rulesets;
 using osu.Game.Rulesets.Replays;
 using osu.Game.Rulesets.Replays.Types;
 using osu.Game.Scoring;
@@ -111,6 +113,9 @@ namespace osu.Game.Screens.Play
         }
 
         protected override Score CreateScore(IBeatmap beatmap) => score;
+
+        // oily: play with the rules the spectated score was played with.
+        protected override OilyGameRules CreateGameRules(IBeatmap playableBeatmap, OsuConfigManager config) => OilyGameRules.FromClientVersion(score.ScoreInfo.ClientVersion);
 
         protected override ResultsScreen CreateResults(ScoreInfo score)
             => new SpectatorResultsScreen(score);

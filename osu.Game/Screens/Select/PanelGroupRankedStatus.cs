@@ -26,6 +26,9 @@ namespace osu.Game.Screens.Select
 {
     public partial class PanelGroupRankedStatus : Panel
     {
+        // oily: drawn like osu!stable's group headers when the beatmap list uses the Stable style.
+        protected override bool SupportsStableLook => true;
+
         public const float HEIGHT = PanelGroup.HEIGHT;
 
         [Resolved]
@@ -171,6 +174,9 @@ namespace osu.Game.Screens.Select
             glow.Colour = ColourInfo.GradientHorizontal(statusColour, statusColour.Opacity(0f));
 
             starRatingText.Text = group.Title;
+
+            StableContent.Kind = StablePanelKind.Group;
+            StableContent.Title = StableGroupTitle(group.Title, Item.NestedItemCount);
 
             ColourInfo colour = ColourInfo.GradientHorizontal(statusColour.Darken(0.6f), statusColour.Darken(0.8f));
 

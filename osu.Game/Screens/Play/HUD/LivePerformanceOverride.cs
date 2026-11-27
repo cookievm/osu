@@ -26,7 +26,8 @@ namespace osu.Game.Screens.Play.HUD
     public static class LivePerformanceOverride
     {
         /// <summary>
-        /// Returns the calculator for a play, or null to use the ruleset's own.
+        /// Returns the calculator for a play, or null to use the ruleset's own lazer pp.
+        /// When this itself is null, the ruleset's o!ily pp is used (see <see cref="Rulesets.Ruleset.CreateOilyLivePerformance"/>).
         /// </summary>
         public static Func<GameplayState, ILivePerformanceCalculator?>? Factory { get; set; }
     }

@@ -1,19 +1,20 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Testing;
 using osu.Game.Beatmaps;
 using osu.Game.Configuration;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
-using osuTK;
 
 namespace osu.Game.Overlays.Mods
 {
@@ -23,8 +24,6 @@ namespace osu.Game.Overlays.Mods
 
         private RankingInformationDisplay? rankingInformationDisplay;
         private BeatmapAttributesDisplay? beatmapAttributesDisplay;
-        private FillFlowContainer<ShearedButton> buttonFlow = null!;
-        private FillFlowContainer contentFlow = null!;
 
         public DeselectAllModsButton? DeselectAllModsButton { get; set; }
 
@@ -40,7 +39,7 @@ namespace osu.Game.Overlays.Mods
         /// <summary>
         /// Whether the ranking information and beatmap attributes displays are stacked vertically due to small space.
         /// </summary>
-        public bool DisplaysStackedVertically { get; private set; }
+        public bool DisplaysStackedVertically => false;
 
         public ModSelectFooterContent(ModSelectOverlay overlay)
         {
@@ -52,42 +51,27 @@ namespace osu.Game.Overlays.Mods
         {
             RelativeSizeAxes = Axes.Both;
 
-            InternalChild = buttonFlow = new FillFlowContainer<ShearedButton>
-            {
-                RelativeSizeAxes = Axes.X,
-                AutoSizeAxes = Axes.Y,
-                Direction = FillDirection.Horizontal,
-                Anchor = Anchor.BottomLeft,
-                Origin = Anchor.BottomLeft,
-                Padding = new MarginPadding { Horizontal = 20 },
-                Spacing = new Vector2(10),
-                ChildrenEnumerable = CreateButtons(),
-            };
+            // oily (ilo, 2026-11-26): the buttons sit next to mod select's search bar, not on the bottom bar.
+            overlay.SetHeaderButtons(CreateButtons().ToArray());
 
             if (ShowModEffects)
             {
-                AddInternal(contentFlow = new FillFlowContainer
+                AddRangeInternal(new Drawable[]
                 {
-                    AutoSizeAxes = Axes.Both,
-                    Direction = FillDirection.Vertical,
-                    Spacing = new Vector2(30, 10),
-                    Anchor = Anchor.BottomRight,
-                    Origin = Anchor.BottomRight,
-                    Margin = new MarginPadding { Horizontal = 20 },
-                    Children = new Drawable[]
+                    // The map's details sit on the left, between the bottom bar's buttons and its toolbar icons.
+                    beatmapAttributesDisplay = new BeatmapAttributesDisplay
                     {
-                        rankingInformationDisplay = new RankingInformationDisplay
-                        {
-                            Anchor = Anchor.BottomRight,
-                            Origin = Anchor.BottomRight
-                        },
-                        beatmapAttributesDisplay = new BeatmapAttributesDisplay
-                        {
-                            Anchor = Anchor.BottomRight,
-                            Origin = Anchor.BottomRight,
-                            BeatmapInfo = { Value = Beatmap.Value?.BeatmapInfo },
-                        },
-                    }
+                        Anchor = Anchor.BottomLeft,
+                        Origin = Anchor.BottomLeft,
+                        BeatmapInfo = { Value = Beatmap.Value?.BeatmapInfo },
+                    },
+                    // Ranked / unranked and the score multiplier stay on the far right.
+                    rankingInformationDisplay = new RankingInformationDisplay
+                    {
+                        Anchor = Anchor.BottomRight,
+                        Origin = Anchor.BottomRight,
+                        Margin = new MarginPadding { Horizontal = 20 },
+                    },
                 });
             }
         }
@@ -137,29 +121,81 @@ namespace osu.Game.Overlays.Mods
             beatmapAttributesDisplay?.Mods.Value = ActiveMods.Value;
         }
 
+        /// <summary>
+        /// How wide the map's details are with every attribute shown.
+        /// </summary>
+        private const float expanded_attributes_width = 640;
+
+        [Resolved(canBeNull: true)]
+        private OsuGame? game { get; set; }
+
         protected override void Update()
         {
             base.Update();
 
-            if (beatmapAttributesDisplay != null)
+            if (beatmapAttributesDisplay == null || Alpha < 1)
+                return;
+
+            var footer = this.FindClosestParent<Screens.Footer.ScreenFooter>();
+
+            // The space between the bottom bar's buttons (like Mods) and its toolbar icons (or the ranked display).
+            float left = 0;
+            float right = ToLocalSpace(rankingInformationDisplay!.ScreenSpaceDrawQuad.TopLeft).X - 20;
+
+            if (footer != null)
             {
-                float rightEdgeOfLastButton = buttonFlow[^1].ScreenSpaceDrawQuad.TopRight.X;
+                // oily: the fixed layout moves the buttons left of where this area starts, so this can be negative.
+                var shown = footer.ShownButtons.Where(b => b.IsPresent).ToArray();
+                if (shown.Length > 0)
+                    left = shown.Max(button => ToLocalSpace(button.ScreenSpaceDrawQuad.TopRight).X);
 
-                // this is cheating a bit; the 640 value is hardcoded based on how wide the expanded panel _generally_ is.
-                // due to the transition applied, the raw screenspace quad of the panel cannot be used, as it will trigger an ugly feedback cycle of expanding and collapsing.
-                float projectedLeftEdgeOfExpandedBeatmapAttributesDisplay = buttonFlow.ToScreenSpace(buttonFlow.DrawSize - new Vector2(640, 0)).X;
+                // The first toolbar icon on the bar that's actually showing (and right of the buttons).
+                if (footer.ToolbarButtons is CompositeDrawable toolbarButtons && toolbarButtons.IsPresent)
+                {
+                    foreach (var icon in toolbarButtons.ChildrenOfType<Drawable>().Where(d => d.IsPresent && d.DrawWidth > 1 && d.DrawWidth < 200))
+                    {
+                        float iconLeft = ToLocalSpace(icon.ScreenSpaceDrawQuad.TopLeft).X;
+                        if (iconLeft > left)
+                            right = Math.Min(right, iconLeft);
+                    }
+                }
 
-                DisplaysStackedVertically = rightEdgeOfLastButton > projectedLeftEdgeOfExpandedBeatmapAttributesDisplay;
+                // oily: the fixed toolbar sits inside the bottom bar, so its first icon (the gamemode circle) counts too.
+                if (game?.Toolbar is Overlays.Toolbar.Toolbar toolbar && toolbar.IsPresent)
+                {
+                    float footerTop = footer.ScreenSpaceDrawQuad.TopLeft.Y;
 
-                // only update preview panel's collapsed state after we are fully visible, to ensure all the buttons are where we expect them to be.
-                if (Alpha == 1)
-                    beatmapAttributesDisplay.Collapsed.Value = DisplaysStackedVertically;
+                    foreach (var icon in toolbar.ChildrenOfType<Overlays.Toolbar.ToolbarRulesetTabButton>().Cast<Drawable>()
+                                                .Concat(toolbar.ChildrenOfType<Overlays.Toolbar.ToolbarButton>())
+                                                .Where(d => d.IsPresent && d.DrawWidth > 1 && d.DrawWidth < 200))
+                    {
+                        var quad = icon.ScreenSpaceDrawQuad;
+                        if (quad.Centre.Y < footerTop)
+                            continue;
 
-                contentFlow.LayoutDuration = 200;
-                contentFlow.LayoutEasing = Easing.OutQuint;
-                contentFlow.Direction = DisplaysStackedVertically ? FillDirection.Vertical : FillDirection.Horizontal;
+                        float iconLeft = ToLocalSpace(quad.TopLeft).X;
+                        if (iconLeft > left)
+                            right = Math.Min(right, iconLeft);
+                    }
+                }
             }
+
+            float room = right - left;
+
+            // Every attribute only if there's room; otherwise just the stars and BPM (hover shows the rest).
+            bool collapsed = room < expanded_attributes_width + 20;
+            beatmapAttributesDisplay.Collapsed.Value = collapsed;
+
+            float width = collapsed ? collapsedWidth() : expanded_attributes_width;
+
+            // Sit in the middle of that space.
+            beatmapAttributesDisplay.X = left + Math.Max(10, (room - width) / 2);
         }
+
+        /// <summary>
+        /// How wide the map's details are with only the stars and BPM shown.
+        /// </summary>
+        private float collapsedWidth() => beatmapAttributesDisplay!.CollapsedWidth;
 
         protected virtual IEnumerable<ShearedButton> CreateButtons() => new[]
         {

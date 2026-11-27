@@ -4,7 +4,7 @@
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using Oily.Rendering.Akatsuki;
+using osu.Game.Rulesets.Osu.Difficulty.Akatsuki;
 using Oily.Rendering.Audio;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
@@ -197,8 +197,8 @@ namespace Oily.Rendering
             if (Audio != null)
                 SamplePlaybackRecorder.Listener = Audio;
 
-            if (Settings.AkatsukiPp)
-                LivePerformanceOverride.Factory = AkatsukiRelaxLiveCalculator.CreateFor;
+            // Without Akatsuki pp, the render keeps lazer's own pp even for Relax (the game itself uses o!ily pp).
+            LivePerformanceOverride.Factory = Settings.AkatsukiPp ? AkatsukiRelaxLiveCalculator.CreateFor : _ => null;
 
             PlayerGlobalRank.Current = Settings.PlayerGlobalRank;
 
@@ -330,8 +330,7 @@ namespace Oily.Rendering
 
         private void clearGameplayOverrides()
         {
-            if (Settings.AkatsukiPp)
-                LivePerformanceOverride.Factory = null;
+            LivePerformanceOverride.Factory = null;
 
             PlayerGlobalRank.Current = null;
         }

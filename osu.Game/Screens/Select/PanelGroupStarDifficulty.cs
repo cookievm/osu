@@ -25,6 +25,9 @@ namespace osu.Game.Screens.Select
 {
     public partial class PanelGroupStarDifficulty : Panel
     {
+        // oily: drawn like osu!stable's group headers when the beatmap list uses the Stable style.
+        protected override bool SupportsStableLook => true;
+
         public const float HEIGHT = PanelGroup.HEIGHT;
 
         [Resolved]
@@ -158,6 +161,9 @@ namespace osu.Game.Screens.Select
             iconContainer.Colour = starNumber >= 7 ? colourProvider.Content1 : colourProvider.Background5;
             starRatingText.Colour = colourProvider.Content1;
             starRatingText.Text = group.Title;
+
+            StableContent.Kind = StablePanelKind.Group;
+            StableContent.Title = StableGroupTitle(group.Title, Item.NestedItemCount);
 
             ColourInfo colour;
 

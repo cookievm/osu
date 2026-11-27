@@ -12,6 +12,7 @@ using osu.Framework.Localisation;
 using osu.Framework.Platform;
 using osu.Game.Beatmaps.Drawables.Cards;
 using osu.Game.Input;
+using osu.Game.Rulesets;
 using osu.Game.Input.Bindings;
 using osu.Game.Localisation;
 using osu.Game.Online.Leaderboards;
@@ -33,6 +34,9 @@ namespace osu.Game.Configuration
         public OsuConfigManager(Storage storage)
             : base(storage)
         {
+            // oily (ilo, 2026-11-26): the toolbar and bottom bar are the same for everyone and can't be changed in game.
+            SetValue(OsuSetting.OilyToolbarLayout, Overlays.Toolbar.ToolbarLayout.FIXED);
+            SetValue(OsuSetting.OilyFooterLayout, Screens.Footer.FooterLayout.FIXED);
         }
 
         protected override void InitialiseDefaults()
@@ -150,6 +154,24 @@ namespace osu.Game.Configuration
             SetDefault(OsuSetting.LightenDuringBreaks, true);
 
             SetDefault(OsuSetting.HitLighting, true);
+
+            // oily: Gamerules tab.
+            SetDefault(OsuSetting.GameRulesNoteLock, true);
+            SetDefault(OsuSetting.GameRulesSliderAccuracy, true);
+            SetDefault(OsuSetting.GameRulesHitTiming, OilyHitTiming.Lazer);
+
+            // oily: the default pretend score for simulated pp in song select.
+            SetDefault(OsuSetting.OilySimulationAccuracy, 98.0, 0, 100, 0.01);
+            SetDefault(OsuSetting.OilySimulationMisses, 0, 0, 1000);
+            SetDefault(OsuSetting.OilySimulationComboPercent, 100.0, 0, 100, 0.1);
+
+            // oily: toolbars and their buttons (see ToolbarLayout). Empty = the default layout.
+            SetDefault(OsuSetting.OilyToolbarLayout, Overlays.Toolbar.ToolbarLayout.FIXED);
+            SetDefault(OsuSetting.OilyFooterLayout, Screens.Footer.FooterLayout.FIXED);
+            SetDefault(OsuSetting.OilyPanelColours, string.Empty);
+            SetDefault(OsuSetting.OilyPpWorkPaused, false);
+            SetDefault(OsuSetting.OilyPpThreads, 1, 1, 256);
+            SetDefault(OsuSetting.OilyMenuUi, Screens.Select.OilyMenuUi.Lazer);
             SetDefault(OsuSetting.StarFountains, true);
 
             SetDefault(OsuSetting.HUDVisibilityMode, HUDVisibilityMode.Always);
@@ -488,5 +510,19 @@ namespace osu.Game.Configuration
         /// </summary>
         PMFriendsOnly,
         HitsoundVolume,
+
+        // oily: Gamerules tab.
+        GameRulesNoteLock,
+        GameRulesSliderAccuracy,
+        GameRulesHitTiming,
+        OilySimulationAccuracy,
+        OilySimulationMisses,
+        OilySimulationComboPercent,
+        OilyToolbarLayout,
+        OilyFooterLayout,
+        OilyPanelColours,
+        OilyPpWorkPaused,
+        OilyPpThreads,
+        OilyMenuUi,
     }
 }

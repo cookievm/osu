@@ -17,6 +17,12 @@ namespace osu.Game.Skinning
         SongSelect,
 
         [Description("Playfield")]
-        Playfield
+        Playfield,
+
+        /// <summary>
+        /// oily: the Universal PP Simulator box in song select.
+        /// </summary>
+        [Description("PP Simulator")]
+        PpSimulator,
     }
 }

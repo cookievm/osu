@@ -14,6 +14,7 @@ using osu.Framework.Graphics.Pooling;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Input.Events;
+using osu.Framework.Localisation;
 using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Carousel;
@@ -49,6 +50,41 @@ namespace osu.Game.Screens.Select
 
         private Container contentPaddingContainer = null!;
         protected Container Content { get; private set; } = null!;
+
+        /// <summary>
+        /// oily: the osu!stable look of this card, shown instead of lazer's when the skin's beatmap list style is "Stable".
+        /// Cards that set <see cref="SupportsStableLook"/> fill it in.
+        /// </summary>
+        protected StablePanelContent StableContent { get; private set; } = null!;
+
+        /// <summary>
+        /// oily: whether this card has an osu!stable look. Cards without one keep lazer's look.
+        /// </summary>
+        protected virtual bool SupportsStableLook => false;
+
+        /// <summary>
+        /// oily: how tall this card is with the stable look (stable's cards are all the same size).
+        /// </summary>
+        /// <remarks>
+        /// Stable's card pictures (85 tall) overlap each other, so cards are spaced closer than the picture is tall.
+        /// </remarks>
+        public static readonly float STABLE_HEIGHT = StablePanelContent.DEFAULT_CARD_HEIGHT - BeatmapCarousel.SPACING;
+
+        /// <summary>
+        /// oily: how tall this card is with the stable look.
+        /// </summary>
+        protected virtual float StableHeight => STABLE_HEIGHT;
+
+        /// <summary>
+        /// oily: whether the stable look is showing.
+        /// </summary>
+        protected bool StableLookShown { get; private set; }
+
+        /// <summary>
+        /// oily: osu!stable's group header text, like "2 Stars (1,694 maps)".
+        /// </summary>
+        protected static LocalisableString StableGroupTitle(LocalisableString title, int count)
+            => LocalisableString.Interpolate($"{title} ({count:N0} {(count == 1 ? "map" : "maps")})");
 
         public Drawable Background
         {
@@ -95,6 +131,18 @@ namespace osu.Game.Screens.Select
         [Resolved]
         private BeatmapCarousel? carousel { get; set; }
 
+        // oily: card look set by the skin (see SongSelectCardStyle).
+        [Resolved]
+        private SongSelectPieceRegistry? pieceRegistry { get; set; }
+
+        private float baseHeight;
+
+        private ColourInfo keyboardSelectionColour;
+
+        [Resolved]
+        private OsuColour colours { get; set; } = null!;
+        private bool? appliedFlip;
+
         [BackgroundDependencyLoader]
         private void load(OverlayColourProvider colourProvider, OsuColour colours)
         {
@@ -132,6 +180,10 @@ namespace osu.Game.Screens.Select
                             Masking = true,
                         },
                     },
+                    StableContent = new StablePanelContent
+                    {
+                        Alpha = 0,
+                    },
                     hoverLayer = new Box
                     {
                         Alpha = 0,
@@ -151,7 +203,7 @@ namespace osu.Game.Screens.Select
                     keyboardSelectionLayer = new Box
                     {
                         Alpha = 0,
-                        Colour = ColourInfo.GradientHorizontal(colourProvider.Highlight1.Opacity(0.1f), colourProvider.Highlight1.Opacity(0.4f)),
+                        Colour = keyboardSelectionColour = ColourInfo.GradientHorizontal(colourProvider.Highlight1.Opacity(0.1f), colourProvider.Highlight1.Opacity(0.4f)),
                         Blending = BlendingParameters.Additive,
                         RelativeSizeAxes = Axes.Both,
                     },
@@ -255,6 +307,8 @@ namespace osu.Game.Screens.Select
         {
             base.LoadComplete();
 
+            baseHeight = Height;
+
             Expanded.BindValueChanged(_ =>
             {
                 updateSelectedState();
@@ -332,6 +386,15 @@ namespace osu.Game.Screens.Select
         {
             bool selectedOrExpanded = Expanded.Value || Selected.Value;
 
+            // oily: stable's cards have no glow or pulsing selection, only colours (see StablePanelContent).
+            if (StableLookShown)
+            {
+                TopLevelContent.EdgeEffect = default;
+                selectionLayer.FadeOut(animated ? 200 : 0, Easing.OutQuint);
+                StableContent.Active = selectedOrExpanded;
+                return;
+            }
+
             var edgeEffectColour = accentColour ?? Color4Extensions.FromHex(@"4EBFFF");
 
             if (selectedOrExpanded)
@@ -362,6 +425,8 @@ namespace osu.Game.Screens.Select
                 selectionLayer.FadeOut(200, Easing.OutQuint);
         }
 
+        private bool flipped => pieceRegistry?.CardStyle.Flip.Value == true;
+
         private void updateXOffset(bool animated = true)
         {
             float x = PanelXOffset + CORNER_RADIUS;
@@ -376,6 +441,10 @@ namespace osu.Game.Screens.Select
 
             if (!KeyboardSelected.Value)
                 x += active_x_offset;
+
+            // oily: flipped cards come in from the left.
+            if (flipped)
+                x = -x;
 
             TopLevelContent.MoveToX(x, animated ? DURATION : 0, Easing.OutQuint);
         }
@@ -396,6 +465,55 @@ namespace osu.Game.Screens.Select
         {
             base.Update();
             contentPaddingContainer.Padding = contentPaddingContainer.Padding with { Left = iconContainer.DrawWidth };
+
+            applyCardStyle();
+        }
+
+        /// <summary>
+        /// oily: applies the skin's card look (flip, rotation, size, corners, picture opacity, colour).
+        /// </summary>
+        private void applyCardStyle()
+        {
+            if (pieceRegistry == null)
+                return;
+
+            var style = pieceRegistry.CardStyle;
+
+            if (appliedFlip != style.Flip.Value)
+            {
+                appliedFlip = style.Flip.Value;
+                Anchor = Origin = appliedFlip.Value ? Anchor.TopLeft : Anchor.TopRight;
+                selectionLayer.Anchor = selectionLayer.Origin = appliedFlip.Value ? Anchor.TopLeft : Anchor.TopRight;
+                updateXOffset(animated: false);
+            }
+
+            bool stableLook = style.Stable.Value && SupportsStableLook;
+
+            if (StableLookShown != stableLook)
+            {
+                StableLookShown = stableLook;
+                iconContainer.Alpha = stableLook ? 0 : 1;
+                contentPaddingContainer.Alpha = stableLook ? 0 : 1;
+                StableContent.Alpha = stableLook ? 1 : 0;
+
+                // Stable's card picture is drawn whole, sticking out past the card like in stable, and has its own hover and selection look.
+                TopLevelContent.Masking = !stableLook;
+                hoverLayer.Alpha = 0;
+                hoverLayer.Colour = stableLook ? Color4.Transparent : colours.Blue.Opacity(0.1f);
+                keyboardSelectionLayer.Colour = stableLook ? ColourInfo.SingleColour(Color4.Transparent) : keyboardSelectionColour;
+                updateSelectedState(animated: false);
+            }
+
+            Rotation = style.Rotation.Value;
+            Width = style.Width.Value;
+
+            if (baseHeight > 0)
+                Height = (stableLook ? StableHeight : baseHeight) * style.Height.Value;
+
+            TopLevelContent.CornerRadius = stableLook ? 0 : style.CornerRadius.Value;
+            Content.CornerRadius = style.CornerRadius.Value;
+            backgroundContainer.Alpha = stableLook ? 0 : style.BackgroundOpacity.Value;
+            TopLevelContent.Colour = style.Tint.Value;
         }
 
         public abstract MenuItem[]? ContextMenuItems { get; }

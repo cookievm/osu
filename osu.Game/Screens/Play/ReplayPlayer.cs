@@ -12,6 +12,7 @@ using osu.Framework.Input.Events;
 using osu.Framework.Screens;
 using osu.Game.Beatmaps;
 using osu.Game.Configuration;
+using osu.Game.Rulesets;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
 using osu.Game.Input.Bindings;
@@ -160,7 +161,16 @@ namespace osu.Game.Screens.Play
             lastFrameTime = Score.Replay.Frames.LastOrDefault()?.Time;
         }
 
-        protected override Score CreateScore(IBeatmap beatmap) => createScore(beatmap, Mods.Value);
+        // oily: the score is created early so its gamerules are known before gameplay is set up.
+        private Score? replayScore;
+
+        protected override OilyGameRules CreateGameRules(IBeatmap playableBeatmap, OsuConfigManager config)
+        {
+            replayScore ??= createScore(playableBeatmap, Mods.Value);
+            return OilyGameRules.FromClientVersion(replayScore.ScoreInfo.ClientVersion);
+        }
+
+        protected override Score CreateScore(IBeatmap beatmap) => replayScore ?? createScore(beatmap, Mods.Value);
 
         // Don't re-import replay scores as they're already present in the database.
         protected override Task ImportScore(Score score) => Task.CompletedTask;

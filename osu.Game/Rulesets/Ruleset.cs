@@ -263,6 +263,31 @@ namespace osu.Game.Rulesets
         public virtual HealthProcessor CreateHealthProcessor(double drainStartTime) => new DrainingHealthProcessor(drainStartTime);
 
         /// <summary>
+        /// oily: applies the o!ily gameplay rules to a playable beatmap, before gameplay and scoring are set up.
+        /// </summary>
+        public virtual void ApplyGameRules(IBeatmap playableBeatmap, OilyGameRules rules)
+        {
+        }
+
+        /// <summary>
+        /// oily: whether o!ily has its own pp for plays with these mods in this ruleset. If not, lazer's pp is used.
+        /// </summary>
+        public virtual bool HasOilyPerformance(IReadOnlyList<Mod> mods) => false;
+
+        /// <summary>
+        /// oily: o!ily's own pp for a play, when <see cref="HasOilyPerformance"/> is true.
+        /// </summary>
+        /// <param name="playableBeatmap">The playable beatmap, with the mods applied.</param>
+        /// <param name="mods">The play's mods.</param>
+        /// <param name="play">The play's hits, or <c>null</c> for an SS.</param>
+        public virtual double? CalculateOilyPerformance(IBeatmap playableBeatmap, IReadOnlyList<Mod> mods, OilyPlay? play) => null;
+
+        /// <summary>
+        /// oily: o!ily's own live pp during a play (the pp counter and gameplay leaderboard), or null to use lazer's.
+        /// </summary>
+        public virtual Screens.Play.HUD.ILivePerformanceCalculator? CreateOilyLivePerformance(Screens.Play.GameplayState gameplayState) => null;
+
+        /// <summary>
         /// Creates a <see cref="IBeatmapConverter"/> to convert a <see cref="IBeatmap"/> to one that is applicable for this <see cref="Ruleset"/>.
         /// </summary>
         /// <param name="beatmap">The <see cref="IBeatmap"/> to be converted.</param>

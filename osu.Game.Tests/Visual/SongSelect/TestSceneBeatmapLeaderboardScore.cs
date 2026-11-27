@@ -94,6 +94,38 @@ namespace osu.Game.Tests.Visual.SongSelect
         }
 
         [Test]
+        public void TestStableLook()
+        {
+            AddStep("create content", () =>
+            {
+                Child = fillFlow = new FillFlowContainer
+                {
+                    X = 100,
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    RelativeSizeAxes = Axes.X,
+                    AutoSizeAxes = Axes.Y,
+                    Spacing = new Vector2(0f, 2f),
+                    Shear = OsuGame.SHEAR,
+                };
+
+                foreach (var scoreInfo in getTestScores())
+                {
+                    fillFlow.Add(new BeatmapLeaderboardScore(scoreInfo)
+                    {
+                        Rank = scoreInfo.Position,
+                        StableLook = true,
+                        Shear = Vector2.Zero,
+                    });
+                }
+            });
+
+            AddUntilStep("stable rows shown", () => fillFlow!.ChildrenOfType<StableLeaderboardScore>().Count(), () => Is.EqualTo(fillFlow!.Children.Count));
+            AddUntilStep("score line shown", () => fillFlow!.ChildrenOfType<StableLeaderboardScore>().First().ChildrenOfType<OsuSpriteText>()
+                                                              .Any(t => t.Text.ToString().StartsWith("Score: ", System.StringComparison.Ordinal)));
+        }
+
+        [Test]
         public void TestNonSheared()
         {
             AddStep("create content", () =>

@@ -57,6 +57,13 @@ namespace osu.Game.Screens.Select
         public Func<Mod, bool> IsValidMod { get; set; } = _ => true;
 
         public int? Rank { get; init; }
+
+        /// <summary>
+        /// oily: draws this row like osu!stable's leaderboard (see <see cref="StableLeaderboardScore"/>).
+        /// </summary>
+        public bool StableLook { get; init; }
+
+        private StableLeaderboardScore? stableContent;
         public HighlightType? Highlight { get; init; }
         public Action<ScoreInfo>? ShowReplay { get; init; }
 
@@ -463,6 +470,13 @@ namespace osu.Game.Screens.Select
                 }
             };
             innerAvatar.OnLoadComplete += d => d.FadeInFromZero(200);
+
+            // oily: stable's look replaces lazer's row, which stays (hidden) so the rest of this class keeps working.
+            if (StableLook)
+            {
+                Child.Alpha = 0;
+                Add(stableContent = new StableLeaderboardScore(Score, Rank, Highlight == HighlightType.Own, sheared));
+            }
         }
 
         private ColourInfo getHighlightColour(HighlightType? highlightType, float lightenAmount = 0)
@@ -537,6 +551,8 @@ namespace osu.Game.Screens.Select
         private void updateState()
         {
             var lightenedGradient = ColourInfo.GradientHorizontal(backgroundColour.Opacity(0).Lighten(0.2f), backgroundColour.Lighten(0.2f));
+
+            stableContent?.SetHovered(IsHovered);
 
             foreground.FadeColour(IsHovered ? foregroundColour.Lighten(0.2f) : foregroundColour, transition_duration, Easing.OutQuint);
             background.FadeColour(IsHovered ? backgroundColour.Lighten(0.2f) : backgroundColour, transition_duration, Easing.OutQuint);

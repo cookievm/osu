@@ -4,12 +4,14 @@
 #nullable disable
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using osu.Game.Configuration;
 using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
 using osu.Game.Graphics;
-using osuTK;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -18,6 +20,8 @@ using osu.Game.Rulesets;
 using osu.Framework.Input.Bindings;
 using osu.Game.Graphics.Containers;
 using osu.Game.Input.Bindings;
+using osu.Framework.Utils;
+using osuTK;
 
 namespace osu.Game.Overlays.Toolbar
 {
@@ -35,19 +39,84 @@ namespace osu.Game.Overlays.Toolbar
         public Action OnHome;
 
         private ToolbarUserButton userButton;
-        private ToolbarRulesetSelector rulesetSelector;
 
         private const double transition_time = 500;
 
         protected readonly IBindable<OverlayActivation> OverlayActivationMode = new Bindable<OverlayActivation>(OverlayActivation.All);
 
         // Toolbar and its components need keyboard input even when hidden.
-        public override bool PropagateNonPositionalInputSubTree => OverlayActivationMode.Value != OverlayActivation.Disabled;
+        public override bool PropagateNonPositionalInputSubTree => OverlayActivationMode.Value != OverlayActivation.Disabled && !BlockInput;
+
+        // oily: the toolbar covers the whole screen (so its bars can sit on any edge), but only its bars take input.
+        // Clicks on the bars stop there, so an open overlay doesn't close on mouse down and get reopened by the button's click.
+        protected override bool BlockPositionalInput => true;
+
+        public override bool ReceivePositionalInputAt(osuTK.Vector2 screenSpacePos) => strips.Any(s => s.TakesInputAt(screenSpacePos));
+
+        /// <summary>
+        /// oily: stops the buttons taking clicks and keys (while the skin editor shows the toolbars shrunk).
+        /// </summary>
+        public bool BlockInput { get; set; }
+
+        private bool hiddenByScreen;
+
+        /// <summary>
+        /// oily (ilo, 2026-11-26): set while the current screen never shows the toolbar (the main menu). It hides the toolbar and stops it being shown.
+        /// </summary>
+        public bool HiddenByScreen
+        {
+            get => hiddenByScreen;
+            set
+            {
+                hiddenByScreen = value;
+                if (value)
+                    Hide();
+            }
+        }
+
+        public override bool PropagatePositionalInputSubTree => !BlockInput && base.PropagatePositionalInputSubTree;
+
+        /// <summary>
+        /// oily: the bars, for dragging them in the skin editor.
+        /// </summary>
+        public IReadOnlyList<ToolbarStrip> Strips => strips;
+
+        /// <summary>
+        /// oily: saves <see cref="Layout"/> after it was changed in place (by dragging a bar).
+        /// </summary>
+        public void SaveLayout() => layoutSetting.Value = Layout.Serialise();
+
+        private ToolbarBarLayout barOf(ToolbarStrip strip) => strip.Index < Layout.Bars.Count ? Layout.Bars[strip.Index] : new ToolbarBarLayout { Edge = strip.Edge };
+
+        private osuTK.Vector2 offsetOf(ToolbarBarLayout bar) => new osuTK.Vector2(bar.OffsetX * DrawWidth, bar.OffsetY * DrawHeight);
+
+        /// <summary>
+        /// oily: the bars (see <see cref="ToolbarLayout"/>).
+        /// </summary>
+        private readonly List<ToolbarStrip> strips = new List<ToolbarStrip>();
+
+        private Container stripContainer;
+
+        private readonly Bindable<string> layoutSetting = new Bindable<string>();
+
+        /// <summary>
+        /// oily: the current layout of the bars and buttons.
+        /// </summary>
+        public ToolbarLayout Layout { get; private set; } = ToolbarLayout.CreateDefault();
+
+        /// <summary>
+        /// oily: how much of the screen the bars cover on each edge (less while they slide away). The game keeps screens and overlays out of it.
+        /// </summary>
+        public MarginPadding ScreenPadding { get; private set; }
+
+        /// <summary>
+        /// oily: how far the bars are shown, from 0 (hidden) to 1.
+        /// </summary>
+        private float reveal = 1;
 
         public Toolbar()
         {
-            RelativeSizeAxes = Axes.X;
-            Size = new Vector2(1, HEIGHT);
+            RelativeSizeAxes = Axes.Both;
             AlwaysPresent = true;
         }
 
@@ -63,134 +132,14 @@ namespace osu.Game.Overlays.Toolbar
         private Bindable<RulesetInfo> ruleset { get; set; }
 
         [BackgroundDependencyLoader(true)]
-        private void load(OsuGame osuGame)
+        private void load(OsuGame osuGame, OsuConfigManager config)
         {
-            ToolbarBackground background;
-            HoverInterceptor interceptor;
+            Child = stripContainer = new Container { RelativeSizeAxes = Axes.Both };
 
-            Children = new Drawable[]
-            {
-                background = new ToolbarBackground(),
-                new GridContainer
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    ColumnDimensions = new[]
-                    {
-                        new Dimension(GridSizeMode.AutoSize),
-                        new Dimension(),
-                        new Dimension(GridSizeMode.AutoSize)
-                    },
-                    Content = new[]
-                    {
-                        new Drawable[]
-                        {
-                            new Container
-                            {
-                                Name = "Left buttons",
-                                RelativeSizeAxes = Axes.Y,
-                                AutoSizeAxes = Axes.X,
-                                Depth = float.MinValue,
-                                Children = new Drawable[]
-                                {
-                                    new Box
-                                    {
-                                        Colour = OsuColour.Gray(0.1f),
-                                        RelativeSizeAxes = Axes.Both,
-                                    },
-                                    new FillFlowContainer
-                                    {
-                                        Direction = FillDirection.Horizontal,
-                                        RelativeSizeAxes = Axes.Y,
-                                        AutoSizeAxes = Axes.X,
-                                        Children = new Drawable[]
-                                        {
-                                            new ToolbarSettingsButton(),
-                                            new ToolbarHomeButton
-                                            {
-                                                Action = () => OnHome?.Invoke()
-                                            },
-                                        },
-                                    },
-                                }
-                            },
-                            new Container
-                            {
-                                Name = "Ruleset selector",
-                                RelativeSizeAxes = Axes.Both,
-                                Children = new Drawable[]
-                                {
-                                    new OsuScrollContainer(Direction.Horizontal)
-                                    {
-                                        ScrollbarVisible = false,
-                                        RelativeSizeAxes = Axes.Both,
-                                        Masking = false,
-                                        Children = new Drawable[]
-                                        {
-                                            rulesetSelector = new ToolbarRulesetSelector()
-                                        }
-                                    },
-                                    new Box
-                                    {
-                                        Colour = ColourInfo.GradientHorizontal(OsuColour.Gray(0.1f).Opacity(0), OsuColour.Gray(0.1f)),
-                                        Width = 50,
-                                        RelativeSizeAxes = Axes.Y,
-                                        Anchor = Anchor.TopRight,
-                                        Origin = Anchor.TopRight,
-                                    },
-                                }
-                            },
-                            new Container
-                            {
-                                Name = "Right buttons",
-                                RelativeSizeAxes = Axes.Y,
-                                AutoSizeAxes = Axes.X,
-                                Anchor = Anchor.TopRight,
-                                Origin = Anchor.TopRight,
-                                Children = new Drawable[]
-                                {
-                                    new Box
-                                    {
-                                        Colour = OsuColour.Gray(0.1f),
-                                        RelativeSizeAxes = Axes.Both,
-                                    },
-                                    new FillFlowContainer
-                                    {
-                                        Anchor = Anchor.TopRight,
-                                        Origin = Anchor.TopRight,
-                                        Direction = FillDirection.Horizontal,
-                                        RelativeSizeAxes = Axes.Y,
-                                        AutoSizeAxes = Axes.X,
-                                        Children = new Drawable[]
-                                        {
-                                            new ToolbarNewsButton(),
-                                            new ToolbarChangelogButton(),
-                                            new ToolbarWikiButton(),
-                                            new ToolbarRankingsButton(),
-                                            new ToolbarBeatmapListingButton(),
-                                            new ToolbarChatButton(),
-                                            new ToolbarSocialButton(),
-                                            new ToolbarMusicButton(),
-                                            //new ToolbarButton
-                                            //{
-                                            //    Icon = FontAwesome.Solid.search
-                                            //},
-                                            userButton = new ToolbarUserButton(),
-                                            new ToolbarClock(),
-                                            new ToolbarNotificationButton(),
-                                        }
-                                    },
-                                }
-                            },
-                        },
-                    }
-                },
-                interceptor = new HoverInterceptor
-                {
-                    RelativeSizeAxes = Axes.Both
-                }
-            };
+            if (config != null)
+                config.BindWith(OsuSetting.OilyToolbarLayout, layoutSetting);
 
-            ((IBindable<bool>)background.ShowGradient).BindTo(interceptor.ReceivedHover);
+            rebuild();
 
             if (osuGame != null)
                 OverlayActivationMode.BindTo(osuGame.OverlayActivationMode);
@@ -200,7 +149,617 @@ namespace osu.Game.Overlays.Toolbar
         {
             base.LoadComplete();
 
-            rulesetSelector.Current.BindTo(ruleset);
+            layoutSetting.BindValueChanged(_ => Scheduler.AddOnce(rebuild));
+        }
+
+        /// <summary>
+        /// oily: makes the bars again from the saved layout.
+        /// </summary>
+        private void rebuild()
+        {
+            Layout = ToolbarLayout.Parse(layoutSetting.Value);
+
+            stripContainer.Clear();
+            strips.Clear();
+            userButton = null;
+
+            for (int i = 0; i < Layout.Bars.Count; i++)
+            {
+                var strip = new ToolbarStrip(Layout.Bars[i].Edge, i);
+
+                if (Layout.Bars[i].Spread && !strip.Vertical)
+                {
+                    // oily: spread bars keep every button in one row, in order, with equal gaps.
+                    strip.Spread = true;
+
+                    foreach (var item in Layout.ItemsOn(i))
+                    {
+                        var drawable = createItem(item, strip.Vertical);
+
+                        if (drawable != null)
+                            strip.Add(item, drawable, ToolbarSide.Middle);
+                    }
+                }
+                else
+                {
+                    foreach (var side in new[] { ToolbarSide.Start, ToolbarSide.Middle, ToolbarSide.End })
+                    {
+                        foreach (var item in Layout.ItemsOn(i, side))
+                        {
+                            var drawable = createItem(item, strip.Vertical);
+
+                            if (drawable != null)
+                                strip.Add(item, drawable, side);
+                        }
+                    }
+                }
+
+                strips.Add(strip);
+                stripContainer.Add(strip);
+            }
+        }
+
+        private Drawable createItem(ToolbarItem item, bool vertical)
+        {
+            var drawable = CreateItem(item, vertical, () => OnHome?.Invoke(), ruleset);
+
+            if (drawable is ToolbarUserButton user)
+                userButton = user;
+
+            return drawable;
+        }
+
+        /// <summary>
+        /// oily: makes one toolbar button (also used for toolbar buttons moved onto the song select bottom bar).
+        /// </summary>
+        public static Drawable CreateItem(ToolbarItem item, bool vertical, Action onHome, Bindable<RulesetInfo> ruleset)
+        {
+            switch (item)
+            {
+                case ToolbarItem.Settings:
+                    return new ToolbarSettingsButton();
+
+                case ToolbarItem.Home:
+                    return new ToolbarHomeButton { Action = onHome };
+
+                case ToolbarItem.Rulesets:
+                    var selector = new ToolbarRulesetSelector(vertical);
+                    selector.OnLoadComplete += _ => selector.Current.BindTo(ruleset);
+                    return selector;
+
+                case ToolbarItem.Rankings:
+                    return new ToolbarRankingsButton();
+
+                case ToolbarItem.BeatmapListing:
+                    return new ToolbarBeatmapListingButton();
+
+                case ToolbarItem.Chat:
+                    return new ToolbarChatButton();
+
+                case ToolbarItem.Social:
+                    return new ToolbarSocialButton();
+
+                case ToolbarItem.Music:
+                    return new ToolbarMusicButton();
+
+                case ToolbarItem.User:
+                    return new ToolbarUserButton();
+
+                case ToolbarItem.Clock:
+                    return new ToolbarClock();
+
+                case ToolbarItem.Notifications:
+                    return new ToolbarNotificationButton();
+
+                case ToolbarItem.Discord:
+                    return new ToolbarDiscordButton();
+
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// oily: the edge of the bar a button is on, and the button itself (or <c>null</c> if it's hidden).
+        /// </summary>
+        public (ToolbarEdge Edge, Drawable Button)? Find(ToolbarItem item)
+        {
+            foreach (var strip in strips)
+            {
+                if (strip.Items.TryGetValue(item, out var drawable))
+                    return (strip.Edge, drawable);
+            }
+
+            return null;
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+
+            // oily: lays the bars out. Bars on the same edge stack outwards in; side bars fit between the top and bottom bars.
+            // A shortened bar sits in the middle of its edge. A dragged ("floating") bar sits where it was dragged to and doesn't push the screen.
+            float top = 0, bottom = 0, left = 0, right = 0;
+
+            foreach (var strip in strips.Where(s => !s.Vertical))
+            {
+                var bar = barOf(strip);
+                float thickness = HEIGHT;
+                float shown = thickness * reveal;
+
+                strip.Width = DrawWidth * bar.Length;
+                strip.Height = thickness;
+                // oily: the beatmap listing and profile buttons may slide past the bar's end to reach the listing's corner.
+                strip.Masking = bar.Length < 1 && !strip.ButtonsOutside;
+
+                float x = (DrawWidth - strip.Width) / 2;
+
+                if (strip.Edge == ToolbarEdge.Top)
+                {
+                    strip.Anchor = strip.Origin = Anchor.TopLeft;
+                    strip.Position = new osuTK.Vector2(x, (bar.Floating ? 0 : top) - thickness + shown);
+
+                    if (!bar.Floating)
+                        top += shown;
+                }
+                else
+                {
+                    strip.Anchor = strip.Origin = Anchor.BottomLeft;
+                    strip.Position = new osuTK.Vector2(x, -((bar.Floating ? 0 : bottom) - thickness + shown));
+
+                    if (!bar.Floating)
+                        bottom += shown;
+                }
+
+                strip.Position += offsetOf(bar);
+            }
+
+            foreach (var strip in strips.Where(s => s.Vertical))
+            {
+                var bar = barOf(strip);
+                float thickness = strip.Thickness;
+                float shown = thickness * reveal;
+
+                float spaceTop = bar.Floating ? 0 : top;
+                float space = Math.Max(0, DrawHeight - spaceTop - (bar.Floating ? 0 : bottom));
+
+                strip.Height = space * bar.Length;
+                strip.Masking = bar.Length < 1;
+
+                float y = spaceTop + (space - strip.Height) / 2;
+
+                if (strip.Edge == ToolbarEdge.Left)
+                {
+                    strip.Anchor = strip.Origin = Anchor.TopLeft;
+                    strip.Position = new osuTK.Vector2((bar.Floating ? 0 : left) - thickness + shown, y);
+
+                    if (!bar.Floating)
+                        left += shown;
+                }
+                else
+                {
+                    strip.Anchor = strip.Origin = Anchor.TopRight;
+                    strip.Position = new osuTK.Vector2(-((bar.Floating ? 0 : right) - thickness + shown), y);
+
+                    if (!bar.Floating)
+                        right += shown;
+                }
+
+                strip.Position += offsetOf(bar);
+            }
+
+            ScreenPadding = new MarginPadding { Top = top, Bottom = bottom, Left = left, Right = right };
+        }
+
+        /// <summary>
+        /// oily: one bar, on one edge of the screen. Its buttons go at the start, the middle (which fills the rest) and the end.
+        /// </summary>
+        public partial class ToolbarStrip : Container
+        {
+            public readonly ToolbarEdge Edge;
+            public readonly int Index;
+
+            public bool Vertical => Edge is ToolbarEdge.Left or ToolbarEdge.Right;
+
+            public readonly Dictionary<ToolbarItem, Drawable> Items = new Dictionary<ToolbarItem, Drawable>();
+
+            /// <summary>
+            /// oily: whether the buttons are spread evenly across the whole bar (see <see cref="ToolbarBarLayout.Spread"/>).
+            /// </summary>
+            public bool Spread;
+
+            /// <summary>
+            /// How thick the bar is (its height, or its width on a side bar).
+            /// </summary>
+            public float Thickness => Vertical ? Math.Max(HEIGHT, content.DrawWidth) : HEIGHT;
+
+            private readonly FillFlowContainer startFlow;
+            private readonly FillFlowContainer middleFlow;
+            private readonly FillFlowContainer endFlow;
+            private readonly CompositeDrawable content;
+
+            // oily: the boxes behind the start/end buttons and the fade over scrolled buttons follow the toolbar background colour too.
+            private Box startBox;
+            private Box endBox;
+            private Box fadeBox;
+            private IBindable<string> panelSetting;
+
+            public ToolbarStrip(ToolbarEdge edge, int index)
+            {
+                Edge = edge;
+                Index = index;
+
+                ToolbarBackground background;
+                HoverInterceptor interceptor;
+
+                var direction = Vertical ? FillDirection.Vertical : FillDirection.Horizontal;
+
+                startFlow = new FillFlowContainer { Direction = direction };
+                middleFlow = new FillFlowContainer { Direction = direction };
+                endFlow = new FillFlowContainer { Direction = direction };
+
+                if (Vertical)
+                {
+                    foreach (var flow in new[] { startFlow, middleFlow, endFlow })
+                        flow.AutoSizeAxes = Axes.Both;
+
+                    startFlow.Anchor = startFlow.Origin = Anchor.TopCentre;
+                    middleFlow.Anchor = middleFlow.Origin = Anchor.Centre;
+                    endFlow.Anchor = endFlow.Origin = Anchor.BottomCentre;
+
+                    InternalChildren = new Drawable[]
+                    {
+                        background = new ToolbarBackground(),
+                        content = new Container
+                        {
+                            RelativeSizeAxes = Axes.Y,
+                            AutoSizeAxes = Axes.X,
+                            Anchor = Anchor.TopCentre,
+                            Origin = Anchor.TopCentre,
+                            Children = new Drawable[] { middleFlow, startFlow, endFlow }
+                        },
+                        interceptor = new HoverInterceptor { RelativeSizeAxes = Axes.Both },
+                    };
+
+                    Width = HEIGHT;
+                }
+                else
+                {
+                    foreach (var flow in new[] { startFlow, middleFlow, endFlow })
+                    {
+                        flow.RelativeSizeAxes = Axes.Y;
+                        flow.AutoSizeAxes = Axes.X;
+                    }
+
+                    endFlow.Anchor = endFlow.Origin = Anchor.TopRight;
+
+                    InternalChildren = new Drawable[]
+                    {
+                        background = new ToolbarBackground(),
+                        content = new GridContainer
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                            ColumnDimensions = new[]
+                            {
+                                new Dimension(GridSizeMode.AutoSize),
+                                new Dimension(),
+                                new Dimension(GridSizeMode.AutoSize)
+                            },
+                            Content = new[]
+                            {
+                                new Drawable[]
+                                {
+                                    new Container
+                                    {
+                                        Name = "Start buttons",
+                                        RelativeSizeAxes = Axes.Y,
+                                        AutoSizeAxes = Axes.X,
+                                        Depth = float.MinValue,
+                                        Children = new Drawable[]
+                                        {
+                                            startBox = new Box
+                                            {
+                                                Colour = OsuColour.Gray(0.1f),
+                                                RelativeSizeAxes = Axes.Both,
+                                            },
+                                            startFlow,
+                                        }
+                                    },
+                                    new Container
+                                    {
+                                        Name = "Middle",
+                                        RelativeSizeAxes = Axes.Both,
+                                        Children = new Drawable[]
+                                        {
+                                            new OsuScrollContainer(Direction.Horizontal)
+                                            {
+                                                ScrollbarVisible = false,
+                                                RelativeSizeAxes = Axes.Both,
+                                                Masking = false,
+                                                Child = middleFlow,
+                                            },
+                                            fadeBox = new Box
+                                            {
+                                                Colour = ColourInfo.GradientHorizontal(OsuColour.Gray(0.1f).Opacity(0), OsuColour.Gray(0.1f)),
+                                                Width = 50,
+                                                RelativeSizeAxes = Axes.Y,
+                                                Anchor = Anchor.TopRight,
+                                                Origin = Anchor.TopRight,
+                                            },
+                                        }
+                                    },
+                                    new Container
+                                    {
+                                        Name = "End buttons",
+                                        RelativeSizeAxes = Axes.Y,
+                                        AutoSizeAxes = Axes.X,
+                                        Anchor = Anchor.TopRight,
+                                        Origin = Anchor.TopRight,
+                                        Children = new Drawable[]
+                                        {
+                                            endBox = new Box
+                                            {
+                                                Colour = OsuColour.Gray(0.1f),
+                                                RelativeSizeAxes = Axes.Both,
+                                            },
+                                            endFlow,
+                                        }
+                                    },
+                                },
+                            }
+                        },
+                        interceptor = new HoverInterceptor { RelativeSizeAxes = Axes.Both },
+                    };
+                }
+
+                ((IBindable<bool>)background.ShowGradient).BindTo(interceptor.ReceivedHover);
+            }
+
+            [BackgroundDependencyLoader(true)]
+            private void load(OsuConfigManager config)
+            {
+                if (config == null)
+                    return;
+
+                panelSetting = OilyPanelColours.Track(config, OilyPanel.Toolbar, style =>
+                {
+                    Colour4 colour = style.CustomColour ?? OsuColour.Gray(0.1f);
+                    float alpha = Math.Clamp(style.Opacity, 0, 1);
+
+                    foreach (var box in new[] { startBox, endBox })
+                    {
+                        if (box == null) continue;
+
+                        box.Colour = colour;
+                        box.Alpha = alpha;
+                    }
+
+                    if (fadeBox != null)
+                    {
+                        fadeBox.Colour = ColourInfo.GradientHorizontal(colour.Opacity(0), colour);
+                        fadeBox.Alpha = alpha;
+                    }
+                });
+            }
+
+            /// <summary>
+            /// Adds a button to one side of the bar.
+            /// </summary>
+            public void Add(ToolbarItem item, Drawable drawable, ToolbarSide side)
+            {
+                Items[item] = drawable;
+
+                var flow = side == ToolbarSide.Start ? startFlow : side == ToolbarSide.Middle ? middleFlow : endFlow;
+
+                if (Vertical && drawable is not ToolbarRulesetSelector)
+                {
+                    // Buttons fill the bar's height, so on a side bar each one gets a square-height cell.
+                    drawable.Anchor = drawable.Origin = Anchor.TopCentre;
+                    flow.Add(new Container
+                    {
+                        Anchor = Anchor.TopCentre,
+                        Origin = Anchor.TopCentre,
+                        Height = HEIGHT,
+                        AutoSizeAxes = Axes.X,
+                        Child = drawable,
+                    });
+                }
+                else
+                {
+                    if (Vertical)
+                        drawable.Anchor = drawable.Origin = Anchor.TopCentre;
+
+                    flow.Add(drawable);
+                }
+            }
+
+            protected override void Update()
+            {
+                base.Update();
+
+                if (Vertical)
+                    Width = Thickness;
+
+                if (Spread && focusedItem == null)
+                    spreadButtons();
+            }
+
+            protected override void UpdateAfterChildren()
+            {
+                base.UpdateAfterChildren();
+
+                // after the row has laid itself out this frame, so the profile button's place in it is up to date.
+                if (Spread)
+                    updateListingFocus();
+            }
+
+            /// <summary>
+            /// oily (ilo, 2026-11-26): overlays that make the toolbar focus on their own button. While one is open,
+            /// only its button and the profile button stay, sliding to the overlay's bottom right corner.
+            /// </summary>
+            public static readonly ToolbarItem[] FOCUS_OVERLAY_ITEMS = { ToolbarItem.BeatmapListing, ToolbarItem.Chat, ToolbarItem.Social, ToolbarItem.Rankings };
+
+            private const float listing_focus_gap = 6;
+            private const float listing_focus_margin = 10;
+            private const double listing_focus_fade = 250;
+
+            /// <summary>
+            /// oily: the button whose overlay the toolbar is focused on (null when none is open).
+            /// </summary>
+            private ToolbarItem? focusedItem;
+
+            /// <summary>
+            /// oily: the button the buttons last moved for, kept while they slide back so input still reaches them.
+            /// </summary>
+            private ToolbarItem? movedItem;
+
+            /// <summary>
+            /// oily: whether the beatmap listing is open and only its button and the profile button are showing.
+            /// </summary>
+            public bool ListingFocused => focusedItem == ToolbarItem.BeatmapListing;
+
+            /// <summary>
+            /// oily: whether chat is open and only its button and the profile button are showing.
+            /// </summary>
+            public bool ChatFocused => focusedItem == ToolbarItem.Chat;
+
+            /// <summary>
+            /// oily: whether buttons may be (or are) past the bar's ends, so the bar mustn't cut them off.
+            /// </summary>
+            public bool ButtonsOutside => focusedItem != null || userRight != null;
+
+            private bool isKept(ToolbarItem item) => item == ToolbarItem.User || item == (focusedItem ?? movedItem);
+
+            /// <summary>
+            /// oily: whether the bar, or one of its buttons outside it, is under the cursor.
+            /// </summary>
+            public bool TakesInputAt(Vector2 screenSpacePos)
+                => ReceivePositionalInputAt(screenSpacePos)
+                   || (ButtonsOutside && Items.Any(kv => isKept(kv.Key) && kv.Value.IsPresent && kv.Value.ReceivePositionalInputAt(screenSpacePos)));
+
+            private OverlayContainer overlayFor(ToolbarItem item) => (Items.GetValueOrDefault(item) as ToolbarOverlayToggleButton)?.StateContainer;
+
+            /// <summary>
+            /// oily (ilo, 2026-11-26): while the beatmap listing, chat, dashboard or rankings is open, every other button fades away (and can't be clicked),
+            /// and that overlay's button and the profile button slide to the bottom right corner of the overlay.
+            /// </summary>
+            private void updateListingFocus()
+            {
+                ToolbarItem? focus = null;
+
+                if (Items.ContainsKey(ToolbarItem.User))
+                {
+                    // stay on the current overlay while it's open, otherwise take whichever one is open.
+                    if (focusedItem is ToolbarItem current && overlayFor(current)?.State.Value == Visibility.Visible)
+                        focus = current;
+                    else
+                        focus = FOCUS_OVERLAY_ITEMS.Cast<ToolbarItem?>().FirstOrDefault(i => overlayFor(i!.Value)?.State.Value == Visibility.Visible);
+                }
+
+                if (focus != focusedItem)
+                {
+                    focusedItem = focus;
+                    if (focus != null)
+                        movedItem = focus;
+
+                    // the flow slides the buttons into their new places as the others disappear (or come back).
+                    middleFlow.LayoutDuration = 400;
+                    middleFlow.LayoutEasing = Easing.OutQuint;
+
+                    foreach (var (item, drawable) in Items)
+                    {
+                        if (focus == null || isKept(item))
+                            drawable.FadeIn(listing_focus_fade, Easing.OutQuint);
+                        else
+                            drawable.FadeOut(listing_focus_fade, Easing.OutQuint);
+                    }
+
+                    if (focus != null)
+                        middleFlow.Spacing = new Vector2(listing_focus_gap, 0);
+                }
+
+                // The profile button's right edge is moved smoothly (never past where it stops), and the row is offset to match.
+                // The rest of the row (the kept button closing up to it, the others reappearing) is animated by the flow itself.
+                if (!Items.TryGetValue(ToolbarItem.User, out var user))
+                    return;
+
+                float userRightInFlow = user.X + user.DrawWidth;
+
+                if (focusedItem is ToolbarItem focused)
+                {
+                    float keptWidth = Items.Where(kv => isKept(kv.Key)).Sum(kv => kv.Value.DrawWidth) + listing_focus_gap;
+                    float target = Math.Max(ToLocalSpace(overlayFor(focused)!.ScreenSpaceDrawQuad.BottomRight).X - listing_focus_margin, keptWidth);
+
+                    userRight ??= middleFlow.X + userRightInFlow;
+                    userRight = approach(userRight.Value, target);
+                }
+                else if (userRight != null)
+                {
+                    // back to the spread row, where the profile button is last and ends at the bar's end.
+                    userRight = approach(userRight.Value, DrawWidth);
+
+                    if (userRight == DrawWidth && Math.Abs(DrawWidth - userRightInFlow) < 0.5f)
+                    {
+                        userRight = null;
+                        movedItem = null;
+                        middleFlow.X = 0;
+                        return;
+                    }
+                }
+                else
+                    return;
+
+                middleFlow.X = userRight.Value - userRightInFlow;
+            }
+
+            /// <summary>
+            /// oily: where the profile button's right edge is while it moves for an overlay (null when it's in its normal place).
+            /// </summary>
+            private float? userRight;
+
+            private float approach(float current, float target)
+            {
+                float next = (float)Interpolation.DampContinuously(current, target, 50, Time.Elapsed);
+                return Math.Abs(next - target) < 0.5f ? target : next;
+            }
+
+            /// <summary>
+            /// oily: gives every icon the same gap, so the first touches the left end and the last touches the right end.
+            /// The ruleset selector counts as one icon per ruleset.
+            /// </summary>
+            private void spreadButtons()
+            {
+                float used = 0;
+                int icons = 0;
+                ToolbarRulesetSelector rulesets = null;
+
+                foreach (var child in middleFlow.Children)
+                {
+                    if (child is ToolbarRulesetSelector selector)
+                    {
+                        rulesets = selector;
+                        used += selector.TabsWidth;
+                        icons += selector.TabCount;
+                    }
+                    else
+                    {
+                        used += child.DrawWidth;
+                        icons++;
+                    }
+                }
+
+                if (icons < 2)
+                    return;
+
+                float gap = Math.Max(0, (DrawWidth - used) / (icons - 1));
+
+                middleFlow.Spacing = new Vector2(gap, 0);
+
+                if (rulesets != null)
+                    rulesets.TabSpacing = gap;
+
+                fadeBox.Alpha = 0;
+            }
         }
 
         public partial class ToolbarBackground : Container
@@ -208,13 +767,16 @@ namespace osu.Game.Overlays.Toolbar
             public Bindable<bool> ShowGradient { get; } = new BindableBool();
 
             private readonly Box gradientBackground;
+            private readonly Box solidBackground;
+            private IBindable<string> panelSetting;
+            private bool transparent;
 
             public ToolbarBackground()
             {
                 RelativeSizeAxes = Axes.Both;
                 Children = new Drawable[]
                 {
-                    new Box
+                    solidBackground = new Box
                     {
                         RelativeSizeAxes = Axes.Both,
                         Colour = OsuColour.Gray(0.1f),
@@ -231,6 +793,24 @@ namespace osu.Game.Overlays.Toolbar
                 };
             }
 
+            [BackgroundDependencyLoader(true)]
+            private void load(OsuConfigManager config)
+            {
+                // oily: the toolbars' colour and opacity from settings.
+                if (config != null)
+                {
+                    panelSetting = OilyPanelColours.Track(config, OilyPanel.Toolbar, style =>
+                    {
+                        solidBackground.Colour = style.CustomColour ?? OsuColour.Gray(0.1f);
+                        solidBackground.Alpha = Math.Clamp(style.Opacity, 0, 1);
+                        transparent = style.Opacity <= 0;
+
+                        if (IsLoaded)
+                            updateState();
+                    });
+                }
+            }
+
             protected override void LoadComplete()
             {
                 base.LoadComplete();
@@ -240,7 +820,8 @@ namespace osu.Game.Overlays.Toolbar
 
             private void updateState()
             {
-                if (ShowGradient.Value)
+                // oily: a fully transparent toolbar doesn't get the dark hover shade either.
+                if (ShowGradient.Value && !transparent)
                     gradientBackground.FadeIn(2500, Easing.OutQuint);
                 else
                     gradientBackground.FadeOut(200, Easing.OutQuint);
@@ -273,7 +854,7 @@ namespace osu.Game.Overlays.Toolbar
 
         protected override void UpdateState(ValueChangedEvent<Visibility> state)
         {
-            bool blockShow = hiddenByUser || OverlayActivationMode.Value == OverlayActivation.Disabled;
+            bool blockShow = hiddenByUser || hiddenByScreen || OverlayActivationMode.Value == OverlayActivation.Disabled;
 
             if (state.NewValue == Visibility.Visible && blockShow)
             {
@@ -286,15 +867,15 @@ namespace osu.Game.Overlays.Toolbar
 
         protected override void PopIn()
         {
-            this.MoveToY(0, transition_time, Easing.OutQuint);
+            this.TransformTo(nameof(reveal), 1f, transition_time, Easing.OutQuint);
             this.FadeIn(transition_time / 4, Easing.OutQuint);
         }
 
         protected override void PopOut()
         {
-            userButton.StateContainer?.Hide();
+            userButton?.StateContainer?.Hide();
 
-            this.MoveToY(-DrawSize.Y, transition_time, Easing.OutQuint);
+            this.TransformTo(nameof(reveal), 0f, transition_time, Easing.OutQuint);
             this.FadeOut(transition_time, Easing.InQuint);
         }
 

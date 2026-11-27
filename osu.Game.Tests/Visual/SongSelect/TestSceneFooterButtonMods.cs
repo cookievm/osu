@@ -155,7 +155,9 @@ namespace osu.Game.Tests.Visual.SongSelect
         public void TestUnrankedBadge()
         {
             AddStep(@"Add unranked mod", () => changeMods(new[] { new OsuModDeflate() }));
-            AddUntilStep("Unranked badge shown", () => footerButtonMods.ChildrenOfType<FooterButtonMods.UnrankedBadge>().Single().Alpha == 1);
+            // oily (ilo, 2026-11-26): the badge is never shown; mod select's ranked display says it instead.
+            AddWaitStep("wait for any animation", 5);
+            AddAssert("Unranked badge not shown", () => footerButtonMods.ChildrenOfType<FooterButtonMods.UnrankedBadge>().Single().Alpha == 0);
             AddStep(@"Clear selected mod", () => changeMods(Array.Empty<Mod>()));
             AddUntilStep("Unranked badge not shown", () => footerButtonMods.ChildrenOfType<FooterButtonMods.UnrankedBadge>().Single().Alpha == 0);
         }

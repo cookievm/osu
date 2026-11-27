@@ -22,6 +22,7 @@ using osu.Framework.Extensions.IEnumerableExtensions;
 using osu.Framework.Extensions.TypeExtensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Primitives;
 using osu.Framework.Graphics.Cursor;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input;
@@ -184,7 +185,6 @@ namespace osu.Game
 
         public virtual StableStorage GetStorageForStableInstall() => null;
 
-        private float toolbarOffset => (Toolbar?.Position.Y ?? 0) + (Toolbar?.DrawHeight ?? 0);
 
         private IdleTracker idleTracker;
 
@@ -1145,43 +1145,47 @@ namespace osu.Game
 
             AddRange(new Drawable[]
             {
-                ScreenOffsetContainer = new Container
+                // oily: the skin editor shrinks the screen and the toolbars together, evenly (see SetSkinEditorPreview).
+                screenPreview = new EditorPreviewContainer
                 {
-                    RelativeSizeAxes = Axes.Both,
-                    Children = new Drawable[]
+                    Child = ScreenOffsetContainer = new Container
                     {
-                        ScreenContainer = new ScalingContainer(ScalingMode.ExcludeOverlays)
+                        RelativeSizeAxes = Axes.Both,
+                        Children = new Drawable[]
                         {
-                            RelativeSizeAxes = Axes.Both,
-                            Anchor = Anchor.Centre,
-                            Origin = Anchor.Centre,
-                            Children = new Drawable[]
+                            ScreenContainer = new ScalingContainer(ScalingMode.ExcludeOverlays)
                             {
-                                backReceptor = new ScreenFooter.BackReceptor(),
-                                ScreenStack = new OsuScreenStack { RelativeSizeAxes = Axes.Both },
-                                logoContainer = new Container { RelativeSizeAxes = Axes.Both },
-                                // TODO: what is this? why is this?
-                                // TODO: this is being screen scaled even though it's probably AN OVERLAY.
-                                footerBasedOverlayContent = new Container
+                                RelativeSizeAxes = Axes.Both,
+                                Anchor = Anchor.Centre,
+                                Origin = Anchor.Centre,
+                                Children = new Drawable[]
                                 {
-                                    Depth = -1,
-                                    RelativeSizeAxes = Axes.Both,
-                                },
-                                new PopoverContainer
-                                {
-                                    // Ensure the footer is displayed above any content and/or overlays.
-                                    Depth = -1,
-                                    RelativeSizeAxes = Axes.Both,
-                                    Child = screenStackFooter = new ScreenStackFooter(ScreenStack, backReceptor)
+                                    backReceptor = new ScreenFooter.BackReceptor(),
+                                    ScreenStack = new OsuScreenStack { RelativeSizeAxes = Axes.Both },
+                                    logoContainer = new Container { RelativeSizeAxes = Axes.Both },
+                                    // TODO: what is this? why is this?
+                                    // TODO: this is being screen scaled even though it's probably AN OVERLAY.
+                                    footerBasedOverlayContent = new Container
                                     {
-                                        // TODO: this is really really weird and should not exist.
-                                        RequestLogoInFront = inFront => ScreenContainer.ChangeChildDepth(logoContainer, inFront ? float.MinValue : 0),
-                                        BackButtonPressed = handleBackButton
+                                        Depth = -1,
+                                        RelativeSizeAxes = Axes.Both,
                                     },
-                                },
-                            }
-                        },
-                    }
+                                    new PopoverContainer
+                                    {
+                                        // Ensure the footer is displayed above any content and/or overlays.
+                                        Depth = -1,
+                                        RelativeSizeAxes = Axes.Both,
+                                        Child = screenStackFooter = new ScreenStackFooter(ScreenStack, backReceptor)
+                                        {
+                                            // TODO: this is really really weird and should not exist.
+                                            RequestLogoInFront = inFront => ScreenContainer.ChangeChildDepth(logoContainer, inFront ? float.MinValue : 0),
+                                            BackButtonPressed = handleBackButton
+                                        },
+                                    },
+                                }
+                            },
+                        }
+                    },
                 },
                 overlayOffsetContainer = new Container
                 {
@@ -1193,7 +1197,15 @@ namespace osu.Game
                         rightFloatingOverlayContent = new Container { RelativeSizeAxes = Axes.Both },
                     }
                 },
-                topMostOverlayContent = new Container { RelativeSizeAxes = Axes.Both },
+                topMostOverlayContent = new Container
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    // oily: toolbars always sit above everything else.
+                    Child = toolbarPreview = new EditorPreviewContainer
+                    {
+                        Depth = float.MinValue,
+                    },
+                },
                 idleTracker,
                 new ConfineMouseTracker(),
             });
@@ -1239,7 +1251,7 @@ namespace osu.Game
                     if (menuScreen?.GetChildScreen() != null)
                         menuScreen.MakeCurrent();
                 },
-            }, topMostOverlayContent.Add);
+            }, toolbarPreview.Add);
 
             onScreenDisplay = new OnScreenDisplay();
 
@@ -1252,7 +1264,7 @@ namespace osu.Game
             {
                 d.Anchor = Anchor.TopRight;
                 d.Origin = Anchor.TopRight;
-            }), rightFloatingOverlayContent.Add, true);
+            }), popup(ToolbarItem.Notifications, rightFloatingOverlayContent.Add), true);
 
             loadComponentSingleFile(legacyImportManager, Add);
 
@@ -1264,31 +1276,31 @@ namespace osu.Game
             // overlay elements
             loadComponentSingleFile(FirstRunOverlay = new FirstRunSetupOverlay(), footerBasedOverlayContent.Add, true);
             loadComponentSingleFile(new ManageCollectionsDialog(), overlayContent.Add, true);
-            loadComponentSingleFile(beatmapListing = new BeatmapListingOverlay(), overlayContent.Add, true);
-            loadComponentSingleFile(dashboard = new DashboardOverlay(), overlayContent.Add, true);
+            loadComponentSingleFile(beatmapListing = new BeatmapListingOverlay(), popup(ToolbarItem.BeatmapListing, overlayContent.Add), true);
+            loadComponentSingleFile(dashboard = new DashboardOverlay(), popup(ToolbarItem.Social, overlayContent.Add), true);
             loadComponentSingleFile(news = new NewsOverlay(), overlayContent.Add, true);
-            var rankingsOverlay = loadComponentSingleFile(new RankingsOverlay(), overlayContent.Add, true);
+            var rankingsOverlay = loadComponentSingleFile(new RankingsOverlay(), popup(ToolbarItem.Rankings, overlayContent.Add), true);
             loadComponentSingleFile(channelManager = new ChannelManager(API), Add, true);
-            loadComponentSingleFile(chatOverlay = new ChatOverlay(), overlayContent.Add, true);
+            loadComponentSingleFile(chatOverlay = new ChatOverlay(), popup(ToolbarItem.Chat, overlayContent.Add), true);
             loadComponentSingleFile(new MessageNotifier(), Add, true);
-            loadComponentSingleFile(Settings = new SettingsOverlay(), leftFloatingOverlayContent.Add, true);
+            loadComponentSingleFile(Settings = new SettingsOverlay(), popup(ToolbarItem.Settings, leftFloatingOverlayContent.Add), true);
             loadComponentSingleFile(changelogOverlay = new ChangelogOverlay(), overlayContent.Add, true);
             loadComponentSingleFile(userProfile = new UserProfileOverlay(), overlayContent.Add, true);
             loadComponentSingleFile(beatmapSetOverlay = new BeatmapSetOverlay(), overlayContent.Add, true);
             loadComponentSingleFile(wikiOverlay = new WikiOverlay(), overlayContent.Add, true);
-            loadComponentSingleFile(skinEditor = new SkinEditorOverlay(ScreenContainer), overlayContent.Add, true);
+            loadComponentSingleFile(skinEditor = new SkinEditorOverlay(), overlayContent.Add, true);
 
             loadComponentSingleFile(loginOverlay = new LoginOverlay
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-            }, rightFloatingOverlayContent.Add, true);
+            }, popup(ToolbarItem.User, rightFloatingOverlayContent.Add), true);
 
             loadComponentSingleFile(nowPlayingOverlay = new NowPlayingOverlay
             {
                 Anchor = Anchor.TopRight,
                 Origin = Anchor.TopRight,
-            }, rightFloatingOverlayContent.Add, true);
+            }, popup(ToolbarItem.Music, rightFloatingOverlayContent.Add), true);
 
             loadComponentSingleFile(new AccountCreationOverlay(), topMostOverlayContent.Add, true);
             loadComponentSingleFile<IDialogOverlay>(dialogOverlay = new DialogOverlay(), topMostOverlayContent.Add, true);
@@ -1486,11 +1498,14 @@ namespace osu.Game
             if (overlay.IsPresent)
                 return;
 
+            // oily: toolbar popups sit inside a ToolbarPopupContainer, so that is what moves to the front.
+            Drawable front = overlay.Parent is ToolbarPopupContainer popupContainer ? popupContainer : overlay;
+
             // Show above all other overlays.
-            if (overlay.IsLoaded)
-                overlayContent.ChangeChildDepth(overlay, (float)-Clock.CurrentTime);
-            else
-                overlay.Depth = (float)-Clock.CurrentTime;
+            if (front.IsLoaded && front.Parent == overlayContent)
+                overlayContent.ChangeChildDepth(front, (float)-Clock.CurrentTime);
+            else if (front.Parent == null)
+                front.Depth = (float)-Clock.CurrentTime;
         }
 
         private void forwardGeneralLogToNotifications(LogEntry entry)
@@ -1589,6 +1604,24 @@ namespace osu.Game
         private Task asyncLoadStream;
 
         /// <summary>
+        /// oily: adds a toolbar button's popup inside a <see cref="ToolbarPopupContainer"/>, so it can slide in from the side the toolbar settings pick.
+        /// </summary>
+        private Action<Drawable> popup(ToolbarItem item, Action<Drawable> add) => d => add(new ToolbarPopupContainer(item, (VisibilityContainer)d, () => findToolbarButton(item)));
+
+        /// <summary>
+        /// oily: the button for a toolbar item on screen: on a toolbar, or on the song select bottom bar.
+        /// </summary>
+        private Drawable findToolbarButton(ToolbarItem item)
+        {
+            var onToolbar = Toolbar?.Find(item)?.Button;
+
+            if (onToolbar?.IsPresent == true && Toolbar.State.Value == Visibility.Visible)
+                return onToolbar;
+
+            return (screenStackFooter?.Footer?.IsPresent == true ? screenStackFooter.Footer.FindToolbarButton(item) : null) ?? onToolbar;
+        }
+
+        /// <summary>
         /// Queues loading the provided component in sequential fashion.
         /// This operation is limited to a single thread to avoid saturating all cores.
         /// </summary>
@@ -1652,6 +1685,15 @@ namespace osu.Game
             return component;
         }
 
+        private bool toggleFromHotkey(VisibilityContainer overlay)
+        {
+            if (overlay == null || OverlayActivationMode.Value == OverlayActivation.Disabled)
+                return false;
+
+            overlay.ToggleVisibility();
+            return true;
+        }
+
         public bool OnPressed(KeyBindingPressEvent<GlobalAction> e)
         {
             switch (e.Action)
@@ -1692,6 +1734,26 @@ namespace osu.Game
                     var mouseDisableButtons = LocalConfig.GetBindable<bool>(OsuSetting.MouseDisableButtons);
                     mouseDisableButtons.Value = !mouseDisableButtons.Value;
                     return true;
+
+                // oily (ilo, 2026-11-26): lazer's hotkeys for the toolbar popups work even when their button is hidden,
+                // on the bottom bar, or on a toolbar that's tucked away (normally the toolbar button handles these first).
+                case GlobalAction.ToggleSettings:
+                    return toggleFromHotkey(Settings);
+
+                case GlobalAction.ToggleChat:
+                    return toggleFromHotkey(chatOverlay);
+
+                case GlobalAction.ToggleNowPlaying:
+                    return toggleFromHotkey(nowPlayingOverlay);
+
+                case GlobalAction.ToggleSocial:
+                    return toggleFromHotkey(dashboard);
+
+                case GlobalAction.ToggleBeatmapListing:
+                    return toggleFromHotkey(beatmapListing);
+
+                case GlobalAction.ToggleNotifications:
+                    return toggleFromHotkey(Notifications);
 
                 case GlobalAction.ToggleProfile:
                     if (userProfile.State.Value == Visibility.Visible)
@@ -1786,15 +1848,110 @@ namespace osu.Game
         {
             base.UpdateAfterChildren();
 
-            ScreenOffsetContainer.Padding = new MarginPadding { Top = toolbarOffset };
-            overlayOffsetContainer.Padding = new MarginPadding { Top = toolbarOffset };
+            // oily: toolbars can be on any edge (see ToolbarLayout), so screens and overlays keep clear of all of them.
+            var toolbarPadding = Toolbar?.ScreenPadding ?? new MarginPadding();
+            ScreenOffsetContainer.Padding = toolbarPadding;
+            // oily: the skin editor shows the toolbars inside its shrunk screen, so it keeps the whole window itself.
+            overlayOffsetContainer.Padding = skinEditor?.State.Value == Visibility.Visible ? new MarginPadding() : toolbarPadding;
+
+            placeToolbarPanel(loginOverlay, ToolbarItem.User);
+            placeToolbarPanel(nowPlayingOverlay, ToolbarItem.Music);
 
             adjustGlobalScreenOffset();
 
             GlobalCursorDisplay.ShowCursor = (ScreenStack.CurrentScreen as IOsuScreen)?.CursorVisible ?? false;
         }
 
+        private const float toolbar_panel_gap = 8;
+
+        private readonly Dictionary<OverlayContainer, float> toolbarPanelSlide = new Dictionary<OverlayContainer, float>();
+
+        /// <summary>
+        /// oily: puts a panel that opens from a toolbar button (like the profile) next to that button, on the side of the screen its toolbar is on,
+        /// and slides it in from there. The panel itself is never flipped or rotated.
+        /// </summary>
+        private void placeToolbarPanel(OverlayContainer panel, ToolbarItem item)
+        {
+            if (panel?.IsLoaded != true || Toolbar?.IsLoaded != true || panel.Parent == null)
+                return;
+
+            var found = Toolbar.Find(item);
+            var edge = found?.Edge ?? ToolbarEdge.Top;
+
+            // Slides from 0 (just opened) to 1.
+            float slide = toolbarPanelSlide.GetValueOrDefault(panel, 1);
+            slide = panel.State.Value == Visibility.Visible ? (float)Interpolation.DampContinuously(slide, 1, 60, Time.Elapsed) : panel.Alpha <= 0 ? 0 : slide;
+            toolbarPanelSlide[panel] = slide;
+
+            var parentSize = panel.Parent.ChildSize;
+            var size = panel.DrawSize;
+
+            Vector2 buttonCentre = parentSize / 2;
+            float? buttonTop = null;
+
+            if (found?.Button is Drawable button && button.IsLoaded)
+            {
+                buttonCentre = panel.Parent.ToLocalSpace(button.ScreenSpaceDrawQuad.Centre) - panel.Parent.ChildOffset;
+
+                // where the button's top would be if the popup's container weren't mid-slide (so the panel still slides with it).
+                buttonTop = panel.Parent.ToLocalSpace(button.ScreenSpaceDrawQuad.TopLeft).Y - panel.Parent.ChildOffset.Y + panel.Parent.Y;
+            }
+
+            // oily (ilo, 2026-11-26): a toolbar along the top edge that sits low on the screen (the fixed bottom bar) opens the panel just above the button.
+            if (edge == ToolbarEdge.Top && buttonTop > parentSize.Y / 2)
+                edge = ToolbarEdge.Bottom;
+
+            panel.Anchor = Anchor.TopLeft;
+            panel.Origin = Anchor.TopLeft;
+
+            Vector2 position;
+            Vector2 slideFrom;
+
+            switch (edge)
+            {
+                case ToolbarEdge.Bottom:
+                    position = new Vector2(Math.Clamp(buttonCentre.X - size.X / 2, 0, Math.Max(0, parentSize.X - size.X)),
+                        buttonTop is float above ? Math.Clamp(above - size.Y - toolbar_panel_gap, 0, Math.Max(0, parentSize.Y - size.Y)) : parentSize.Y - size.Y);
+                    slideFrom = new Vector2(0, 1);
+                    break;
+
+                case ToolbarEdge.Left:
+                    position = new Vector2(0, Math.Clamp(buttonCentre.Y - size.Y / 2, 0, Math.Max(0, parentSize.Y - size.Y)));
+                    slideFrom = new Vector2(-1, 0);
+                    break;
+
+                case ToolbarEdge.Right:
+                    position = new Vector2(parentSize.X - size.X, Math.Clamp(buttonCentre.Y - size.Y / 2, 0, Math.Max(0, parentSize.Y - size.Y)));
+                    slideFrom = new Vector2(1, 0);
+                    break;
+
+                default:
+                    // Lazer's own place (top right) unless the button is elsewhere along the top.
+                    position = found == null
+                        ? new Vector2(parentSize.X - size.X, 0)
+                        : new Vector2(Math.Clamp(buttonCentre.X - size.X / 2, 0, Math.Max(0, parentSize.X - size.X)), 0);
+                    slideFrom = new Vector2(0, -1);
+                    break;
+            }
+
+            panel.Position = position + slideFrom * 40 * (1 - slide);
+        }
+
         private float horizontalOffsetAdjust;
+
+        private EditorPreviewContainer screenPreview;
+        private EditorPreviewContainer toolbarPreview;
+
+        /// <summary>
+        /// oily: shrinks the game screen and the toolbars evenly to fit <paramref name="rect"/> (relative to the window) while the skin editor is open,
+        /// or <c>null</c> to fill the window again. The toolbars can't be clicked while shrunk.
+        /// </summary>
+        public void SetSkinEditorPreview(RectangleF? rect)
+        {
+            screenPreview.SetPreviewRect(rect);
+            toolbarPreview.SetPreviewRect(rect);
+            Toolbar.BlockInput = rect != null;
+        }
 
         /// <summary>
         /// When a screen-edge overlay is present, we push the game content slightly in its direction to create a sense of depth.
@@ -1803,10 +1960,11 @@ namespace osu.Game
         {
             float adjust = 0f;
 
+            // oily: side panels moved to the other side (toolbar "Popup comes from") nudge the game the other way.
             if (Settings.IsLoaded && Settings.State.Value == Visibility.Visible)
-                adjust += SettingsPanel.WIDTH * SIDE_OVERLAY_OFFSET_RATIO;
+                adjust += SettingsPanel.WIDTH * SIDE_OVERLAY_OFFSET_RATIO * ((Settings.Parent as ToolbarPopupContainer)?.OnRight == true ? -1 : 1);
             if (Notifications.IsLoaded && Notifications.State.Value == Visibility.Visible)
-                adjust -= NotificationOverlay.WIDTH * SIDE_OVERLAY_OFFSET_RATIO;
+                adjust -= NotificationOverlay.WIDTH * SIDE_OVERLAY_OFFSET_RATIO * ((Notifications.Parent as ToolbarPopupContainer)?.OnRight == false ? -1 : 1);
 
             horizontalOffsetAdjust = (float)Interpolation.DampContinuously(horizontalOffsetAdjust, adjust, 100, Time.Elapsed);
             // Avoid having everything on the screen moving by miniscule amounts (can create overhead on busy screens).
@@ -1875,6 +2033,9 @@ namespace osu.Game
 
                 // Handle various configuration updates based on new screen settings.
                 GlobalCursorDisplay.MenuCursor.HideCursorOnNonMouseInput = newScreen.HideMenuCursorOnNonMouseInput;
+
+                // oily (ilo, 2026-11-26): no toolbar on the main menu at all.
+                Toolbar.HiddenByScreen = newScreen is MainMenu;
 
                 if (newScreen.HideOverlaysOnEnter)
                     CloseAllOverlays();

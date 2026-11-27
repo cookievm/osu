@@ -34,16 +34,28 @@ namespace osu.Game.Screens.Play.HUD
         public Bindable<bool> CollapseDuringGameplay { get; } = new BindableBool(true);
 
         /// <summary>
-        /// oily: what the leaderboard is sorted by. Only o!ily renders can sort by pp; lazer's own leaderboards stay sorted by score.
+        /// oily: what the leaderboard is sorted by (multiplayer and playlists stay sorted by score).
         /// </summary>
-        [SettingSource("Sort by", "What the leaderboard is sorted by. Only o!ily renders can sort by pp.")]
+        [SettingSource("Sort by", "What the leaderboard is sorted by: score, or o!ily pp.")]
         public Bindable<GameplayLeaderboardSort> SortBy { get; } = new Bindable<GameplayLeaderboardSort>();
 
         /// <summary>
         /// oily: use <see cref="BackgroundColour"/> and <see cref="PlayerColour"/> instead of lazer's colours (blue, gold for first, orange for the player).
         /// </summary>
-        [SettingSource("Show mods", "Show each score's mods on the right of its row. Only o!ily renders know the mods.")]
+        [SettingSource("Show mods", "Show each score's mods on the right of its row.")]
         public Bindable<bool> ShowMods { get; } = new BindableBool(true);
+
+        [SettingSource("Show score", "Show each score's total under the name.")]
+        public Bindable<bool> ShowScore { get; } = new BindableBool(true);
+
+        [SettingSource("Show accuracy", "Show each score's accuracy.")]
+        public Bindable<bool> ShowAccuracy { get; } = new BindableBool(true);
+
+        [SettingSource("Show pp", "Show each score's pp.")]
+        public Bindable<bool> ShowPerformance { get; } = new BindableBool(true);
+
+        [SettingSource("Show combo", "Show each score's combo.")]
+        public Bindable<bool> ShowCombo { get; } = new BindableBool(true);
 
         [SettingSource("Custom colours", "Use your own background colours instead of lazer's.")]
         public Bindable<bool> UseCustomColours { get; } = new BindableBool();
@@ -196,6 +208,10 @@ namespace osu.Game.Screens.Play.HUD
 
             drawable.Expanded.BindTo(expanded);
             drawable.ShowMods.BindTo(ShowMods);
+            drawable.ShowScore.BindTo(ShowScore);
+            drawable.ShowAccuracy.BindTo(ShowAccuracy);
+            drawable.ShowPerformance.BindTo(ShowPerformance);
+            drawable.ShowCombo.BindTo(ShowCombo);
             drawable.UseCustomColours.BindTo(UseCustomColours);
             drawable.CustomColour.BindTo(BackgroundColour);
             drawable.CustomPlayerColour.BindTo(PlayerColour);

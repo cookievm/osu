@@ -1,4 +1,4 @@
-// Copyright (c) o!ily contributors. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System.Collections.Generic;
@@ -12,7 +12,7 @@ using osu.Game.Screens.Play;
 using osu.Game.Screens.Play.HUD;
 using osu.Game.Utils;
 
-namespace Oily.Rendering.Akatsuki
+namespace osu.Game.Rulesets.Osu.Difficulty.Akatsuki
 {
     /// <summary>
     /// Shows Akatsuki's relax pp in the game's PP counter.

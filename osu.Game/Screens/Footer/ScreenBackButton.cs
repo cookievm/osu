@@ -2,10 +2,12 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
+using osu.Game.Configuration;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
@@ -66,6 +68,22 @@ namespace osu.Game.Screens.Footer
             DarkerColour = Color4Extensions.FromHex("#DE31AE");
             LighterColour = Color4Extensions.FromHex("#FF86DD");
             TextColour = Color4.White;
+
+            // oily: back button colour from settings.
+            if (config != null)
+            {
+                colourSetting = OilyPanelColours.Track(config, colours =>
+                {
+                    var custom = colours.GetColour(OilyColour.BackButton);
+                    DarkerColour = custom ?? Color4Extensions.FromHex("#DE31AE");
+                    LighterColour = custom?.Lighten(0.4f) ?? Color4Extensions.FromHex("#FF86DD");
+                });
+            }
         }
+
+        [Resolved(CanBeNull = true)]
+        private OsuConfigManager? config { get; set; }
+
+        private IBindable<string>? colourSetting;
     }
 }

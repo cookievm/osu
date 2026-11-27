@@ -55,6 +55,9 @@ namespace osu.Game.Screens.Select
         private BeatmapSetOnlineStatusPill statusPill = null!;
         private OsuHoverContainer titleLink = null!;
         private MarqueeContainer titleLabel = null!;
+
+        private Container titleRow = null!;
+        private Container artistRow = null!;
         private OsuHoverContainer artistLink = null!;
         private MarqueeContainer artistLabel = null!;
 
@@ -77,11 +80,50 @@ namespace osu.Game.Screens.Select
 
         private FillFlowContainer statisticsFlow = null!;
 
+        // oily: lazer's look and osu!stable's look (see SongSelectBeatmapInfoLayout.Style).
+        private Container lazerBackground = null!;
+        private FillFlowContainer lazerContent = null!;
+        private Container stableContent = null!;
+
+        private bool stableLook;
+
+        /// <summary>
+        /// oily: shows osu!stable's top left text block instead of lazer's card.
+        /// </summary>
+        public bool StableLook
+        {
+            get => stableLook;
+            set
+            {
+                if (stableLook == value)
+                    return;
+
+                stableLook = value;
+
+                if (!IsLoaded)
+                    return;
+
+                updateLook();
+            }
+        }
+
+        private void updateLook()
+        {
+            lazerBackground.Alpha = stableLook ? 0 : 1;
+            lazerContent.Alpha = stableLook ? 0 : 1;
+            stableContent.Alpha = stableLook ? 1 : 0;
+            CornerRadius = stableLook ? 0 : corner_radius;
+        }
+
         public BeatmapTitleWedge()
         {
             RelativeSizeAxes = Axes.X;
             AutoSizeAxes = Axes.Y;
         }
+
+        // oily: lets skins move pieces of this card (see SongSelectPieceLayout).
+        [Resolved]
+        private SongSelectPieceRegistry? pieceRegistry { get; set; }
 
         [BackgroundDependencyLoader]
         private void load()
@@ -91,8 +133,24 @@ namespace osu.Game.Screens.Select
 
             InternalChildren = new Drawable[]
             {
-                new WedgeBackground(),
-                new FillFlowContainer
+                // oily: the background keeps its rounded corners even when the wedge stops cutting off moved pieces.
+                lazerBackground = new Container
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Masking = true,
+                    CornerRadius = corner_radius,
+                    Child = new WedgeBackground { Panel = OilyPanel.MapTitle },
+                },
+                stableContent = new Container
+                {
+                    RelativeSizeAxes = Axes.X,
+                    AutoSizeAxes = Axes.Y,
+                    Alpha = 0,
+                    Shear = -OsuGame.SHEAR,
+                    Padding = new MarginPadding { Top = TopPadding + SongSelect.WEDGE_CONTENT_MARGIN, Left = SongSelect.WEDGE_CONTENT_MARGIN },
+                    // oily (ilo, 2026-11-27): stable's beatmap info is drawn by StableSongSelectLayer, at stable's place on the screen.
+                },
+                lazerContent = new FillFlowContainer
                 {
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y,
@@ -112,7 +170,7 @@ namespace osu.Game.Screens.Select
                             TextSize = OsuFont.Style.Caption1.Size,
                             TextPadding = new MarginPadding { Horizontal = 6, Vertical = 1 },
                         }),
-                        new ShearAligningWrapper(new Container
+                        new ShearAligningWrapper(titleRow = new Container
                         {
                             Shear = -OsuGame.SHEAR,
                             RelativeSizeAxes = Axes.X,
@@ -128,7 +186,7 @@ namespace osu.Game.Screens.Select
                                 }
                             }
                         }),
-                        new ShearAligningWrapper(new Container
+                        new ShearAligningWrapper(artistRow = new Container
                         {
                             Shear = -OsuGame.SHEAR,
                             RelativeSizeAxes = Axes.X,
@@ -144,7 +202,7 @@ namespace osu.Game.Screens.Select
                                 }
                             }
                         }),
-                        new ShearAligningWrapper(statisticsFlow = new FillFlowContainer
+                        new ShearAligningWrapper(SongSelectPieceRegistry.Wrap(pieceRegistry, SongSelectPiece.MapStatistics, statisticsFlow = new FillFlowContainer
                         {
                             Shear = -OsuGame.SHEAR,
                             AutoSizeAxes = Axes.X,
@@ -165,7 +223,7 @@ namespace osu.Game.Screens.Select
                                     Margin = new MarginPadding { Left = 5f },
                                 },
                             },
-                        }),
+                        })),
                         new ShearAligningWrapper(new Container
                         {
                             Shear = -OsuGame.SHEAR,
@@ -173,11 +231,25 @@ namespace osu.Game.Screens.Select
                             AutoSizeAxes = Axes.Y,
                             Margin = new MarginPadding { Left = -SongSelect.WEDGE_CONTENT_MARGIN },
                             Padding = new MarginPadding { Right = -SongSelect.WEDGE_CONTENT_MARGIN },
-                            Child = new DifficultyDisplay(),
+                            Child = SongSelectPieceRegistry.Wrap(pieceRegistry, SongSelectPiece.DifficultyCard, new DifficultyDisplay()),
                         }),
                     },
                 }
             };
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+
+            // oily: map details a skin moved outside this box are drawn in full instead of being cut off at its edge.
+            // The scrolling title and artist are then cut off on their own rows instead.
+            bool free = SongSelectPieceContainer.AnyMoved(pieceRegistry,
+                SongSelectPiece.MapStatistics, SongSelectPiece.DifficultyCard, SongSelectPiece.DifficultyStats, SongSelectPiece.ObjectCounts);
+
+            Masking = !free;
+            titleRow.Masking = free;
+            artistRow.Masking = free;
         }
 
         protected override void LoadComplete()
@@ -199,6 +271,7 @@ namespace osu.Game.Screens.Select
             });
 
             updateDisplay();
+            updateLook();
 
             statisticsFlow.AutoSizeDuration = 100;
             statisticsFlow.AutoSizeEasing = Easing.OutQuint;

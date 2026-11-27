@@ -18,7 +18,6 @@ using osu.Framework.Screens;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
 using osu.Game.Configuration;
-using osu.Game.Graphics.Containers;
 using osu.Game.Input.Bindings;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
@@ -28,6 +27,7 @@ using osu.Game.Screens.Edit;
 using osu.Game.Screens.Edit.Components;
 using osu.Game.Screens.Menu;
 using osu.Game.Screens.Play;
+using osu.Game.Skinning;
 using osu.Game.Screens.Select;
 using osu.Game.Users;
 using osu.Game.Utils;
@@ -40,8 +40,6 @@ namespace osu.Game.Overlays.SkinEditor
     /// </summary>
     public partial class SkinEditorOverlay : OverlayContainer, IKeyBindingHandler<GlobalAction>
     {
-        private readonly ScalingContainer scalingContainer;
-
         protected override bool BlockNonPositionalInput => true;
 
         private SkinEditor? skinEditor;
@@ -79,9 +77,8 @@ namespace osu.Game.Overlays.SkinEditor
 
         private readonly LayoutValue drawSizeLayout;
 
-        public SkinEditorOverlay(ScalingContainer scalingContainer)
+        public SkinEditorOverlay()
         {
-            this.scalingContainer = scalingContainer;
             RelativeSizeAxes = Axes.Both;
 
             AddLayout(drawSizeLayout = new LayoutValue(Invalidation.DrawSize));
@@ -165,6 +162,16 @@ namespace osu.Game.Overlays.SkinEditor
 
         public void PresentGameplay() => presentGameplay(false);
 
+        /// <summary>
+        /// oily: switches the skin editor's working layer once the screen offers it.
+        /// </summary>
+        public void SelectTarget(GlobalSkinnableContainers lookup) => skinEditor?.SelectTarget(lookup);
+
+        /// <summary>
+        /// oily: re-checks which working layers the current screen offers.
+        /// </summary>
+        public void RefreshTargets() => skinEditor?.RefreshTargets();
+
         private void presentGameplay(bool attemptedBeatmapSwitch)
         {
             performer?.PerformFromScreen(screen =>
@@ -238,7 +245,8 @@ namespace osu.Game.Overlays.SkinEditor
                 1 - relativeSidebarWidth * 2,
                 1f - relativeToolbarHeight - padding / DrawHeight);
 
-            scalingContainer.SetCustomRect(rect, true);
+            // oily: shrink the screen (and toolbars) evenly instead of reshaping it, so parts placed here stay put once the editor closes.
+            game.SetSkinEditorPreview(rect);
         }
 
         private void updateComponentVisibility()
@@ -249,13 +257,13 @@ namespace osu.Game.Overlays.SkinEditor
             {
                 Scheduler.AddOnce(updateScreenSizing);
 
-                game.Toolbar.Hide();
+                // oily: the toolbars stay, shrunk with the screen, so the editor shows the screen as it really is.
                 if (externalEditOverlay.State.Value != Visibility.Visible)
-                    game.CloseAllOverlays();
+                    game.CloseAllOverlays(false);
             }
             else
             {
-                scalingContainer.SetCustomRect(null);
+                game.SetSkinEditorPreview(null);
 
                 if (lastTargetScreen?.HideOverlaysOnEnter != true)
                     game.Toolbar.Show();

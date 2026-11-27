@@ -39,6 +39,7 @@ namespace osu.Game.Screens.Select
         private ConstrainedIconContainer difficultyIcon = null!;
         private OsuSpriteText variantText = null!;
         private StarRatingDisplay starRatingDisplay = null!;
+        private PanelPerformanceDisplay performanceDisplay = null!;
         private PanelLocalRankDisplay localRank = null!;
         private OsuSpriteText difficultyText = null!;
         private OsuSpriteText authorText = null!;
@@ -68,6 +69,8 @@ namespace osu.Game.Screens.Select
         private ISongSelect? songSelect { get; set; }
 
         private BeatmapInfo beatmap => ((GroupedBeatmap)Item!.Model).Beatmap;
+
+        protected override bool SupportsStableLook => true;
 
         public PanelBeatmap()
         {
@@ -177,6 +180,8 @@ namespace osu.Game.Screens.Select
                                             Anchor = Anchor.CentreLeft,
                                             Scale = new Vector2(0.875f),
                                         },
+                                        // oily: SS pp with the selected mods.
+                                        performanceDisplay = new PanelPerformanceDisplay(),
                                         starCounter = new StarCounter
                                         {
                                             Anchor = Anchor.CentreLeft,
@@ -210,6 +215,14 @@ namespace osu.Game.Screens.Select
             difficultyText.Text = beatmap.DifficultyName;
             authorText.Text = BeatmapsetsStrings.ShowDetailsMappedBy(beatmap.Metadata.Author.Username);
 
+            StableContent.Kind = StablePanelKind.Difficulty;
+            StableContent.InsideSet = true;
+            StableContent.Title = StablePanelContent.TitleOf(beatmap.Metadata);
+            StableContent.Subtitle = StablePanelContent.ArtistAndMapper(beatmap.Metadata);
+            StableContent.DifficultyName = beatmap.DifficultyName;
+            StableContent.Stars = null;
+            StableContent.Beatmap = beatmap;
+
             computeStarRating();
             updateKeyCount();
         }
@@ -230,6 +243,8 @@ namespace osu.Game.Screens.Select
 
             localRank.Beatmap = null;
             starDifficultyBindable = null;
+            performanceDisplay.Beatmap = null;
+            StableContent.Beatmap = null;
 
             starDifficultyCancellationSource?.Cancel();
         }
@@ -242,11 +257,15 @@ namespace osu.Game.Screens.Select
             if (Item == null)
                 return;
 
+            performanceDisplay.Beatmap = beatmap;
             starDifficultyBindable = difficultyCache.GetBindableDifficulty(beatmap, starDifficultyCancellationSource.Token, SongSelect.DIFFICULTY_CALCULATION_DEBOUNCE);
             starDifficultyBindable.BindValueChanged(starDifficulty =>
             {
                 starRatingDisplay.Current.Value = starDifficulty.NewValue;
+                performanceDisplay.Difficulty = starDifficulty.NewValue;
                 starCounter.Current = (float)starDifficulty.NewValue.Stars;
+                StableContent.Stars = starDifficulty.NewValue.Stars;
+                StableContent.Difficulty = starDifficulty.NewValue;
             });
         }
 

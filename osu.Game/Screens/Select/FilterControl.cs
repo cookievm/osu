@@ -28,7 +28,9 @@ using osu.Game.Online.API.Requests.Responses;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Screens.Select.Filter;
+using osu.Game.Graphics.Sprites;
 using osuTK;
+using osuTK.Graphics;
 using osuTK.Input;
 
 namespace osu.Game.Screens.Select
@@ -47,6 +49,58 @@ namespace osu.Game.Screens.Select
         private DifficultyRangeSlider difficultyRangeSlider = null!;
         private ShearedDropdown<SortMode> sortDropdown = null!;
         private ShearedDropdown<GroupModeDropdownItem> groupDropdown = null!;
+        private CollectionDropdown collectionDropdown = null!;
+
+        // oily: lazer's look and osu!stable's look (see SongSelectSearchBarLayout.Style).
+        private Container lazerBackground = null!;
+        private Drawable starRatingRow = null!;
+        private Drawable stableSearchLabel = null!;
+        private OsuSpriteText stableSearchText = null!;
+
+        private bool stableLook;
+
+        /// <summary>
+        /// oily: draws the search like osu!stable's (on the stable top bar behind song select, see StableSongSelectTop): "Search: ..." text instead of lazer's text box, and no star rating bar.
+        /// Typing still goes to the (now invisible) text box.
+        /// </summary>
+        public bool StableLook
+        {
+            get => stableLook;
+            set
+            {
+                if (stableLook == value)
+                    return;
+
+                stableLook = value;
+
+                if (IsLoaded)
+                    updateLook();
+            }
+        }
+
+        private void updateLook()
+        {
+            lazerBackground.Alpha = stableLook ? 0 : 1;
+            starRatingRow.Alpha = stableLook ? 0 : 1;
+            stableSearchLabel.Alpha = stableLook ? 1 : 0;
+            StableControls.Alpha = stableLook ? 1 : 0;
+            lazerSortRow.Alpha = stableLook ? 0 : 1;
+            searchTextBox.Colour = stableLook ? Colour4.Transparent : Colour4.White;
+        }
+
+        private void updateStableSearchText(string text)
+        {
+            stableSearchText.Text = string.IsNullOrEmpty(text) ? "Type to search!" : text;
+            stableSearchText.Colour = Colour4.White;
+        }
+
+        // oily: the parts a skin can colour one by one.
+        public Drawable SearchBox => searchTextBox;
+        public Drawable StarRatingBar => difficultyRangeSlider;
+        public Drawable ShowConvertsButton => showConvertedBeatmapsButton;
+        public Drawable SortDropdown => sortDropdown;
+        public Drawable GroupDropdown => groupDropdown;
+        public Drawable CollectionDropdown => collectionDropdown;
         private readonly Bindable<string> configCollectionFilter = new Bindable<string>();
 
         /// <summary>
@@ -95,13 +149,14 @@ namespace osu.Game.Screens.Select
 
             InternalChildren = new Drawable[]
             {
-                new Container
+                lazerBackground = new Container
                 {
                     RelativeSizeAxes = Axes.Both,
                     CornerRadius = corner_radius,
                     Masking = true,
                     Child = new WedgeBackground
                     {
+                        Panel = OilyPanel.SongSearch,
                         Anchor = Anchor.TopRight,
                         Scale = new Vector2(-1, 1),
                     }
@@ -127,14 +182,17 @@ namespace osu.Game.Screens.Select
                                     RelativeSizeAxes = Axes.X,
                                     AutoSizeAxes = Axes.Y,
                                     Shear = -OsuGame.SHEAR,
-                                    Child = searchTextBox = new SongSelectSearchTextBox
+                                    Children = new Drawable[]
                                     {
-                                        RelativeSizeAxes = Axes.X,
-                                        HoldFocus = true,
-                                        ScopedBeatmapSet = { BindTarget = ScopedBeatmapSet },
+                                        searchTextBox = new SongSelectSearchTextBox
+                                        {
+                                            RelativeSizeAxes = Axes.X,
+                                            HoldFocus = true,
+                                            ScopedBeatmapSet = { BindTarget = ScopedBeatmapSet },
+                                        },
                                     },
                                 },
-                                new GridContainer
+                                starRatingRow = new GridContainer
                                 {
                                     RelativeSizeAxes = Axes.X,
                                     AutoSizeAxes = Axes.Y,
@@ -167,7 +225,7 @@ namespace osu.Game.Screens.Select
                                         },
                                     }
                                 },
-                                new GridContainer
+                                lazerSortRow = new GridContainer
                                 {
                                     RelativeSizeAxes = Axes.X,
                                     Height = 30,
@@ -197,7 +255,7 @@ namespace osu.Game.Screens.Select
                                                 RelativeSizeAxes = Axes.X,
                                             },
                                             Empty(),
-                                            new CollectionDropdown
+                                            collectionDropdown = new CollectionDropdown
                                             {
                                                 RelativeSizeAxes = Axes.X,
                                             },
@@ -214,13 +272,138 @@ namespace osu.Game.Screens.Select
                 },
             };
 
+            // oily (ilo, 2026-11-27): stable's search text and its group, sort and collection boxes, where osu!stable puts them
+            // (measured from stable at 768 high, from the screen's right edge). Song select shows them in front of the cards.
+            StableControls.Children = new Drawable[]
+            {
+                stableSearchLabel = new FillFlowContainer
+                {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopLeft,
+                    Position = new Vector2(-359, StableFont.SEARCH_BASELINE - StableFont.SEARCH_SIZE * 0.78f),
+                    AutoSizeAxes = Axes.Both,
+                    Direction = FillDirection.Horizontal,
+                    Spacing = new Vector2(6, 0),
+                    Children = new Drawable[]
+                    {
+                        stableSearchWord = new OsuSpriteText
+                        {
+                            Text = "Search:",
+                            Font = StableFont.Get(StableFont.SEARCH_SIZE, bold: true),
+                            Shadow = false,
+                        },
+                        stableSearchText = new OsuSpriteText
+                        {
+                            Font = StableFont.Get(StableFont.SEARCH_SIZE, bold: true),
+                            Shadow = false,
+                        },
+                    },
+                },
+                stableCollectionDropdown = new StableDropdown<CollectionFilterMenuItem>
+                {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopRight,
+                    Position = new Vector2(-508, 85),
+                    Width = 112,
+                    MirrorItemsOf = collectionDropdown,
+                    TextFor = c => c.CollectionName,
+                    AccentColour = new Color4(255, 102, 170, 255),
+                },
+                stableGroupDropdown = new StableDropdown<GroupModeDropdownItem>
+                {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopRight,
+                    Position = new Vector2(-285, 29.3f),
+                    Width = 191,
+                    MirrorItemsOf = groupDropdown,
+                    TextFor = g => g.Value == GroupMode.None ? "No Grouping" : LocalisableString.Interpolate($"By {g.Text}"),
+                    AccentColour = new Color4(121, 162, 191, 255),
+                },
+                stableSortDropdown = new StableDropdown<SortMode>
+                {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopRight,
+                    Position = new Vector2(-15, 29.3f),
+                    Width = 191,
+                    MirrorItemsOf = sortDropdown,
+                    TextFor = s => LocalisableString.Interpolate($"By {s.GetLocalisableDescription()}"),
+                    AccentColour = new Color4(145, 175, 115, 255),
+                },
+                // Buttons that only exist in a skin's own top right picture (like WhiteCat's): see updateStableSkinPanel.
+                stableSkinButtons = new Container
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Children = new Drawable[]
+                    {
+                        new StableSkinButton(-503, 85, 28, 24, () => setGroup(GroupMode.LastPlayed)),
+                        new StableSkinButton(-359, 62, 93, 20, () => setGroup(GroupMode.Artist)),
+                        new StableSkinButton(-266, 62, 91, 20, () => setGroup(GroupMode.Difficulty)),
+                        new StableSkinButton(-98, 62, 98, 22, () => setGroup(GroupMode.None)),
+                    },
+                },
+            };
+
+            stableGroupDropdown.Current.BindTo(groupDropdown.Current);
+            stableSortDropdown.Current.BindTo(sortDropdown.Current);
+            stableCollectionDropdown.Current.BindTo(collectionDropdown.Current);
+
             localUser = api.LocalUser.GetBoundCopy();
             localUserFavouriteBeatmapSets.BindTo(api.LocalUserState.FavouriteBeatmapSets);
         }
 
+        /// <summary>
+        /// oily: stable's search text and group, sort and collection boxes. Song select puts this in front of the cards; it shows while <see cref="StableLook"/> is on.
+        /// </summary>
+        public Container StableControls { get; } = new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+            Alpha = 0,
+        };
+
+        private GridContainer lazerSortRow = null!;
+        private Drawable stableSearchWord = null!;
+        private Container stableSkinButtons = null!;
+
+        [Resolved(CanBeNull = true)]
+        private SongSelectPieceRegistry? pieceRegistry { get; set; }
+
+        private readonly IBindable<bool> stableSkinPanel = new BindableBool();
+
+        private void setGroup(GroupMode mode)
+        {
+            var item = groupDropdown.Items.FirstOrDefault(i => i.Value == mode);
+
+            if (item != null)
+                groupDropdown.Current.Value = item;
+        }
+
+        /// <summary>
+        /// oily (ilo, 2026-11-27): when the skin paints its own top right (collections, search, group buttons, like WhiteCat), its pictures are the buttons:
+        /// the collection box draws nothing over them, the "Search:" word is left to the picture, and the painted group buttons work.
+        /// </summary>
+        private void updateStableSkinPanel(bool panel)
+        {
+            stableCollectionDropdown.HeaderHidden = panel;
+            stableSearchWord.Alpha = panel ? 0 : 1;
+            stableSearchLabel.X = panel ? -277 : -359;
+            stableSkinButtons.Alpha = panel ? 1 : 0;
+        }
+        private StableDropdown<GroupModeDropdownItem> stableGroupDropdown = null!;
+        private StableDropdown<SortMode> stableSortDropdown = null!;
+        private StableDropdown<CollectionFilterMenuItem> stableCollectionDropdown = null!;
+
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            // oily: a skin's own top right picture.
+            if (pieceRegistry != null)
+                stableSkinPanel.BindTo(pieceRegistry.StableSkinPanel);
+            stableSkinPanel.BindValueChanged(p => updateStableSkinPanel(p.NewValue), true);
+
+            // oily: stable's search text follows what's typed.
+            searchTextBox.Current.BindValueChanged(t => updateStableSearchText(t.NewValue), true);
+            updateLook();
 
             difficultyRangeSlider.LowerBound = config.GetBindable<double>(OsuSetting.DisplayStarsMinimum);
             difficultyRangeSlider.UpperBound = config.GetBindable<double>(OsuSetting.DisplayStarsMaximum);
@@ -509,5 +692,20 @@ namespace osu.Game.Screens.Select
         }
 
         private record GroupModeDropdownItem(GroupMode Value, LocalisableString Text);
+
+        /// <summary>
+        /// oily: a see-through button over a button painted in the skin's picture (stable's space, from the screen's right edge).
+        /// </summary>
+        private partial class StableSkinButton : OsuClickableContainer
+        {
+            public StableSkinButton(float x, float y, float width, float height, Action action)
+            {
+                Anchor = Anchor.TopRight;
+                Origin = Anchor.TopLeft;
+                Position = new Vector2(x, y);
+                Size = new Vector2(width, height);
+                Action = action;
+            }
+        }
     }
 }

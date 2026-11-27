@@ -61,11 +61,17 @@ namespace osu.Game.Screens.Select
 
             private CancellationTokenSource? cancellationSource;
 
+            private Container statsBox = null!;
+
             public DifficultyDisplay()
             {
                 RelativeSizeAxes = Axes.X;
                 AutoSizeAxes = Axes.Y;
             }
+
+            // oily: lets skins move pieces of this card (see SongSelectPieceLayout).
+            [Resolved]
+            private SongSelectPieceRegistry? pieceRegistry { get; set; }
 
             [BackgroundDependencyLoader]
             private void load(OverlayColourProvider colourProvider)
@@ -76,7 +82,14 @@ namespace osu.Game.Screens.Select
 
                 InternalChildren = new Drawable[]
                 {
-                    new WedgeBackground(),
+                    // oily: the background keeps its rounded corners even when the card stops cutting off moved pieces.
+                    new Container
+                    {
+                        RelativeSizeAxes = Axes.Both,
+                        Masking = true,
+                        CornerRadius = 10,
+                        Child = new WedgeBackground { Panel = OilyPanel.MapDifficulty },
+                    },
                     new FillFlowContainer
                     {
                         RelativeSizeAxes = Axes.X,
@@ -154,7 +167,7 @@ namespace osu.Game.Screens.Select
                                 RelativeSizeAxes = Axes.X,
                                 Height = 53,
                                 Padding = new MarginPadding { Bottom = border_weight, Right = border_weight },
-                                Child = new Container
+                                Child = statsBox = new Container
                                 {
                                     RelativeSizeAxes = Axes.X,
                                     AutoSizeAxes = Axes.Y,
@@ -163,10 +176,16 @@ namespace osu.Game.Screens.Select
                                     Shear = OsuGame.SHEAR,
                                     Children = new Drawable[]
                                     {
-                                        new Box
+                                        new Container
                                         {
                                             RelativeSizeAxes = Axes.Both,
-                                            Colour = colourProvider.Background5.Opacity(0.8f),
+                                            Masking = true,
+                                            CornerRadius = 10 - border_weight,
+                                            Child = new Box
+                                            {
+                                                RelativeSizeAxes = Axes.Both,
+                                                Colour = colourProvider.Background5.Opacity(0.8f),
+                                            },
                                         },
                                         new GridContainer
                                         {
@@ -185,12 +204,12 @@ namespace osu.Game.Screens.Select
                                             {
                                                 new[]
                                                 {
-                                                    countStatisticsDisplay = new DifficultyStatisticsDisplay
+                                                    SongSelectPieceRegistry.Wrap(pieceRegistry, SongSelectPiece.ObjectCounts, countStatisticsDisplay = new DifficultyStatisticsDisplay
                                                     {
                                                         RelativeSizeAxes = Axes.X,
-                                                    },
+                                                    }),
                                                     Empty(),
-                                                    difficultyStatisticsDisplay = new DifficultyStatisticsDisplay(autoSize: true),
+                                                    SongSelectPieceRegistry.Wrap(pieceRegistry, SongSelectPiece.DifficultyStats, difficultyStatisticsDisplay = new DifficultyStatisticsDisplay(autoSize: true)),
                                                 }
                                             },
                                         }
@@ -302,6 +321,12 @@ namespace osu.Game.Screens.Select
             protected override void Update()
             {
                 base.Update();
+
+                // oily: map details a skin moved outside this card are drawn in full instead of being cut off at its edge.
+                bool free = SongSelectPieceContainer.AnyMoved(pieceRegistry, SongSelectPiece.DifficultyStats, SongSelectPiece.ObjectCounts);
+
+                Masking = !free;
+                statsBox.Masking = !free;
 
                 difficultyText.MaxWidth = Math.Max(nameLine.DrawWidth - mappedByText.DrawWidth - mapperText.DrawWidth - 20, 0);
 

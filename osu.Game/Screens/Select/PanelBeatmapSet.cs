@@ -81,6 +81,8 @@ namespace osu.Game.Screens.Select
             }
         }
 
+        protected override bool SupportsStableLook => true;
+
         public PanelBeatmapSet()
         {
             PanelXOffset = 20f;
@@ -206,6 +208,11 @@ namespace osu.Game.Screens.Select
             updateButton.BeatmapSet = beatmapSet;
             statusPill.Status = beatmapSet.Status;
             spreadDisplay.BeatmapSet.Value = beatmapSet;
+
+            StableContent.Kind = StablePanelKind.BeatmapSet;
+            StableContent.Title = StablePanelContent.TitleOf(beatmapSet.Metadata);
+            StableContent.Subtitle = StablePanelContent.ArtistAndMapper(beatmapSet.Metadata);
+            StableContent.Beatmap = beatmapSet.Beatmaps.MinBy(b => b.OnlineID);
         }
 
         protected override void FreeAfterUse()

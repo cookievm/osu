@@ -36,6 +36,11 @@ namespace osu.Game.Online.API.Requests
     public enum UserRankingsType
     {
         Performance,
-        Score
+        Score,
+
+        /// <summary>
+        /// oily: the o!ily lazer Relax board (<c>rankings/{ruleset}/relax</c> on the o!ily server).
+        /// </summary>
+        Relax,
     }
 }

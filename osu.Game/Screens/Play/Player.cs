@@ -242,6 +242,10 @@ namespace osu.Game.Screens.Play
             if (playableBeatmap == null)
                 return;
 
+            // oily: gamerules (settings, or the replay's own rules) apply before gameplay and scoring are set up.
+            GameRules = CreateGameRules(playableBeatmap, config);
+            ruleset.ApplyGameRules(playableBeatmap, GameRules);
+
             if (!ModUtils.CheckModsBelongToRuleset(ruleset, gameplayMods))
             {
                 Logger.Log($@"Gameplay was started with a mod belonging to a ruleset different than '{ruleset.Description}'.", level: LogLevel.Important);
@@ -252,6 +256,7 @@ namespace osu.Game.Screens.Play
                 gameActive.BindTo(game.IsActive);
 
             DrawableRuleset = ruleset.CreateDrawableRulesetWith(playableBeatmap, gameplayMods);
+            DrawableRuleset.GameRules = GameRules;
             dependencies.CacheAs(DrawableRuleset);
 
             if (DrawableRuleset is IDrawableScrollingRuleset scrollingRuleset)
@@ -1223,6 +1228,16 @@ namespace osu.Game.Screens.Play
         }
 
         /// <summary>
+        /// oily: the gamerules this play uses.
+        /// </summary>
+        public OilyGameRules GameRules { get; private set; } = OilyGameRules.DEFAULT;
+
+        /// <summary>
+        /// oily: chooses the gamerules for this play. Normal plays use the settings; replays use the rules saved with the score.
+        /// </summary>
+        protected virtual OilyGameRules CreateGameRules(IBeatmap playableBeatmap, OsuConfigManager config) => OilyGameRules.FromConfig(config);
+
+        /// <summary>
         /// Creates the player's <see cref="Scoring.Score"/>.
         /// </summary>
         /// <param name="beatmap"></param>
@@ -1232,7 +1247,8 @@ namespace osu.Game.Screens.Play
             ScoreInfo = new ScoreInfo
             {
                 User = api.LocalUser.Value,
-                ClientVersion = game.Version,
+                // oily: save the gamerules with the score, so its replay is played back with the same rules.
+                ClientVersion = GameRules.TagClientVersion(game.Version),
             },
         };
 

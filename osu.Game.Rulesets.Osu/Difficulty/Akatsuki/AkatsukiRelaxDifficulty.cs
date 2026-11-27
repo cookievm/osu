@@ -1,4 +1,4 @@
-// Copyright (c) o!ily contributors. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -7,7 +7,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Osu.Objects;
 using osuTK;
 
-namespace Oily.Rendering.Akatsuki
+namespace osu.Game.Rulesets.Osu.Difficulty.Akatsuki
 {
     /// <summary>
     /// Akatsuki's relax star rating: the 2019 osu! difficulty calculation they use for relax,

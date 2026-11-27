@@ -10,12 +10,20 @@ using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Extensions;
 using osu.Framework.Graphics.Containers;
+using osu.Game.Screens.Edit.Compose.Components;
+using osu.Framework.Graphics.Sprites;
+using osu.Framework.Graphics.Primitives;
+using osu.Framework.Graphics;
 using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Input;
 using osu.Framework.Screens;
 using osu.Framework.Testing;
 using osu.Framework.Threading;
+using osu.Game.Graphics.Containers;
 using osu.Game.Online.API;
+using osu.Game.Overlays.Toolbar;
+using osu.Game.Configuration;
+using osu.Game.Screens.Footer;
 using osu.Game.Beatmaps;
 using osu.Game.Overlays.Mods;
 using osu.Game.Overlays.Settings;
@@ -24,6 +32,7 @@ using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Osu;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Screens.Edit.Components;
+using osu.Game.Screens;
 using osu.Game.Screens.Play;
 using osu.Game.Screens.Play.HUD;
 using osu.Game.Screens.Select;
@@ -177,7 +186,8 @@ namespace osu.Game.Tests.Visual.Navigation
 
             switchToGameplayScene();
 
-            AddUntilStep("wait for components", () => skinEditor.ChildrenOfType<SkinBlueprint>().Any());
+            // oily: song select's own pieces have blueprints too, so wait for gameplay's.
+            AddUntilStep("wait for components", () => skinEditor.ChildrenOfType<SkinBlueprint>().Any(b => b.Item is not Screens.Select.SongSelectPieceLayout));
 
             AddStep("select all components", () => InputManager.Keys(PlatformAction.SelectAll));
 
@@ -328,6 +338,172 @@ namespace osu.Game.Tests.Visual.Navigation
         }
 
         [Test]
+        public void TestResizeAndCropSongSelectPartWithHandles()
+        {
+            SongSelectBeatmapListLayout layout = null!;
+            Quad cardsBefore = default;
+            float cardsWidth = 0;
+
+            AddStep("import beatmap", () => BeatmapImportHelper.LoadQuickOszIntoOsu(Game).WaitSafely());
+            advanceToSongSelect();
+            openSkinEditor();
+
+            AddUntilStep("find beatmap list layout", () => (layout = Game.ChildrenOfType<SongSelectBeatmapListLayout>().FirstOrDefault(l => l.FollowLazer.Value)!) != null);
+            AddStep("select it", () =>
+            {
+                skinEditor.SelectedComponents.Clear();
+                skinEditor.SelectedComponents.Add(layout);
+            });
+            AddAssert("no crop sliders", () => skinEditor.ChildrenOfType<ISettingsItem>().OfType<Drawable>()
+                                                         .Any(d => d.ChildrenOfType<SpriteText>().Any(t => t.Text.ToString().StartsWith("Crop", StringComparison.Ordinal))), () => Is.False);
+
+            AddStep("remember cards", () =>
+            {
+                var carousel = Game.ChildrenOfType<BeatmapCarousel>().Single();
+                cardsBefore = carousel.ScreenSpaceDrawQuad;
+                cardsWidth = carousel.DrawWidth;
+            });
+
+            dragHandle(Anchor.CentreLeft, new Vector2(200, 0));
+
+            AddUntilStep("cards laid out narrower", () => Game.ChildrenOfType<BeatmapCarousel>().Single().DrawWidth, () => Is.LessThan(cardsWidth - 50));
+            AddAssert("cards not squashed", () => Game.ChildrenOfType<BeatmapCarousel>().Single().DrawInfo.Matrix.ExtractScale().X,
+                () => Is.EqualTo(cardsBefore.Width / cardsWidth).Within(0.01f));
+            AddAssert("not cropped", () => layout.CropLeft.Value, () => Is.EqualTo(0));
+
+            AddStep("remember cards", () => cardsBefore = Game.ChildrenOfType<BeatmapCarousel>().Single().ScreenSpaceDrawQuad);
+            AddStep("hold ctrl", () => InputManager.PressKey(Key.ControlLeft));
+            dragHandle(Anchor.CentreLeft, new Vector2(100, 0));
+            AddStep("let go of ctrl", () => InputManager.ReleaseKey(Key.ControlLeft));
+
+            AddAssert("left side cropped", () => layout.CropLeft.Value, () => Is.GreaterThan(0.05f));
+            AddUntilStep("cards stay where they were", () => Vector2.Distance(Game.ChildrenOfType<BeatmapCarousel>().Single().ScreenSpaceDrawQuad.TopLeft, cardsBefore.TopLeft), () => Is.LessThan(2));
+            AddAssert("cut off part hidden", () => ((Container)Game.ChildrenOfType<SongSelectPieceContainer>().Single(p => p.Piece == SongSelectPiece.BeatmapList).Child).Masking);
+
+            AddStep("hold ctrl", () => InputManager.PressKey(Key.ControlLeft));
+            dragHandle(Anchor.CentreLeft, new Vector2(-500, 0));
+            AddStep("let go of ctrl", () => InputManager.ReleaseKey(Key.ControlLeft));
+            AddAssert("uncropped, but no further", () => layout.CropLeft.Value, () => Is.EqualTo(0));
+            AddUntilStep("cards still where they were", () => Vector2.Distance(Game.ChildrenOfType<BeatmapCarousel>().Single().ScreenSpaceDrawQuad.TopLeft, cardsBefore.TopLeft), () => Is.LessThan(2));
+
+            void dragHandle(Anchor handle, Vector2 by)
+            {
+                AddStep($"drag {handle} handle", () =>
+                {
+                    var h = skinEditor.ChildrenOfType<SelectionBoxScaleHandle>().Single(s => s.Anchor == handle);
+                    InputManager.MoveMouseTo(h);
+                    InputManager.PressButton(MouseButton.Left);
+                });
+                AddStep("move", () => InputManager.MoveMouseTo(InputManager.CurrentState.Mouse.Position + by));
+                AddStep("let go", () => InputManager.ReleaseButton(MouseButton.Left));
+            }
+        }
+
+        [Test]
+        public void TestInfoBoxShownWithDraggedToolbar()
+        {
+            // A dragged toolbar doesn't push the screen down, so the hidden info box starts exactly on the screen's top edge.
+            AddStep("drag the toolbar", () =>
+            {
+                var layout = ToolbarLayout.CreateDefault();
+                layout.Bars[0].OffsetY = 0.9f;
+                Game.LocalConfig.SetValue(OsuSetting.OilyToolbarLayout, layout.Serialise());
+            });
+
+            AddStep("import beatmap", () => BeatmapImportHelper.LoadQuickOszIntoOsu(Game).WaitSafely());
+            advanceToSongSelect();
+
+            AddUntilStep("info box shown", () => Game.ChildrenOfType<BeatmapTitleWedge>().Single().Alpha, () => Is.EqualTo(1));
+            AddUntilStep("details shown", () => Game.ChildrenOfType<BeatmapDetailsArea>().Single().Alpha, () => Is.EqualTo(1));
+
+            AddStep("put the toolbar back", () => Game.LocalConfig.SetValue(OsuSetting.OilyToolbarLayout, string.Empty));
+        }
+
+        [Test]
+        public void TestPpSimulatorKeepsSongSelectComponents()
+        {
+            advanceToSongSelect();
+            AddStep("import beatmap", () => BeatmapImportHelper.LoadQuickOszIntoOsu(Game).WaitSafely());
+            AddUntilStep("wait for selected", () => !Game.Beatmap.IsDefault);
+            openSkinEditor();
+
+            AddUntilStep("song select parts offered", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().Count(), () => Is.GreaterThan(1));
+            AddStep("click PP Simulator button", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxActionButton>().Last().TriggerClick());
+            AddUntilStep("simulator open", () => songSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().State.Value, () => Is.EqualTo(Visibility.Visible));
+            AddAssert("simulator box drawn", () =>
+            {
+                var popup = songSelect.ChildrenOfType<PerformanceSimulationPopup>().Single();
+                return popup.IsPresent && popup.Alpha > 0.99f && Game.ScreenStack.ScreenSpaceDrawQuad.Contains(popup.ScreenSpaceDrawQuad.Centre);
+            });
+            AddUntilStep("working on the simulator layer", () => skinEditor.SelectedTargetLookup, () => Is.EqualTo(GlobalSkinnableContainers.PpSimulator));
+            AddAssert("no PP simulator colours in the list", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().Any(b => b.ChildrenOfType<PpSimulatorColours>().Any()), () => Is.False);
+            AddAssert("song select parts still offered", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().Count(b => b.ChildrenOfType<SongSelectPieceLayout>().Any()),
+                () => Is.GreaterThan(1));
+            AddAssert("PP simulator button still there", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxActionButton>().Count(), () => Is.EqualTo(1));
+
+            for (int i = 0; i < 3; i++)
+            {
+                int index = i;
+                AddStep($"hover part {index + 1}", () => InputManager.MoveMouseTo(skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>()
+                                                                                         .Where(b => b.ChildrenOfType<ISkinComponentWithLabel>().Any()).ElementAt(index)));
+                AddWaitStep("wait", 3);
+            }
+
+            AddStep("move away", () => InputManager.MoveMouseTo(Game.ScreenStack.ScreenSpaceDrawQuad.Centre));
+            AddWaitStep("let them settle", 20);
+            AddUntilStep("parts stay their own size", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().Where(b => b.ChildrenOfType<ISkinComponentWithLabel>().Any())
+                                                                       .Select(b => b.Height).Distinct(),
+                () => Is.EquivalentTo(new[] { SkinComponentToolbox.LABELLED_SIZE }));
+
+            AddStep("pick a song select part", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().First(b => b.ChildrenOfType<SongSelectPieceLayout>().Any()).TriggerClick());
+            AddUntilStep("simulator closed", () => songSelect.ChildrenOfType<PerformanceSimulationPopup>().Single().State.Value, () => Is.EqualTo(Visibility.Hidden));
+            AddUntilStep("back on song select layer", () => skinEditor.SelectedTargetLookup, () => Is.EqualTo(GlobalSkinnableContainers.SongSelect));
+            AddUntilStep("part selected", () => skinEditor.SelectedComponents.OfType<SongSelectPieceLayout>().Count(), () => Is.EqualTo(1));
+            AddStep("pick it again", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().First(b => b.ChildrenOfType<SongSelectPieceLayout>().Any()).TriggerClick());
+            AddAssert("no second copy added", () =>
+            {
+                var type = skinEditor.SelectedComponents.OfType<SongSelectPieceLayout>().Single().GetType();
+                return songSelect.ChildrenOfType<SkinnableContainer>().Single(c => c.Lookup.Lookup == GlobalSkinnableContainers.SongSelect).Components.Count(c => c.GetType() == type);
+            }, () => Is.EqualTo(1));
+        }
+
+        [Test]
+        public void TestScreenShrinksEvenlyWithToolbars()
+        {
+            Vector2 screenSize = Vector2.Zero;
+
+            advanceToSongSelect();
+            AddStep("remember screen size", () => screenSize = Game.ScreenStack.DrawSize);
+            openSkinEditor();
+
+            AddUntilStep("screen shrunk", () => screenPreview.Scale.X, () => Is.LessThan(0.95f));
+            AddAssert("screen keeps its shape", () => screenPreview.Scale.X, () => Is.EqualTo(screenPreview.Scale.Y));
+            AddAssert("screen not resized", () => Game.ScreenStack.DrawSize, () => Is.EqualTo(screenSize));
+            AddAssert("toolbars still shown", () => Game.Toolbar.State.Value, () => Is.EqualTo(Visibility.Visible));
+            AddUntilStep("toolbars shrunk the same", () => toolbarPreview.ScreenSpaceDrawQuad.AlmostEquals(screenPreview.ScreenSpaceDrawQuad));
+            AddAssert("toolbars can't be clicked", () => Game.Toolbar.PropagatePositionalInputSubTree, () => Is.False);
+
+            AddAssert("no toolbars or PP simulator scenes", () => skinEditor.ChildrenOfType<SkinEditorSceneLibrary.SceneButton>().Select(b => b.Text.ToString()),
+                () => Has.None.EqualTo("Toolbars").And.None.EqualTo("PP Simulator"));
+            AddUntilStep("only song select parts offered", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().Any());
+            AddAssert("no sprites, boxes or texts", () => skinEditor.ChildrenOfType<SkinComponentToolbox>().Single().ChildrenOfType<ISkinComponentWithLabel>().Count(),
+                () => Is.EqualTo(skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().Count()));
+            // oily (ilo, 2026-11-26): the toolbar and bottom bar are fixed, so there's no "Toolbars" button and nothing to drag.
+            AddAssert("only the PP simulator button in components", () => skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxActionButton>().Count(), () => Is.EqualTo(1));
+            AddAssert("toolbar is the fixed one", () => Game.LocalConfig.Get<string>(OsuSetting.OilyToolbarLayout), () => Is.EqualTo(ToolbarLayout.FIXED));
+            AddAssert("bottom bar is the fixed one", () => Game.LocalConfig.Get<string>(OsuSetting.OilyFooterLayout), () => Is.EqualTo(FooterLayout.FIXED));
+            AddAssert("bottom bar at 80%", () => Game.ChildrenOfType<ScreenFooter>().Single().Scale.X, () => Is.EqualTo(0.8f).Within(0.001f));
+            AddAssert("toolbar sits at the bottom", () => Game.Toolbar.Layout.Bars.Single().OffsetY, () => Is.GreaterThan(0.9f));
+
+            toggleSkinEditor();
+            AddUntilStep("screen full size again", () => screenPreview.Scale.X, () => Is.EqualTo(1));
+            AddAssert("toolbars clickable again", () => Game.Toolbar.PropagatePositionalInputSubTree, () => Is.True);
+        }
+
+        private EditorPreviewContainer screenPreview => Game.ChildrenOfType<EditorPreviewContainer>().First(p => p.ChildrenOfType<OsuScreenStack>().Any());
+        private EditorPreviewContainer toolbarPreview => Game.ChildrenOfType<EditorPreviewContainer>().First(p => p.ChildrenOfType<Toolbar>().Any());
+
+        [Test]
         public void TestChangeToNonSkinnableScreen()
         {
             advanceToSongSelect();
@@ -420,20 +596,21 @@ namespace osu.Game.Tests.Visual.Navigation
 
             Guid editedSkinId = Guid.Empty;
             AddStep("save skin id", () => editedSkinId = Game.Dependencies.Get<SkinManager>().CurrentSkinInfo.Value.ID);
-            AddStep("add skinnable component", () =>
-            {
-                skinEditor.ChildrenOfType<SkinComponentToolbox.ToolboxComponentButton>().First().TriggerClick();
-            });
+
+            // oily: song select only has its own parts (each there once), so change one of them instead of adding a component.
+            SongSelectPieceLayout songSelectLayer() => Game.ChildrenOfType<SkinnableContainer>().Single(c => c.Lookup.Lookup == GlobalSkinnableContainers.SongSelect)
+                                                           .Components.OfType<SongSelectBeatmapInfoLayout>().Single();
+
+            AddUntilStep("song select pieces shown", () => skinEditor.ChildrenOfType<SkinBlueprint>().Any());
+            AddStep("hide beatmap info", () => songSelectLayer().Hidden.Value = true);
 
             AddStep("change to triangles skin", () => Game.Dependencies.Get<SkinManager>().SetSkinFromConfiguration(SkinInfo.TRIANGLES_SKIN.ToString()));
             AddUntilStep("components loaded", () => Game.ChildrenOfType<SkinnableContainer>().All(c => c.ComponentsLoaded));
-            // sort of implicitly relies on song select not being skinnable.
-            // TODO: revisit if the above ever changes
-            AddUntilStep("skin changed", () => !skinEditor.ChildrenOfType<SkinBlueprint>().Any());
+            AddUntilStep("skin changed", () => !songSelectLayer().Hidden.Value);
 
             AddStep("change back to modified skin", () => Game.Dependencies.Get<SkinManager>().SetSkinFromConfiguration(editedSkinId.ToString()));
             AddUntilStep("components loaded", () => Game.ChildrenOfType<SkinnableContainer>().All(c => c.ComponentsLoaded));
-            AddUntilStep("changes saved", () => skinEditor.ChildrenOfType<SkinBlueprint>().Any());
+            AddUntilStep("changes saved", () => songSelectLayer().Hidden.Value);
         }
 
         private void advanceToSongSelect()

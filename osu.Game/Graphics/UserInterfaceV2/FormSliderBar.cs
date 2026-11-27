@@ -145,6 +145,15 @@ namespace osu.Game.Graphics.UserInterfaceV2
 
         private readonly Bindable<Language> currentLanguage = new Bindable<Language>();
 
+        /// <summary>
+        /// oily: colour of the slider's filled part and nub. <c>null</c> keeps lazer's colour.
+        /// </summary>
+        public Color4? FillColour
+        {
+            get => slider.FillColour;
+            set => slider.FillColour = value;
+        }
+
         public bool TakeFocus() => GetContainingFocusManager()?.ChangeFocus(TextBox) == true;
 
         public FormSliderBar()
@@ -456,6 +465,23 @@ namespace osu.Game.Graphics.UserInterfaceV2
 
             public required Func<T, LocalisableString> TooltipFormat { get; init; }
 
+            private Color4? fillColour;
+
+            /// <summary>
+            /// oily: colour of the filled part and nub. <c>null</c> keeps lazer's colour.
+            /// </summary>
+            public Color4? FillColour
+            {
+                get => fillColour;
+                set
+                {
+                    fillColour = value;
+
+                    if (IsLoaded)
+                        updateState();
+                }
+            }
+
             private Box leftBox = null!;
             private Box rightBox = null!;
             private Container defaultLine = null!;
@@ -597,18 +623,18 @@ namespace osu.Game.Graphics.UserInterfaceV2
             {
                 rightBox.Colour = colourProvider.Background5;
 
-                Color4 leftColour = colourProvider.Light4;
+                Color4 leftColour = fillColour ?? colourProvider.Light4;
                 Color4 defaultLineColour;
                 Color4 nubColour;
 
                 if (IsHovered || HasFocus || IsDragged)
                 {
                     defaultLineColour = colourProvider.Content1.Lighten(0.4f);
-                    nubColour = colourProvider.Highlight1;
+                    nubColour = fillColour?.Lighten(0.2f) ?? colourProvider.Highlight1;
                 }
                 else
                 {
-                    nubColour = colourProvider.Highlight1.Darken(0.1f);
+                    nubColour = (fillColour?.Lighten(0.2f) ?? colourProvider.Highlight1).Darken(0.1f);
                     defaultLineColour = colourProvider.Content2;
                 }
 

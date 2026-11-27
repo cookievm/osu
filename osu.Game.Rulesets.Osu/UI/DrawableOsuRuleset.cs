@@ -17,6 +17,7 @@ using osu.Game.Rulesets.Osu.Configuration;
 using osu.Game.Rulesets.Osu.Mods;
 using osu.Game.Rulesets.Osu.Objects;
 using osu.Game.Rulesets.Osu.Replays;
+using osu.Game.Rulesets.Osu.Scoring;
 using osu.Game.Rulesets.UI;
 using osu.Game.Scoring;
 using osu.Game.Screens.Play;
@@ -61,7 +62,14 @@ namespace osu.Game.Rulesets.Osu.UI
 
         public override bool ReceivePositionalInputAt(Vector2 screenSpacePos) => true; // always show the gameplay cursor
 
-        protected override Playfield CreatePlayfield() => new OsuPlayfield();
+        // oily: stable notelock when the gamerules ask for it (see StableNoteLockHitPolicy).
+        protected override Playfield CreatePlayfield()
+        {
+            // Autopilot moves the cursor for the player, so stable gives it a smaller notelock range (same as the Classic mod).
+            double hittableRange = OsuHitWindows.MISS_WINDOW - (Mods.OfType<OsuModAutopilot>().Any() ? 200 : 0);
+
+            return new OsuPlayfield { HitPolicy = new StableNoteLockHitPolicy(hittableRange) { Enabled = GameRules.NoteLock } };
+        }
 
         protected override PassThroughInputManager CreateInputManager() => new OsuInputManager(Ruleset.RulesetInfo);
 

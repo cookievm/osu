@@ -209,6 +209,8 @@ namespace osu.Game.Screens.Select
         }
 
         private const double duration = 240;
+
+        private const bool show_unranked_badge = false;
         private const Easing easing = Easing.OutQuint;
 
         private void updateDisplay()
@@ -228,7 +230,8 @@ namespace osu.Game.Screens.Select
             }
             else
             {
-                if (Mods.Value.Any(m => !m.Ranked))
+                // oily (ilo, 2026-11-26): no "unranked" badge on the button; mod select's ranked/unranked display on the right says it instead.
+                if (show_unranked_badge && Mods.Value.Any(m => !m.Ranked))
                 {
                     unrankedBadge.MoveToX(0, duration, easing);
                     unrankedBadge.FadeIn(duration, easing);

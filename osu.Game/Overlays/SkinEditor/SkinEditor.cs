@@ -368,8 +368,100 @@ namespace osu.Game.Overlays.SkinEditor
             {
                 selectedTarget.Default = getFirstTarget()?.Lookup;
 
-                if (!availableTargets.Any(t => t.Lookup.Equals(selectedTarget.Value)))
+                if (!editableTargets.Any(t => t.Lookup.Equals(selectedTarget.Value)))
                     selectedTarget.SetDefault();
+
+                applyPreferredTarget();
+            }
+        }
+
+        private GlobalSkinnableContainers? preferredTarget;
+        private Type? placeAfterSwitch;
+        private int preferredTargetTries;
+
+        /// <summary>
+        /// oily: the layer being worked on.
+        /// </summary>
+        public GlobalSkinnableContainers? SelectedTargetLookup => selectedTarget.Value?.Lookup;
+
+        /// <summary>
+        /// oily: switches the working layer to <paramref name="lookup"/> as soon as the screen offers it (used by the scene library).
+        /// </summary>
+
+        public void SelectTarget(GlobalSkinnableContainers lookup)
+        {
+            preferredTarget = lookup;
+            placeAfterSwitch = null;
+            preferredTargetTries = 0;
+            Scheduler.AddOnce(applyPreferredTarget);
+        }
+
+        /// <summary>
+        /// oily: switches the working layer to <paramref name="lookup"/>, then places (or picks) a <paramref name="type"/> there,
+        /// as if it was picked in that layer's component list.
+        /// </summary>
+        public void PlaceInTarget(GlobalSkinnableContainers lookup, Type type)
+        {
+            SelectTarget(lookup);
+            placeAfterSwitch = type;
+        }
+
+        /// <summary>
+        /// oily: re-checks which layers are offered (a layer like the PP Simulator's is only offered while it is open).
+        /// </summary>
+        public void RefreshTargets() => Scheduler.AddOnce(refreshTargets);
+
+        private void refreshTargets()
+        {
+            if (targetScreen == null)
+                return;
+
+            selectedTarget.Default = getFirstTarget()?.Lookup;
+
+            if (!editableTargets.Any(t => t.Lookup.Equals(selectedTarget.Value)))
+                selectedTarget.SetDefault();
+        }
+
+        private void applyPreferredTarget()
+        {
+            if (preferredTarget == null)
+                return;
+
+            var target = targetScreen == null ? null : editableTargets.FirstOrDefault(t => t.Lookup.Lookup == preferredTarget);
+
+            if (target != null)
+            {
+                preferredTarget = null;
+                selectedTarget.Value = target.Lookup;
+
+                var placement = placeAfterSwitch;
+                placeAfterSwitch = null;
+
+                // A layer that only holds settings opens them straight away.
+                Schedule(() =>
+                {
+                    if (placement != null)
+                    {
+                        placeOfType(placement);
+                        return;
+                    }
+
+                    if (target.Components.OfType<ISettingsOnlySkinComponent>().FirstOrDefault() is ISerialisableDrawable settings)
+                    {
+                        SelectedComponents.Clear();
+                        SelectedComponents.Add(settings);
+                    }
+                });
+                return;
+            }
+
+            // The screen may still be loading; keep trying for a few seconds.
+            if (++preferredTargetTries < 300)
+                Scheduler.AddDelayed(applyPreferredTarget, 16);
+            else
+            {
+                preferredTarget = null;
+                placeAfterSwitch = null;
             }
         }
 
@@ -406,7 +498,7 @@ namespace osu.Game.Overlays.SkinEditor
                     {
                         new SettingsDropdown<GlobalSkinnableContainerLookup?>
                         {
-                            Items = availableTargets.Select(t => t.Lookup).Distinct(),
+                            Items = editableTargets.Select(t => t.Lookup).Distinct(),
                             Current = selectedTarget,
                         }
                     }
@@ -414,7 +506,8 @@ namespace osu.Game.Overlays.SkinEditor
             };
 
             // If the new target has a ruleset, let's show ruleset-specific items at the top, and the rest below.
-            if (target.NewValue.Ruleset != null)
+            // oily: song select has no ruleset-specific (playfield) pieces.
+            if (target.NewValue.Ruleset != null && target.NewValue.Lookup != GlobalSkinnableContainers.SongSelect)
             {
                 componentsSidebar.Add(new SkinComponentToolbox(skinComponentsContainer, target.NewValue.Ruleset)
                 {
@@ -435,14 +528,7 @@ namespace osu.Game.Overlays.SkinEditor
                 Schedule(() => bindChangeHandler(container));
             }
 
-            void requestPlacement(Type type)
-            {
-                if (!(Activator.CreateInstance(type) is ISerialisableDrawable component))
-                    throw new InvalidOperationException($"Attempted to instantiate a component for placement which was not an {typeof(ISerialisableDrawable)}.");
-
-                SelectedComponents.Clear();
-                placeComponent(component);
-            }
+            void requestPlacement(Type type) => placeOfType(type);
 
             void bindChangeHandler(SkinnableContainer skinnableContainer)
             {
@@ -450,6 +536,24 @@ namespace osu.Game.Overlays.SkinEditor
                 changeHandler.CanUndo.BindValueChanged(v => undoMenuItem.Action.Disabled = !v.NewValue, true);
                 changeHandler.CanRedo.BindValueChanged(v => redoMenuItem.Action.Disabled = !v.NewValue, true);
             }
+        }
+
+        private void placeOfType(Type type)
+        {
+            // oily: a settings-only component is kept once per layer; picking it opens its settings.
+            // (ilo, 2026-11-26) song select's parts too: each one moves a real piece, so a second copy would just be an empty box.
+            if ((typeof(ISettingsOnlySkinComponent).IsAssignableFrom(type) || type.IsSubclassOf(typeof(Screens.Select.SongSelectPieceLayout)) || type == typeof(Screens.Select.SongSelectBackButtonStyle)) && getTarget(selectedTarget.Value)?.Components.FirstOrDefault(c => c.GetType() == type) is ISerialisableDrawable existing)
+            {
+                SelectedComponents.Clear();
+                SelectedComponents.Add(existing);
+                return;
+            }
+
+            if (!(Activator.CreateInstance(type) is ISerialisableDrawable component))
+                throw new InvalidOperationException($"Attempted to instantiate a component for placement which was not an {typeof(ISerialisableDrawable)}.");
+
+            SelectedComponents.Clear();
+            placeComponent(component);
         }
 
         private void skinChanged()
@@ -545,7 +649,12 @@ namespace osu.Game.Overlays.SkinEditor
 
         private IEnumerable<SkinnableContainer> availableTargets => targetScreen.ChildrenOfType<SkinnableContainer>();
 
-        private SkinnableContainer? getFirstTarget() => availableTargets.FirstOrDefault();
+        /// <summary>
+        /// oily: the layers offered in the working layer list right now. Saving still covers every layer.
+        /// </summary>
+        private IEnumerable<SkinnableContainer> editableTargets => availableTargets.Where(t => t.AvailableInEditor?.Invoke() != false);
+
+        private SkinnableContainer? getFirstTarget() => editableTargets.FirstOrDefault();
 
         private SkinnableContainer? getTarget(GlobalSkinnableContainerLookup? target)
         {

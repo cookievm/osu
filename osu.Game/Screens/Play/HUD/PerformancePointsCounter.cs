@@ -62,7 +62,9 @@ namespace osu.Game.Screens.Play.HUD
 
                 scoreInfo = new ScoreInfo(gameplayState.Score.ScoreInfo.BeatmapInfo, gameplayState.Score.ScoreInfo.Ruleset) { Mods = clonedMods };
 
-                overrideCalculator = LivePerformanceOverride.Factory?.Invoke(gameplayState);
+                overrideCalculator = LivePerformanceOverride.Factory != null
+                    ? LivePerformanceOverride.Factory(gameplayState)
+                    : gameplayState.Ruleset.CreateOilyLivePerformance(gameplayState);
 
                 if (overrideCalculator != null)
                 {

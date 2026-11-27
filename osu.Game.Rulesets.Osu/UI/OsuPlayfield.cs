@@ -113,6 +113,11 @@ namespace osu.Game.Rulesets.Osu.UI
 
         private void onDrawableHitObjectLoaded(Drawable drawable)
         {
+            // oily: with stable notelock, a slider head that was already hit keeps blocking input to objects underneath it
+            // until the whole slider is judged (same as stable and the Classic mod).
+            if (drawable is DrawableSliderHead sliderHead && hitPolicy is StableNoteLockHitPolicy stableNoteLock)
+                sliderHead.HitArea.CanBeHit = () => stableNoteLock.Enabled ? !sliderHead.DrawableSlider.AllJudged : !sliderHead.AllJudged;
+
             // note: `Slider`'s `ProxiedLayer` is added when its nested `DrawableHitCircle` is loaded.
             switch (drawable)
             {

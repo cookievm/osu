@@ -44,5 +44,13 @@ namespace osu.Game.Screens.Select.Filter
 
         [LocalisableDescription(typeof(SongSelectStrings), nameof(SongSelectStrings.Title))]
         Title,
+
+        // oily: pp an SS gives, with the selected mods.
+        [System.ComponentModel.Description("pp (SS)")]
+        PerformanceSS,
+
+        // oily: pp for each beatmap's pretend score (see PerformanceSimulationStore), with the selected mods.
+        [System.ComponentModel.Description("pp (simulated)")]
+        PerformanceSimulated,
     }
 }

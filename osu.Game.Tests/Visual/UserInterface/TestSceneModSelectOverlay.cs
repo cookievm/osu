@@ -731,6 +731,24 @@ namespace osu.Game.Tests.Visual.UserInterface
         }
 
         [Test]
+        public void TestDeselectAllNextToSearchBar()
+        {
+            createScreen();
+            changeRuleset(0);
+
+            AddAssert("as tall as search bar", () => this.ChildrenOfType<DeselectAllModsButton>().Single().DrawHeight,
+                () => Is.EqualTo(modSelectOverlay.SearchTextBox.DrawHeight));
+            AddAssert("narrower than search bar", () => this.ChildrenOfType<DeselectAllModsButton>().Single().DrawWidth,
+                () => Is.LessThan(modSelectOverlay.SearchTextBox.DrawWidth));
+            AddAssert("to the right of search bar", () => this.ChildrenOfType<DeselectAllModsButton>().Single().ScreenSpaceDrawQuad.TopLeft.X,
+                () => Is.GreaterThan(modSelectOverlay.SearchTextBox.ScreenSpaceDrawQuad.TopRight.X));
+            AddAssert("level with search bar", () => this.ChildrenOfType<DeselectAllModsButton>().Single().ScreenSpaceDrawQuad.TopLeft.Y,
+                () => Is.EqualTo(modSelectOverlay.SearchTextBox.ScreenSpaceDrawQuad.TopLeft.Y).Within(1));
+            AddAssert("map details left of ranked display", () => this.ChildrenOfType<BeatmapAttributesDisplay>().Single().ScreenSpaceDrawQuad.TopLeft.X,
+                () => Is.LessThan(this.ChildrenOfType<RankingInformationDisplay>().Single().ScreenSpaceDrawQuad.TopLeft.X));
+        }
+
+        [Test]
         public void TestDeselectAllViaButton()
         {
             createScreen();

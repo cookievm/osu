@@ -9,6 +9,7 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osu.Framework.Logging;
+using osu.Framework.Testing;
 using osu.Framework.Threading;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
@@ -60,22 +61,56 @@ namespace osu.Game.Overlays.SkinEditor
         {
             fill.Clear();
 
+            var lookup = target.Lookup.Lookup;
+
+            // oily: the PP Simulator's settings live with song select's parts.
+            // (ilo, 2026-11-26: the toolbar and bottom bar are fixed, so there are no settings for them.)
+            if (lookup == GlobalSkinnableContainers.SongSelect || lookup == GlobalSkinnableContainers.PpSimulator)
+                fill.Add(new ToolboxActionButton("PP Simulator", showPerformanceSimulator));
+
             var skinnableTypes = SerialisedDrawableInfo.GetAllAvailableDrawables(ruleset);
             foreach (var type in skinnableTypes)
-                attemptAddComponent(type);
+                attemptAddComponent(type, target, t => RequestPlacement?.Invoke(t));
+
+            // oily (ilo, 2026-11-26): song select's parts stay in the list while the PP Simulator is open.
+            // Picking one closes the simulator and goes back to the song select layer.
+            if (lookup == GlobalSkinnableContainers.PpSimulator && findSongSelectLayer() is SkinnableContainer songSelectLayer)
+            {
+                foreach (var type in skinnableTypes)
+                    attemptAddComponent(type, songSelectLayer, placeInSongSelect);
+            }
         }
 
-        private void attemptAddComponent(Type type)
+        private SkinnableContainer? findSongSelectLayer()
+            => target.FindClosestParent<Screens.Select.SongSelect>()?.ChildrenOfType<SkinnableContainer>()
+                     .FirstOrDefault(c => c.Lookup.Lookup == GlobalSkinnableContainers.SongSelect);
+
+        private void placeInSongSelect(Type type)
         {
+            target.FindClosestParent<Screens.Select.SongSelect>()?.HidePerformanceSimulation();
+            skinEditor?.PlaceInTarget(GlobalSkinnableContainers.SongSelect, type);
+        }
+
+        private void attemptAddComponent(Type type, SkinnableContainer container, Action<Type> place)
+        {
+            // oily: song select only offers pieces that make sense there (no gameplay pieces).
+            if (container.Lookup.Lookup == GlobalSkinnableContainers.SongSelect && !Screens.Select.SongSelectSkinComponents.IsAllowed(type))
+                return;
+
+            // oily: the PP Simulator layer's colours are already in it (and edited from the PP Simulator tab), so nothing is offered for it.
+            // (ilo, 2026-11-26: "PP Simulator colours" was a duplicate.)
+            if (container.Lookup.Lookup == GlobalSkinnableContainers.PpSimulator || type == typeof(Screens.Select.PpSimulatorColours))
+                return;
+
             try
             {
                 Drawable instance = (Drawable)Activator.CreateInstance(type)!;
 
                 if (!((ISerialisableDrawable)instance).IsEditable) return;
 
-                fill.Add(new ToolboxComponentButton(instance, target)
+                fill.Add(new ToolboxComponentButton(instance, container)
                 {
-                    RequestPlacement = t => RequestPlacement?.Invoke(t),
+                    RequestPlacement = place,
                     Expanding = contractOtherButtons,
                 });
             }
@@ -89,6 +124,52 @@ namespace osu.Game.Overlays.SkinEditor
                 Logger.Error(e, $"Skin component {type} could not be loaded in the editor component list due to an error");
             }
         }
+
+        [Resolved]
+        private SkinEditor? skinEditor { get; set; }
+
+        [Resolved]
+        private SkinEditorOverlay? skinEditorOverlay { get; set; }
+
+        /// <summary>
+        /// oily: song select with the Universal PP Simulator open, working on its own layer.
+        /// </summary>
+        private void showPerformanceSimulator()
+        {
+            (target.FindClosestParent<Screens.Select.SongSelect>())?.ShowPerformanceSimulatorScene();
+            skinEditorOverlay?.SelectTarget(GlobalSkinnableContainers.PpSimulator);
+        }
+
+        /// <summary>
+        /// oily: a button in the component list that opens some settings instead of adding a component.
+        /// </summary>
+        public partial class ToolboxActionButton : OsuButton
+        {
+            public ToolboxActionButton(string text, Action action)
+            {
+                RelativeSizeAxes = Axes.X;
+                Height = LABELLED_SIZE;
+                Enabled.Value = true;
+                Action = action;
+
+                Add(new SkinComponentLabel(text)
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                });
+            }
+
+            [BackgroundDependencyLoader]
+            private void load(OverlayColourProvider colourProvider)
+            {
+                BackgroundColour = colourProvider.Background3;
+            }
+        }
+
+        /// <summary>
+        /// oily: how tall the buttons are for components that just show their name.
+        /// </summary>
+        public const float LABELLED_SIZE = 36;
 
         private void contractOtherButtons(ToolboxComponentButton obj)
         {
@@ -124,13 +205,21 @@ namespace osu.Game.Overlays.SkinEditor
                 Enabled.Value = true;
 
                 RelativeSizeAxes = Axes.X;
-                Height = contracted_size;
+                Height = restingSize;
             }
+
+            private float restingSize => component is ISkinComponentWithLabel ? LABELLED_SIZE : contracted_size;
+
+            // oily: components that just show their name are small and don't grow on hover.
+            private bool labelled => component is ISkinComponentWithLabel;
 
             private const double animation_duration = 500;
 
             protected override bool OnHover(HoverEvent e)
             {
+                if (labelled)
+                    return base.OnHover(e);
+
                 expandContractAction?.Cancel();
                 expandContractAction = Scheduler.AddDelayed(() =>
                 {
@@ -158,7 +247,8 @@ namespace osu.Game.Overlays.SkinEditor
                 if (expandContractAction == null)
                     return;
 
-                this.ResizeHeightTo(contracted_size, animation_duration, Easing.OutQuint);
+                // oily: back to its own size (labelled ones are smaller), so the list doesn't slowly grow.
+                this.ResizeHeightTo(restingSize, animation_duration, Easing.OutQuint);
 
                 expandContractAction?.Cancel();
                 expandContractAction = null;
@@ -174,7 +264,7 @@ namespace osu.Game.Overlays.SkinEditor
                     new Container
                     {
                         RelativeSizeAxes = Axes.Both,
-                        Padding = new MarginPadding(10) { Bottom = 20 },
+                        Padding = labelled ? new MarginPadding(5) : new MarginPadding(10) { Bottom = 20 },
                         Masking = true,
                         Child = innerContainer = new DependencyBorrowingContainer(dependencySource)
                         {
@@ -190,6 +280,8 @@ namespace osu.Game.Overlays.SkinEditor
                         Anchor = Anchor.BottomCentre,
                         Origin = Anchor.BottomCentre,
                         Margin = new MarginPadding(5),
+                        // oily: these components say what they are in their own preview.
+                        Alpha = component is ISkinComponentWithLabel ? 0 : 1,
                     },
                 });
 
@@ -207,6 +299,10 @@ namespace osu.Game.Overlays.SkinEditor
                     float bestScale = Math.Min(
                         innerContainer.DrawWidth / component.DrawWidth,
                         innerContainer.DrawHeight / component.DrawHeight);
+
+                    // oily: names stay at their own text size.
+                    if (labelled)
+                        bestScale = Math.Min(bestScale, 1);
 
                     innerContainer.Scale = new Vector2(bestScale);
                 }

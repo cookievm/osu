@@ -68,6 +68,12 @@ namespace osu.Game.Screens.Select
 
             yield return new OsuMenuItemSpacer();
 
+            // oily: pp simulation and pause/resume pp work.
+            foreach (var item in OilyActions(beatmap))
+                yield return item;
+
+            yield return new OsuMenuItemSpacer();
+
             if (beatmap.OnlineID > 0)
             {
                 yield return new OsuMenuItem(CommonStrings.Details, MenuItemType.Standard, () => beatmapOverlay?.FetchAndShowBeatmap(beatmap.OnlineID));

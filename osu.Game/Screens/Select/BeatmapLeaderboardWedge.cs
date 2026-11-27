@@ -20,6 +20,7 @@ using osu.Framework.Input.Events;
 using osu.Framework.Threading;
 using osu.Framework.Utils;
 using osu.Game.Beatmaps;
+using osu.Game.Configuration;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.Cursor;
@@ -114,6 +115,11 @@ namespace osu.Game.Screens.Select
 
         private Sample? swishSample;
 
+        [Resolved]
+        private SongSelectPieceRegistry? pieceRegistry { get; set; }
+
+        private readonly BindableBool stableLeaderboard = new BindableBool();
+
         private readonly List<ScheduledDelegate> scoreSfxDelegates = new List<ScheduledDelegate>();
 
         [BackgroundDependencyLoader]
@@ -165,7 +171,7 @@ namespace osu.Game.Screens.Select
                         Alpha = 0f,
                         Children = new Drawable[]
                         {
-                            new WedgeBackground(),
+                            new WedgeBackground { Panel = OilyPanel.Leaderboard },
                             // Required because wedge background blocks input from passing through
                             // to the main context menu container above.
                             new OsuContextMenuContainer
@@ -218,6 +224,13 @@ namespace osu.Game.Screens.Select
             beatmap.BindValueChanged(_ => RefetchScores());
             ruleset.BindValueChanged(_ => RefetchScores());
             mods.BindValueChanged(_ => refetchScoresFromMods());
+
+            // oily: rows are made again in the other look when the skin switches between lazer's and stable's leaderboard.
+            if (pieceRegistry != null)
+            {
+                stableLeaderboard.BindTo(pieceRegistry.StableLeaderboard);
+                stableLeaderboard.BindValueChanged(_ => RefetchScores());
+            }
 
             RefetchScores();
         }
@@ -324,6 +337,7 @@ namespace osu.Game.Screens.Select
 
                 return new BeatmapLeaderboardScore(s)
                 {
+                    StableLook = stableLeaderboard.Value,
                     Rank = i + 1,
                     Highlight = highlightType,
                     SelectedMods = { BindTarget = mods },
@@ -383,6 +397,7 @@ namespace osu.Game.Screens.Select
                 personalBestDisplay.FadeIn(600, Easing.OutQuint);
                 personalBestScoreContainer.Child = new BeatmapLeaderboardScore(userScore)
                 {
+                    StableLook = stableLeaderboard.Value,
                     Highlight = BeatmapLeaderboardScore.HighlightType.Own,
                     Rank = userScore.Position,
                     SelectedMods = { BindTarget = mods },
@@ -452,6 +467,10 @@ namespace osu.Game.Screens.Select
             }
 
             displayedState = state;
+
+            // oily: stable's "No records set!" box (drawn by stable's screen layer) instead of lazer's text.
+            if (pieceRegistry != null)
+                pieceRegistry.StableNoRecords.Value = stableLeaderboard.Value && state == LeaderboardState.NoScores;
 
             placeholder?.FadeOut(150, Easing.OutQuint).Expire();
             placeholder = getPlaceholderFor(state);
@@ -539,7 +558,8 @@ namespace osu.Game.Screens.Select
                     return new MessagePlaceholder(LeaderboardStrings.LeaderboardsAreNotAvailableForThisBeatmap);
 
                 case LeaderboardState.NoScores:
-                    return new MessagePlaceholder(LeaderboardStrings.NoRecordsYet);
+                    // oily: in stable's look the "No records set!" box is drawn by stable's screen layer instead.
+                    return stableLeaderboard.Value ? new EmptyPlaceholder() : new MessagePlaceholder(LeaderboardStrings.NoRecordsYet);
 
                 case LeaderboardState.NotLoggedIn:
                     return new LoginPlaceholder(LeaderboardStrings.PleaseSignInToViewOnlineLeaderboards);
@@ -559,6 +579,14 @@ namespace osu.Game.Screens.Select
                 default:
                     throw new ArgumentOutOfRangeException(nameof(state));
             }
+        }
+
+        /// <summary>
+        /// oily: a placeholder that shows nothing (stable draws its own).
+        /// </summary>
+        private partial class EmptyPlaceholder : Placeholder
+        {
+            public override bool Equals(Placeholder? other) => other is EmptyPlaceholder;
         }
     }
 }

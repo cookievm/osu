@@ -22,10 +22,14 @@ using osu.Game.Rulesets.Configuration;
 using osu.Game.Rulesets.Difficulty;
 using osu.Game.Rulesets.Edit;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Legacy;
 using osu.Game.Rulesets.Osu.Beatmaps;
 using osu.Game.Rulesets.Osu.Configuration;
 using osu.Game.Rulesets.Osu.Difficulty;
+using osu.Game.Rulesets.Osu.Difficulty.Akatsuki;
+using osu.Game.Screens.Play;
+using osu.Game.Screens.Play.HUD;
 using osu.Game.Rulesets.Osu.Edit;
 using osu.Game.Rulesets.Osu.Edit.Setup;
 using osu.Game.Rulesets.Osu.Mods;
@@ -57,6 +61,64 @@ namespace osu.Game.Rulesets.Osu
         public override ScoreProcessor CreateScoreProcessor() => new OsuScoreProcessor();
 
         public override HealthProcessor CreateHealthProcessor(double drainStartTime) => new OsuHealthProcessor(drainStartTime);
+
+        // oily: with "Slider accuracy" off in the Gamerules settings, sliders are judged like stable (same as the Classic mod's option).
+        public override void ApplyGameRules(IBeatmap playableBeatmap, OilyGameRules rules)
+        {
+            // oily: with "Hit timing: Stable", hits are judged in whole milliseconds like stable.
+            if (rules.HitTiming == OilyHitTiming.Stable)
+            {
+                foreach (var hitObject in playableBeatmap.HitObjects)
+                    useStableTiming(hitObject);
+            }
+
+            if (rules.SliderAccuracy)
+                return;
+
+            foreach (var slider in playableBeatmap.HitObjects.OfType<Slider>())
+                slider.ClassicSliderBehaviour = true;
+        }
+
+        private static void useStableTiming(HitObject hitObject)
+        {
+            if (hitObject.HitWindows is OsuHitWindows windows)
+                windows.StableTiming = true;
+
+            foreach (var nested in hitObject.NestedHitObjects)
+                useStableTiming(nested);
+        }
+
+        /// <summary>
+        /// oily: plays with Relax use Akatsuki's relax pp, like the o!ily server.
+        /// </summary>
+        public override bool HasOilyPerformance(IReadOnlyList<Mod> mods) => mods.Any(m => m is OsuModRelax);
+
+        public override ILivePerformanceCalculator? CreateOilyLivePerformance(GameplayState gameplayState) => AkatsukiRelaxLiveCalculator.CreateFor(gameplayState);
+
+        public override double? CalculateOilyPerformance(IBeatmap playableBeatmap, IReadOnlyList<Mod> mods, OilyPlay? play)
+        {
+            var difficulty = new AkatsukiRelaxDifficulty(playableBeatmap, ModUtils.CalculateRateWithMods(mods));
+
+            if (difficulty.AfterObject.Count == 0)
+                return 0;
+
+            var attributes = difficulty.AfterObject[^1];
+
+            var relaxPlay = new AkatsukiRelaxPlay
+            {
+                Count300 = play?.Count300 ?? attributes.ObjectCount,
+                Count100 = play?.Count100 ?? 0,
+                Count50 = play?.Count50 ?? 0,
+                Misses = play?.Misses ?? 0,
+                MaxCombo = play?.MaxCombo ?? attributes.MaxCombo,
+                Hidden = mods.Any(m => m is OsuModHidden),
+                Flashlight = mods.Any(m => m is OsuModFlashlight),
+                TouchDevice = mods.Any(m => m is OsuModTouchDevice),
+                SpunOut = mods.Any(m => m is OsuModSpunOut),
+            };
+
+            return AkatsukiRelaxPerformance.Calculate(attributes, relaxPlay);
+        }
 
         public override IBeatmapConverter CreateBeatmapConverter(IBeatmap beatmap) => new OsuBeatmapConverter(beatmap, this);
 

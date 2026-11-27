@@ -3,7 +3,7 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
-using Oily.Rendering.Akatsuki;
+using osu.Game.Rulesets.Osu.Difficulty.Akatsuki;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Types;

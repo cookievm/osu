@@ -44,6 +44,11 @@ namespace osu.Game.Configuration
         /// </remarks>
         public Type? SettingControlType { get; set; }
 
+        /// <summary>
+        /// oily: saved with the rest of the settings, but no control is shown for it (it's changed some other way, like dragging in the skin editor).
+        /// </summary>
+        public bool HideControl { get; set; }
+
         public SettingSourceAttribute(Type declaringType, string label, string? description = null)
         {
             Label = getLocalisableStringFromMember(label) ?? string.Empty;
@@ -113,6 +118,9 @@ namespace osu.Game.Configuration
         {
             foreach (var (attr, property) in obj.GetOrderedSettingsSourceProperties())
             {
+                if (attr.HideControl)
+                    continue;
+
                 object value = property.GetValue(obj)!;
 
                 if (attr.SettingControlType != null)

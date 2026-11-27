@@ -111,6 +111,20 @@ namespace osu.Game.Screens.Select
         // Blue is the most neutral choice, so I'm using that for now.
         // Purple makes the most sense to match the "gameplay" flow, but it's a bit too strong for the current design.
         // TODO: Colour scheme choice should probably be customisable by the user.
+        // oily: lets skins move, resize and colour song select's pieces (see SongSelectPieceLayout).
+        [Cached]
+        private readonly SongSelectPieceRegistry pieceRegistry = new SongSelectPieceRegistry();
+
+        // oily: SS pp for sorting and grouping by pp.
+        [Cached]
+        private readonly SSPerformanceStore performanceStore = new SSPerformanceStore();
+
+        // oily: each beatmap's pretend score for simulated pp (right-click a card to change it).
+        [Cached]
+        private readonly PerformanceSimulationStore simulationStore = new PerformanceSimulationStore();
+
+        private readonly PerformanceSimulationPopup simulationPopup = new PerformanceSimulationPopup();
+
         [Cached]
         private readonly OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Blue);
 
@@ -124,6 +138,7 @@ namespace osu.Game.Screens.Select
         private Box rightGradientBackground = null!;
         private Container mainContent = null!;
         private SkinnableContainer skinnableContent = null!;
+        private SkinnableContainer simulatorSkinLayer = null!;
 
         private GridContainer mainGridContainer = null!;
 
@@ -166,8 +181,14 @@ namespace osu.Game.Screens.Select
 
         private Bindable<bool> configBackgroundBlur = null!;
         private Bindable<bool> showConvertedBeatmaps = null!;
+        private Bindable<OilyMenuUi> menuUi = null!;
 
         private IDisposable? modSelectOverlayRegistration;
+
+        /// <summary>
+        /// oily: wraps a piece of song select so skins can move and style it.
+        /// </summary>
+        private SongSelectPieceContainer piece(SongSelectPiece piece, Drawable content) => SongSelectPieceRegistry.Wrap(pieceRegistry, piece, content);
 
         protected SongSelect()
         {
@@ -182,7 +203,11 @@ namespace osu.Game.Screens.Select
             AddRangeInternal(new Drawable[]
             {
                 new ScrollAdjustsVolume(),
+                simulationStore,
+                performanceStore,
                 onlineLookupSource,
+                // oily: osu!stable's top bar, behind the beatmap info and search bar while they use the Stable style.
+                new StableSongSelectTop(),
                 mainContent = new Container
                 {
                     Anchor = Anchor.Centre,
@@ -241,16 +266,16 @@ namespace osu.Game.Screens.Select
                                                         Direction = FillDirection.Vertical,
                                                         Children = new Drawable[]
                                                         {
-                                                            new ShearAligningWrapper(titleWedge = new BeatmapTitleWedge
+                                                            new ShearAligningWrapper(piece(SongSelectPiece.BeatmapInfo, titleWedge = new BeatmapTitleWedge
                                                             {
                                                                 TopPadding = TopPadding,
-                                                            }),
+                                                            })),
                                                             new InputBlockingContainer
                                                             {
                                                                 RelativeSizeAxes = Axes.X,
                                                                 Height = 4
                                                             },
-                                                            new ShearAligningWrapper(detailsArea = new BeatmapDetailsArea()),
+                                                            new ShearAligningWrapper(piece(SongSelectPiece.BeatmapDetails, detailsArea = new BeatmapDetailsArea())),
                                                         },
                                                     },
                                                 }
@@ -268,7 +293,7 @@ namespace osu.Game.Screens.Select
                                                         Colour = ColourInfo.GradientHorizontal(Color4.Black.Opacity(0.0f), Color4.Black.Opacity(0.5f)),
                                                         RelativeSizeAxes = Axes.Both,
                                                     },
-                                                    new Container
+                                                    piece(SongSelectPiece.BeatmapList, new Container
                                                     {
                                                         RelativeSizeAxes = Axes.Both,
                                                         Padding = new MarginPadding
@@ -288,19 +313,21 @@ namespace osu.Game.Screens.Select
                                                                 RequestRecommendedSelection = requestRecommendedSelection,
                                                                 NewItemsPresented = newItemsPresented,
                                                             },
+                                                            // oily: osu!stable's top bar is drawn over the cards.
+                                                            new StableTopBarCover(this),
                                                             noResultsPlaceholder = new NoResultsPlaceholder
                                                             {
                                                                 RequestClearFilterText = () => FilterControl.Search(string.Empty)
                                                             }
                                                         }
-                                                    },
-                                                    FilterControl = new FilterControl
+                                                    }),
+                                                    piece(SongSelectPiece.SearchBar, FilterControl = new FilterControl
                                                     {
                                                         Anchor = Anchor.TopRight,
                                                         Origin = Anchor.TopRight,
                                                         RelativeSizeAxes = Axes.X,
                                                         ScopedBeatmapSet = { BindTarget = ScopedBeatmapSet },
-                                                    },
+                                                    }),
                                                 }
                                             },
                                         },
@@ -315,9 +342,56 @@ namespace osu.Game.Screens.Select
                     Anchor = Anchor.Centre,
                     Origin = Anchor.Centre,
                     RelativeSizeAxes = Axes.Both,
+                    // oily: the PP Simulator has its own scene in the skin editor.
+                    AvailableInEditor = () => simulationPopup.State.Value != Visibility.Visible,
                 },
-                modSpeedHotkeyHandler = new ModSpeedHotkeyHandler()
+                modSpeedHotkeyHandler = new ModSpeedHotkeyHandler(),
+                simulationPopup,
+                // oily: the skin editor's "PP Simulator" layer (only offered while the simulator is open).
+                simulatorSkinLayer = new SkinnableContainer(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.PpSimulator))
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    AvailableInEditor = () => simulationPopup.State.Value == Visibility.Visible,
+                },
             });
+
+            // oily (ilo, 2026-11-27): stable's search text and group/sort/collection boxes sit in front of the cards, at stable's place.
+            var stablePopovers = (PopoverContainer)((OsuContextMenuContainer)mainContent.Child).Child;
+            stablePopovers.Add(new StableSpace(this) { Child = FilterControl.StableControls });
+            // oily (ilo, 2026-11-27): stable's beatmap info, ranking box and "No records set!" box, at stable's places.
+            stablePopovers.Add(new StableSongSelectLayer(this));
+
+            skinnableContent.OnComponentsLoaded += _ =>
+            {
+                addMissingPieceLayouts();
+
+                // oily: the back button's style is there by default, so it can be picked in the skin editor without adding it.
+                foreach (var extra in skinnableContent.Components.OfType<SongSelectBackButtonStyle>().Skip(1).ToArray())
+                    skinnableContent.Remove(extra, true);
+
+                if (!skinnableContent.Components.Any(c => c is SongSelectBackButtonStyle))
+                    skinnableContent.Add(new SongSelectBackButtonStyle());
+            };
+
+            simulationPopup.State.BindValueChanged(v => simulatorSkinLayer.Alpha = v.NewValue == Visibility.Visible ? 1 : 0, true);
+
+            // oily: the simulator's colours are there by default, so they can be picked in the skin editor without adding them.
+            simulatorSkinLayer.OnComponentsLoaded += _ =>
+            {
+                // Only one can be in charge: extra ones (placed before it was settings-only) would overwrite its colours.
+                foreach (var extra in simulatorSkinLayer.Components.OfType<PpSimulatorColours>().Skip(1).ToArray())
+                    simulatorSkinLayer.Remove(extra, true);
+
+                if (simulatorSkinLayer.Components.Any(c => c is PpSimulatorColours))
+                    return;
+
+                simulatorSkinLayer.Add(new PpSimulatorColours
+                {
+                    Anchor = Anchor.TopCentre,
+                    Origin = Anchor.TopCentre,
+                    Y = 80,
+                });
+            };
 
             LoadComponent(modSelectOverlay = CreateModSelectOverlay());
 
@@ -331,6 +405,10 @@ namespace osu.Game.Screens.Select
             });
 
             showConvertedBeatmaps = config.GetBindable<bool>(OsuSetting.ShowConvertedBeatmaps);
+
+            // oily (ilo, 2026-11-27): lazer's or osu!stable's song select.
+            menuUi = config.GetBindable<OilyMenuUi>(OsuSetting.OilyMenuUi);
+            menuUi.BindValueChanged(v => pieceRegistry.StableMenuUi.Value = v.NewValue == OilyMenuUi.Stable, true);
         }
 
         // Colour scheme for mod overlay is left as default (green) to match mods button.
@@ -384,7 +462,12 @@ namespace osu.Game.Screens.Select
             new FooterButtonOptions
             {
                 Hotkey = GlobalAction.ToggleBeatmapOptions,
-            }
+            },
+            new FooterButtonPerformanceSimulator
+            {
+                Toggle = TogglePerformanceSimulation,
+                SimulatorState = simulationPopup.State,
+            },
         };
 
         protected override void LoadComplete()
@@ -410,6 +493,14 @@ namespace osu.Game.Screens.Select
         protected override void Update()
         {
             base.Update();
+
+            // oily: the "Back button" skin component's style.
+            if (Footer != null && this.IsCurrentScreen())
+            {
+                Footer.StableBackButton = pieceRegistry.StableBackButton.Value;
+                Footer.StableBackButtonScreenPosition = pieceRegistry.StableBackButtonPosition;
+                pieceRegistry.StableBackButtonScreenSize = Footer.StableBackButtonScreenSize;
+            }
 
             detailsArea.Height = wedgesContainer.ChildSize.Y - titleWedge.LayoutSize.Y - 4;
 
@@ -677,6 +768,8 @@ namespace osu.Game.Screens.Select
 
             this.FadeIn();
             onArrivingAtScreen();
+
+            performanceStore.Paused = false;
         }
 
         public override void OnResuming(ScreenTransitionEvent e)
@@ -685,6 +778,9 @@ namespace osu.Game.Screens.Select
 
             this.FadeIn(fade_duration, Easing.OutQuint);
             onArrivingAtScreen();
+
+            // oily: carry on working out pp.
+            performanceStore.Paused = false;
 
             ensureGlobalBeatmapValid();
 
@@ -703,6 +799,9 @@ namespace osu.Game.Screens.Select
         {
             carousel.VisuallyFocusSelected = true;
 
+            // oily: don't take CPU from gameplay.
+            performanceStore.Paused = true;
+
             this.FadeOut(fade_duration, Easing.OutQuint);
             onLeavingScreen();
 
@@ -711,6 +810,7 @@ namespace osu.Game.Screens.Select
 
         public override bool OnExiting(ScreenExitEvent e)
         {
+            performanceStore.Paused = true;
             this.FadeOut(fade_duration, Easing.OutQuint);
             onLeavingScreen();
 
@@ -755,6 +855,10 @@ namespace osu.Game.Screens.Select
 
             ensureGlobalBeatmapValid();
 
+            // oily: the selected map's pp always comes first, even while the pp work is paused.
+            var selectedSet = Beatmap.Value.BeatmapInfo.BeatmapSet;
+            performanceStore.RequestSelected(selectedSet?.Beatmaps.Where(b => !b.Hidden).ToArray() ?? new[] { Beatmap.Value.BeatmapInfo });
+
             ensurePlayingSelected();
             updateBackgroundDim();
             updateWedgeVisibility();
@@ -764,6 +868,13 @@ namespace osu.Game.Screens.Select
         private void onLeavingScreen()
         {
             restoreBackground();
+
+            // oily: other screens use lazer's back button.
+            if (Footer != null)
+            {
+                Footer.StableBackButton = false;
+                Footer.StableBackButtonScreenPosition = null;
+            }
 
             Beatmap.ValueChanged -= updateVariousState;
 
@@ -1226,12 +1337,89 @@ namespace osu.Game.Screens.Select
         [Resolved]
         private RealmAccess realm { get; set; } = null!;
 
+        /// <summary>
+        /// oily: opens the pp simulation popup for a beatmap.
+        /// </summary>
+        public void ShowPerformanceSimulation(BeatmapInfo beatmap) => simulationPopup.ShowFor(beatmap);
+
+        /// <summary>
+        /// oily: the skin editor's "PP Simulator" scene: opens the simulator for the selected beatmap.
+        /// </summary>
+        public void ShowPerformanceSimulatorScene() => Schedule(() =>
+        {
+            if (!Beatmap.IsDefault)
+                ShowPerformanceSimulation(Beatmap.Value.BeatmapInfo);
+        });
+
+        private static readonly Type[] piece_layout_types = typeof(SongSelectPieceLayout).Assembly.GetTypes()
+                                                                                         .Where(t => t.IsSubclassOf(typeof(SongSelectPieceLayout)) && !t.IsAbstract)
+                                                                                         .ToArray();
+
+        /// <summary>
+        /// oily: every piece of song select can be picked in the skin editor without adding it first.
+        /// Pieces the skin has no layout for get one that stays in lazer's place until it is moved.
+        /// </summary>
+        private void addMissingPieceLayouts()
+        {
+            foreach (var type in piece_layout_types)
+            {
+                // A skin can end up with two layouts for one piece (older builds added a new one when it was picked in the list); keep the first.
+                foreach (var extra in skinnableContent.Components.Where(c => c.GetType() == type).Skip(1).ToArray())
+                    skinnableContent.Remove(extra, true);
+
+                if (skinnableContent.Components.Any(c => c.GetType() == type))
+                    continue;
+
+                var layout = (SongSelectPieceLayout)Activator.CreateInstance(type)!;
+
+                if (pieceRegistry.Get(layout.Piece) == null)
+                    continue;
+
+                layout.FollowLazer.Value = true;
+                skinnableContent.Add(layout);
+            }
+        }
+
+        /// <summary>
+        /// oily: closes the pp simulator (the skin editor goes back to song select's own layer).
+        /// </summary>
+        public void HidePerformanceSimulation() => simulationPopup.Hide();
+
+        /// <summary>
+        /// oily: opens the pp simulator for the selected beatmap, or closes it if it is open.
+        /// </summary>
+        public void TogglePerformanceSimulation()
+        {
+            if (simulationPopup.State.Value == Visibility.Visible)
+                simulationPopup.Hide();
+            else if (!Beatmap.IsDefault)
+                ShowPerformanceSimulation(Beatmap.Value.BeatmapInfo);
+        }
+
+        /// <summary>
+        /// oily: pp work actions for a beatmap's menus (right-click and Options).
+        /// </summary>
+        protected IEnumerable<OsuMenuItem> OilyActions(BeatmapInfo beatmap)
+        {
+            // oily: pause or resume working out pp for every beatmap (the selected one is always worked out).
+            yield return new OsuMenuItem(performanceStore.WorkPaused.Value ? "Resume pp sorting work" : "Pause pp sorting work",
+                MenuItemType.Standard, () => performanceStore.WorkPaused.Value = !performanceStore.WorkPaused.Value)
+            {
+                Icon = performanceStore.WorkPaused.Value ? FontAwesome.Solid.Play : FontAwesome.Solid.Pause
+            };
+        }
+
         public virtual IEnumerable<OsuMenuItem> GetForwardActions(BeatmapInfo beatmap)
         {
             yield return new OsuMenuItem(GlobalActionKeyBindingStrings.Select, MenuItemType.Highlighted, () => SelectAndRun(beatmap, OnStart))
             {
                 Icon = FontAwesome.Solid.Check
             };
+
+            yield return new OsuMenuItemSpacer();
+
+            foreach (var item in OilyActions(beatmap))
+                yield return item;
 
             yield return new OsuMenuItemSpacer();
 

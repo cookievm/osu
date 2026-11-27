@@ -115,6 +115,45 @@ namespace osu.Game.Overlays.Mods
         private ColumnFlowContainer columnFlow = null!;
 
         private Container aboveColumnsContent = null!;
+        private FillFlowContainer<ShearedButton> headerButtonFlow = null!;
+
+        /// <summary>
+        /// oily: puts the footer content's buttons (like "Deselect All") next to the search bar, as tall as it.
+        /// </summary>
+        public void SetHeaderButtons(IEnumerable<ShearedButton> buttons)
+        {
+            headerButtonFlow.Clear();
+
+            foreach (var button in buttons)
+            {
+                button.Anchor = Anchor.TopLeft;
+                button.Origin = Anchor.TopLeft;
+                button.Width = header_button_width;
+                button.Height = SearchTextBox.Height;
+                headerButtonFlow.Add(button);
+            }
+        }
+
+        private const float header_button_width = 150;
+
+        /// <summary>
+        /// oily: narrows the buttons beside the search bar if they would run under the customisation panel (small windows).
+        /// </summary>
+        private void fitHeaderButtons()
+        {
+            int count = headerButtonFlow.Count;
+
+            if (count == 0)
+                return;
+
+            float room = aboveColumnsContent.ToLocalSpace(customisationPanel.ScreenSpaceDrawQuad.TopLeft).X
+                         - aboveColumnsContent.ToLocalSpace(headerButtonFlow.ScreenSpaceDrawQuad.TopLeft).X - 20;
+            float width = Math.Clamp((room - headerButtonFlow.Spacing.X * (count - 1)) / count, 80, header_button_width);
+
+            foreach (var button in headerButtonFlow)
+                button.Width = width;
+        }
+
         private ModCustomisationPanel customisationPanel = null!;
 
         protected virtual SelectAllModsButton? SelectAllModsButton => null;
@@ -186,10 +225,26 @@ namespace osu.Game.Overlays.Mods
                             Padding = new MarginPadding { Horizontal = 100, Bottom = 15f },
                             Children = new Drawable[]
                             {
-                                SearchTextBox = new ShearedSearchTextBox
+                                // oily (ilo, 2026-11-26): "Deselect All" (and multiplayer's "Select All") sit to the right of the search bar, as tall as it.
+                                new FillFlowContainer
                                 {
-                                    HoldFocus = false,
-                                    Width = 300,
+                                    AutoSizeAxes = Axes.Both,
+                                    Direction = FillDirection.Horizontal,
+                                    Spacing = new Vector2(10),
+                                    Children = new Drawable[]
+                                    {
+                                        SearchTextBox = new ShearedSearchTextBox
+                                        {
+                                            HoldFocus = false,
+                                            Width = 300,
+                                        },
+                                        headerButtonFlow = new FillFlowContainer<ShearedButton>
+                                        {
+                                            AutoSizeAxes = Axes.Both,
+                                            Direction = FillDirection.Horizontal,
+                                            Spacing = new Vector2(10),
+                                        },
+                                    }
                                 },
                                 customisationPanel = new ModCustomisationPanel
                                 {
@@ -296,6 +351,7 @@ namespace osu.Game.Overlays.Mods
             base.Update();
 
             SearchTextBox.PlaceholderText = SearchTextBox.HasFocus ? input_search_placeholder : tab_to_search_placeholder;
+            fitHeaderButtons();
             aboveColumnsContent.Padding = aboveColumnsContent.Padding with { Bottom = DisplayedFooterContent?.DisplaysStackedVertically == true ? 75f : 15f };
         }
 

@@ -50,9 +50,10 @@ namespace osu.Game.Tests.Visual.Navigation
             // TODO: without this step, a critical bug will be hit, see inline comment in `OsuGame.handleBackButton`.
             AddUntilStep("Wait for song select", () => Game.ScreenStack.CurrentScreen is SoloSongSelect select && select.IsLoaded);
 
-            AddStep("click in corner", () =>
+            // oily: the fixed bottom bar lifts the back button off the corner, so click the button where it sits.
+            AddStep("click back button", () =>
             {
-                InputManager.MoveMouseTo(Game.ScreenSpaceDrawQuad.BottomLeft);
+                InputManager.MoveMouseTo(Game.ChildrenOfType<ScreenBackButton>().First());
                 InputManager.Click(MouseButton.Left);
             });
 

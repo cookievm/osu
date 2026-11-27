@@ -138,6 +138,9 @@ namespace osu.Game.Screens.Play.Leaderboards
             TotalScoreTiebreaker = scoreInfo.OnlineID > 0 ? scoreInfo.OnlineID : scoreInfo.Date.ToUnixTimeSeconds();
             GetDisplayScore = scoreInfo.GetDisplayScore;
             InitialPosition = scoreInfo.Position;
+            // oily: shown on the leaderboard's rows.
+            Mods = scoreInfo.Mods;
+            PerformancePoints.Value = scoreInfo.PP ?? 0;
         }
 
         public GameplayLeaderboardScore(MultiplayerScore score, bool tracked, ComboDisplayMode comboMode)

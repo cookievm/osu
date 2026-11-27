@@ -19,6 +19,7 @@ using osu.Framework.Graphics.Textures;
 using osu.Framework.Input.Events;
 using osu.Framework.Utils;
 using osu.Game.Beatmaps.ControlPoints;
+using osu.Game.Graphics;
 using osu.Game.Graphics.Backgrounds;
 using osu.Game.Graphics.Containers;
 using osu.Game.Overlays;
@@ -62,7 +63,7 @@ namespace osu.Game.Screens.Menu
         protected Sample SampleDownbeat;
 
         private readonly Container colourAndTriangles;
-        private readonly TrianglesV2 triangles;
+        private readonly OilyHearts triangles;
 
         /// <summary>
         /// Return value decides whether the logo should play its own sample for the click action.
@@ -185,19 +186,18 @@ namespace osu.Game.Screens.Menu
                                                                     Origin = Anchor.Centre,
                                                                     Children = new Drawable[]
                                                                     {
+                                                                        // oily (ilo, 2026-11-26): o!ily red with soft hearts drifting up, in place of lazer's pink and triangles.
                                                                         new Box
                                                                         {
                                                                             RelativeSizeAxes = Axes.Both,
-                                                                            Colour = ColourInfo.GradientVertical(Color4Extensions.FromHex(@"ff66ab"), Color4Extensions.FromHex(@"cc5289")),
+                                                                            Colour = ColourInfo.GradientVertical(Color4Extensions.FromHex(@"ff4d6a"), Color4Extensions.FromHex(@"c41e3a")),
                                                                         },
-                                                                        triangles = new TrianglesV2
+                                                                        triangles = new OilyHearts
                                                                         {
                                                                             Anchor = Anchor.Centre,
                                                                             Origin = Anchor.Centre,
-                                                                            Thickness = 0.009f,
-                                                                            ScaleAdjust = 3,
-                                                                            SpawnRatio = 1.4f,
-                                                                            Colour = ColourInfo.GradientVertical(Color4Extensions.FromHex(@"ff66ab"), Color4Extensions.FromHex(@"b6346f")),
+                                                                            Alpha = 0.28f,
+                                                                            Colour = ColourInfo.GradientVertical(Color4Extensions.FromHex(@"ffb3c1"), Color4Extensions.FromHex(@"ff8096")),
                                                                             RelativeSizeAxes = Axes.Both,
                                                                         },
                                                                     }
@@ -274,6 +274,9 @@ namespace osu.Game.Screens.Menu
                 Schedule(runnableAction);
         }
 
+        [Resolved(canBeNull: true)]
+        private OilyTextures oilyTextures { get; set; }
+
         [BackgroundDependencyLoader]
         private void load(TextureStore textures, AudioManager audio)
         {
@@ -282,8 +285,10 @@ namespace osu.Game.Screens.Menu
             SampleBeat = audio.Samples.Get(@"Menu/osu-logo-heartbeat");
             SampleDownbeat = audio.Samples.Get(@"Menu/osu-logo-downbeat");
 
-            logo.Texture = textures.Get(@"Menu/logo");
-            ripple.Texture = textures.Get(@"Menu/logo");
+            // oily (ilo, 2026-11-26): the logo says o!ily (lazer's ring and lettering style, heart on the !).
+            var logoTexture = oilyTextures?.Get(@"logo") ?? textures.Get(@"Menu/logo");
+            logo.Texture = logoTexture;
+            ripple.Texture = logoTexture;
         }
 
         private int lastBeatIndex;

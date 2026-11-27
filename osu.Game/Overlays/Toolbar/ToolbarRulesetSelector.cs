@@ -3,6 +3,7 @@
 
 #nullable disable
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
@@ -15,6 +16,7 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Input.Events;
 using osu.Framework.IO.Stores;
+using osu.Game.Configuration;
 using osu.Game.Rulesets;
 using osuTK;
 using osuTK.Graphics;
@@ -35,35 +37,75 @@ namespace osu.Game.Overlays.Toolbar
 
         private ISampleStore samples;
 
+        /// <summary>
+        /// oily: whether the rulesets are stacked top to bottom (on a toolbar at the side of the screen).
+        /// </summary>
+        public readonly bool Vertical;
+
         public ToolbarRulesetSelector()
+            : this(false)
         {
-            RelativeSizeAxes = Axes.Y;
-            AutoSizeAxes = Axes.X;
         }
+
+        /// <summary>
+        /// oily: the base class makes the tab flow before this class's constructor runs, so the direction is passed along here first.
+        /// </summary>
+        [ThreadStatic]
+        private static bool creatingVertical;
+
+        public ToolbarRulesetSelector(bool vertical)
+            : this(vertical, rememberDirection(vertical))
+        {
+        }
+
+        private static bool rememberDirection(bool vertical) => creatingVertical = vertical;
+
+        private ToolbarRulesetSelector(bool vertical, bool _)
+        {
+            Vertical = vertical;
+            creatingVertical = false;
+
+            if (vertical)
+                AutoSizeAxes = Axes.Both;
+            else
+            {
+                RelativeSizeAxes = Axes.Y;
+                AutoSizeAxes = Axes.X;
+            }
+        }
+
+        private OpaqueBackground opaqueBackground;
+
+        // oily: keeps the background following the toolbar's background opacity.
+        private IBindable<string> panelSetting;
+
+        [Resolved(canBeNull: true)]
+        private OsuConfigManager config { get; set; }
 
         [BackgroundDependencyLoader]
         private void load(AudioManager audio, OsuGameBase game)
         {
             AddRangeInternal(new[]
             {
-                new OpaqueBackground
+                opaqueBackground = new OpaqueBackground
                 {
                     Depth = 1,
                     Masking = true,
                 },
                 ModeButtonLine = new Container
                 {
-                    Size = new Vector2(Toolbar.HEIGHT, 3),
-                    Anchor = Anchor.BottomLeft,
-                    Origin = Anchor.BottomLeft,
-                    Y = -1,
+                    Size = Vertical ? new Vector2(3, Toolbar.HEIGHT) : new Vector2(Toolbar.HEIGHT, 3),
+                    Anchor = Vertical ? Anchor.TopRight : Anchor.BottomLeft,
+                    Origin = Vertical ? Anchor.TopRight : Anchor.BottomLeft,
+                    X = Vertical ? -1 : 0,
+                    Y = Vertical ? 0 : -1,
                     Children = new Drawable[]
                     {
                         new Circle
                         {
                             Anchor = Anchor.Centre,
                             Origin = Anchor.Centre,
-                            Size = new Vector2(18, 3),
+                            Size = Vertical ? new Vector2(3, 18) : new Vector2(18, 3),
                         }
                     }
                 },
@@ -88,12 +130,53 @@ namespace osu.Game.Overlays.Toolbar
         {
             base.LoadComplete();
 
+            if (config != null)
+                panelSetting = OilyPanelColours.Track(config, OilyPanel.Toolbar, style => opaqueBackground.Alpha = Math.Clamp(style.Opacity, 0, 1));
+
             Current.BindDisabledChanged(_ => Scheduler.AddOnce(currentDisabledChanged));
             currentDisabledChanged();
 
             Current.BindValueChanged(_ => moveLineToCurrent());
             // Scheduled to allow the button flow layout to be computed before the line position is updated
             ScheduleAfterChildren(moveLineToCurrent);
+        }
+
+        /// <summary>
+        /// oily: the width of the ruleset icons alone, without the gaps between them.
+        /// </summary>
+        public float TabsWidth => TabContainer.Children.Sum(t => Vertical ? t.DrawHeight : t.DrawWidth);
+
+        /// <summary>
+        /// oily: how many ruleset icons there are.
+        /// </summary>
+        public int TabCount => TabContainer.Children.Count;
+
+        /// <summary>
+        /// oily: the gap between ruleset icons (used to spread the toolbar's icons evenly).
+        /// </summary>
+        public float TabSpacing
+        {
+            get => Vertical ? TabContainer.Spacing.Y : TabContainer.Spacing.X;
+            set
+            {
+                var spacing = Vertical ? new Vector2(0, value) : new Vector2(value, 0);
+
+                if (TabContainer.Spacing == spacing)
+                    return;
+
+                TabContainer.Spacing = spacing;
+
+                // the selected icon moves with the gap, so the line under it has to follow straight away.
+                ScheduleAfterChildren(() =>
+                {
+                    if (SelectedTab == null) return;
+
+                    if (Vertical)
+                        ModeButtonLine.Y = SelectedTab.DrawPosition.Y;
+                    else
+                        ModeButtonLine.X = SelectedTab.DrawPosition.X;
+                });
+            }
         }
 
         private void currentDisabledChanged()
@@ -107,7 +190,10 @@ namespace osu.Game.Overlays.Toolbar
         {
             if (SelectedTab != null)
             {
-                ModeButtonLine.MoveToX(SelectedTab.DrawPosition.X, !hasInitialPosition ? 0 : 500, Easing.OutElasticQuarter);
+                if (Vertical)
+                    ModeButtonLine.MoveToY(SelectedTab.DrawPosition.Y, !hasInitialPosition ? 0 : 500, Easing.OutElasticQuarter);
+                else
+                    ModeButtonLine.MoveToX(SelectedTab.DrawPosition.X, !hasInitialPosition ? 0 : 500, Easing.OutElasticQuarter);
                 hasInitialPosition = true;
             }
         }
@@ -144,14 +230,31 @@ namespace osu.Game.Overlays.Toolbar
 
         public override bool PropagatePositionalInputSubTree => !Current.Disabled && base.PropagatePositionalInputSubTree;
 
-        protected override TabItem<RulesetInfo> CreateTabItem(RulesetInfo value) => new ToolbarRulesetTabButton(value);
-
-        protected override TabFillFlowContainer CreateTabFlow() => new TabFillFlowContainer
+        protected override TabItem<RulesetInfo> CreateTabItem(RulesetInfo value)
         {
-            RelativeSizeAxes = Axes.Y,
-            AutoSizeAxes = Axes.X,
-            Direction = FillDirection.Horizontal,
-        };
+            var item = new ToolbarRulesetTabButton(value);
+
+            if (Vertical)
+            {
+                item.RelativeSizeAxes = Axes.None;
+                item.Height = Toolbar.HEIGHT;
+            }
+
+            return item;
+        }
+
+        protected override TabFillFlowContainer CreateTabFlow() => Vertical || creatingVertical
+            ? new TabFillFlowContainer
+            {
+                AutoSizeAxes = Axes.Both,
+                Direction = FillDirection.Vertical,
+            }
+            : new TabFillFlowContainer
+            {
+                RelativeSizeAxes = Axes.Y,
+                AutoSizeAxes = Axes.X,
+                Direction = FillDirection.Horizontal,
+            };
 
         protected override bool OnKeyDown(KeyDownEvent e)
         {
