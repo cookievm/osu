@@ -386,7 +386,8 @@ namespace osu.Game.Screens.Select
         {
             Color4 cardColour = kind switch
             {
-                StablePanelKind.Difficulty => active ? ACTIVE_COLOUR : DIFFICULTY_COLOUR,
+                // Stable only tints difficulties blue inside an opened set; a difficulty on its own (grouped by difficulty) is a pink set card.
+                StablePanelKind.Difficulty => active ? ACTIVE_COLOUR : insideSet ? DIFFICULTY_COLOUR : SET_COLOUR,
                 StablePanelKind.Group => active ? GROUP_ACTIVE_COLOUR : GROUP_COLOUR,
                 _ => active ? ACTIVE_COLOUR : SET_COLOUR,
             };

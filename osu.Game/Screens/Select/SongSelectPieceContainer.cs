@@ -55,6 +55,16 @@ namespace osu.Game.Screens.Select
         public readonly BindableBool StableLeaderboard = new BindableBool();
 
         /// <summary>
+        /// oily: the beatmap info and search bar are drawn like osu!stable's, on one top bar (the skin's songselect-top picture).
+        /// </summary>
+        public readonly BindableBool StableTopBar = new BindableBool();
+
+        /// <summary>
+        /// oily: the back button is osu!stable's (the skin's menu-back picture), set by the "Back button" skin component.
+        /// </summary>
+        public readonly BindableBool StableBackButton = new BindableBool();
+
+        /// <summary>
         /// Wraps a piece of song select so skins can move and style it. Without a registry (outside song select) the piece is still wrapped, but nothing controls it.
         /// </summary>
         public static SongSelectPieceContainer Wrap(SongSelectPieceRegistry? registry, SongSelectPiece piece, Drawable content)

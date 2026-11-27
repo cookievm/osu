@@ -325,6 +325,42 @@ namespace osu.Game.Tests.Visual.SongSelect
         }
 
         [Test]
+        public void TestStableTopBarLinked()
+        {
+            SongSelectSearchBarLayout search = null!;
+            SongSelectBeatmapInfoLayout info = null!;
+
+            AddUntilStep("default layouts added", () => skinLayer.Components.OfType<SongSelectSearchBarLayout>().Any() && skinLayer.Components.OfType<SongSelectBeatmapInfoLayout>().Any());
+            AddStep("find layouts", () =>
+            {
+                search = skinLayer.Components.OfType<SongSelectSearchBarLayout>().First();
+                info = skinLayer.Components.OfType<SongSelectBeatmapInfoLayout>().First();
+            });
+
+            AddStep("search bar to stable", () => search.Style.Value = SongSelectPieceStyle.Stable);
+            AddAssert("info is stable too", () => info.Style.Value, () => Is.EqualTo(SongSelectPieceStyle.Stable));
+            AddUntilStep("stable top bar shown", () => SongSelect.ChildrenOfType<StableSongSelectTop>().Single().Alpha > 0);
+
+            AddStep("try to move the search bar", () => search.Position += new osuTK.Vector2(100));
+            AddUntilStep("still in lazer's place", () => search.FollowLazer.Value);
+
+            AddStep("info back to lazer", () => info.Style.Value = SongSelectPieceStyle.Lazer);
+            AddAssert("search bar is lazer too", () => search.Style.Value, () => Is.EqualTo(SongSelectPieceStyle.Lazer));
+            AddUntilStep("stable top bar hidden", () => SongSelect.ChildrenOfType<StableSongSelectTop>().Single().Alpha == 0);
+        }
+
+        [Test]
+        public void TestStableBackButton()
+        {
+            AddUntilStep("back button style added", () => skinLayer.Components.OfType<SongSelectBackButtonStyle>().Count() == 1);
+            AddStep("stable style", () => skinLayer.Components.OfType<SongSelectBackButtonStyle>().Single().Style.Value = SongSelectPieceStyle.Stable);
+            AddUntilStep("stable back button shown", () => ScreenFooter.ChildrenOfType<osu.Game.Screens.Footer.StableScreenBackButton>().Single().Alpha == 1);
+            AddAssert("lazer back button hidden", () => ScreenFooter.BackButton.Alpha == 0);
+            AddStep("lazer style", () => skinLayer.Components.OfType<SongSelectBackButtonStyle>().Single().Style.Value = SongSelectPieceStyle.Lazer);
+            AddUntilStep("lazer back button shown", () => ScreenFooter.BackButton.Alpha == 1);
+        }
+
+        [Test]
         public void TestPerformanceGroups()
         {
             AddAssert("unknown", () => BeatmapCarouselFilterGrouping.DefineGroupByPerformance(null).Title.ToString(), () => Is.EqualTo("Working out pp..."));

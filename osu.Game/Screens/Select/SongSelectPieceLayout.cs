@@ -214,6 +214,15 @@ namespace osu.Game.Screens.Select
                 updateRecolour();
             }
 
+            // oily (ilo, 2026-11-26): parts drawn like osu!stable can't be moved; they stay where lazer puts them.
+            if (Locked)
+            {
+                FollowLazer.Value = true;
+                hasFollowed = false;
+                snapToPiece();
+                return;
+            }
+
             if (FollowLazer.Value)
             {
                 followPiece();
@@ -361,6 +370,11 @@ namespace osu.Game.Screens.Select
         }
 
         /// <summary>
+        /// oily: whether the part is pinned to lazer's place (the skin editor can't move it).
+        /// </summary>
+        protected virtual bool Locked => false;
+
+        /// <summary>
         /// Applies settings that change how the piece itself looks. Called every frame while in control.
         /// </summary>
         protected virtual void UpdatePieceStyle()
@@ -428,25 +442,78 @@ namespace osu.Game.Screens.Select
         }
     }
 
-    public partial class SongSelectBeatmapInfoLayout : SongSelectPieceLayout
+    /// <summary>
+    /// oily (ilo, 2026-11-26): the beatmap info and the search bar share osu!stable's top bar (the skin's songselect-top picture),
+    /// so their styles are linked: switching one to Stable or back to Lazer switches the other too. In Stable they can't be moved.
+    /// </summary>
+    public abstract partial class SongSelectTopBarPieceLayout : SongSelectPieceLayout
+    {
+        public abstract Bindable<SongSelectPieceStyle> Style { get; }
+
+        protected bool StableStyle => Style.Value == SongSelectPieceStyle.Stable;
+
+        protected override bool Locked => StableStyle;
+
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+
+            if (!InControl)
+                return;
+
+            var others = linkedLayouts().ToArray();
+
+            if (others.Any(o => o.StableStyle))
+                Style.Value = SongSelectPieceStyle.Stable;
+            else if (StableStyle)
+            {
+                foreach (var other in others)
+                    other.Style.Value = SongSelectPieceStyle.Stable;
+            }
+
+            Style.BindValueChanged(v =>
+            {
+                foreach (var other in linkedLayouts())
+                    other.Style.Value = v.NewValue;
+            });
+        }
+
+        private IEnumerable<SongSelectTopBarPieceLayout> linkedLayouts()
+        {
+            if (Parent is not Container<Drawable> container)
+                return Enumerable.Empty<SongSelectTopBarPieceLayout>();
+
+            return container.Children.OfType<SongSelectTopBarPieceLayout>().Where(l => l != this && l.InControl);
+        }
+
+        protected override void UpdatePieceStyle()
+        {
+            Registry.StableTopBar.Value = StableStyle;
+            ApplyStyle(StableStyle);
+        }
+
+        protected override void ResetPieceStyle()
+        {
+            Registry.StableTopBar.Value = false;
+            ApplyStyle(false);
+        }
+
+        protected abstract void ApplyStyle(bool stable);
+    }
+
+    public partial class SongSelectBeatmapInfoLayout : SongSelectTopBarPieceLayout
     {
         public override SongSelectPiece Piece => SongSelectPiece.BeatmapInfo;
 
         public override string DisplayName => "Beatmap info";
 
-        [SettingSource("Style", "Lazer's card, or osu!stable's text block (artist - title [difficulty], length, BPM, objects, CS/AR/OD/HP, stars). Stable uses your skin's songselect-top picture when it has one.", -1)]
-        public Bindable<SongSelectPieceStyle> Style { get; } = new Bindable<SongSelectPieceStyle>();
+        [SettingSource("Style", "Lazer's card, or osu!stable's text block on the skin's songselect-top picture. Linked with the search bar's style; in Stable both stay in place.", -1)]
+        public override Bindable<SongSelectPieceStyle> Style { get; } = new Bindable<SongSelectPieceStyle>();
 
-        protected override void UpdatePieceStyle()
+        protected override void ApplyStyle(bool stable)
         {
             if (wedge != null)
-                wedge.StableLook = Style.Value == SongSelectPieceStyle.Stable;
-        }
-
-        protected override void ResetPieceStyle()
-        {
-            if (wedge != null)
-                wedge.StableLook = false;
+                wedge.StableLook = stable;
         }
 
         private BeatmapTitleWedge? cachedWedge;
@@ -549,25 +616,19 @@ namespace osu.Game.Screens.Select
         protected override void ResetPieceStyle() => Registry.CardStyle.Reset();
     }
 
-    public partial class SongSelectSearchBarLayout : SongSelectPieceLayout
+    public partial class SongSelectSearchBarLayout : SongSelectTopBarPieceLayout
     {
         public override SongSelectPiece Piece => SongSelectPiece.SearchBar;
 
         public override string DisplayName => "Search bar";
 
-        [SettingSource("Style", "Lazer's search bar, or osu!stable's (a dark bar with \"Search: ...\" text, no star rating bar). Sort, group and collection stay.", -1)]
-        public Bindable<SongSelectPieceStyle> Style { get; } = new Bindable<SongSelectPieceStyle>();
+        [SettingSource("Style", "Lazer's search bar, or osu!stable's (\"Search: ...\" text on the skin's songselect-top picture, no star rating bar). Linked with the beatmap info's style; in Stable both stay in place.", -1)]
+        public override Bindable<SongSelectPieceStyle> Style { get; } = new Bindable<SongSelectPieceStyle>();
 
-        protected override void UpdatePieceStyle()
+        protected override void ApplyStyle(bool stable)
         {
             if (filter != null)
-                filter.StableLook = Style.Value == SongSelectPieceStyle.Stable;
-        }
-
-        protected override void ResetPieceStyle()
-        {
-            if (filter != null)
-                filter.StableLook = false;
+                filter.StableLook = stable;
         }
 
         private FilterControl? cachedFilter;

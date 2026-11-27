@@ -205,6 +205,8 @@ namespace osu.Game.Screens.Select
                 simulationStore,
                 performanceStore,
                 onlineLookupSource,
+                // oily: osu!stable's top bar, behind the beatmap info and search bar while they use the Stable style.
+                new StableSongSelectTop(),
                 mainContent = new Container
                 {
                     Anchor = Anchor.Centre,
@@ -350,7 +352,17 @@ namespace osu.Game.Screens.Select
                 },
             });
 
-            skinnableContent.OnComponentsLoaded += _ => addMissingPieceLayouts();
+            skinnableContent.OnComponentsLoaded += _ =>
+            {
+                addMissingPieceLayouts();
+
+                // oily: the back button's style is there by default, so it can be picked in the skin editor without adding it.
+                foreach (var extra in skinnableContent.Components.OfType<SongSelectBackButtonStyle>().Skip(1).ToArray())
+                    skinnableContent.Remove(extra, true);
+
+                if (!skinnableContent.Components.Any(c => c is SongSelectBackButtonStyle))
+                    skinnableContent.Add(new SongSelectBackButtonStyle());
+            };
 
             simulationPopup.State.BindValueChanged(v => simulatorSkinLayer.Alpha = v.NewValue == Visibility.Visible ? 1 : 0, true);
 
@@ -468,6 +480,10 @@ namespace osu.Game.Screens.Select
         protected override void Update()
         {
             base.Update();
+
+            // oily: the "Back button" skin component's style.
+            if (Footer != null && this.IsCurrentScreen())
+                Footer.StableBackButton = pieceRegistry.StableBackButton.Value;
 
             detailsArea.Height = wedgesContainer.ChildSize.Y - titleWedge.LayoutSize.Y - 4;
 
@@ -835,6 +851,10 @@ namespace osu.Game.Screens.Select
         private void onLeavingScreen()
         {
             restoreBackground();
+
+            // oily: other screens use lazer's back button.
+            if (Footer != null)
+                Footer.StableBackButton = false;
 
             Beatmap.ValueChanged -= updateVariousState;
 

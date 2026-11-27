@@ -14,6 +14,7 @@ using osu.Framework.Graphics.Pooling;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Input.Events;
+using osu.Framework.Localisation;
 using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Carousel;
@@ -78,6 +79,12 @@ namespace osu.Game.Screens.Select
         /// oily: whether the stable look is showing.
         /// </summary>
         protected bool StableLookShown { get; private set; }
+
+        /// <summary>
+        /// oily: osu!stable's group header text, like "2 Stars (1,694 maps)".
+        /// </summary>
+        protected static LocalisableString StableGroupTitle(LocalisableString title, int count)
+            => LocalisableString.Interpolate($"{title} ({count:N0} {(count == 1 ? "map" : "maps")})");
 
         public Drawable Background
         {

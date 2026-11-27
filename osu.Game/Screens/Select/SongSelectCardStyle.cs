@@ -78,6 +78,7 @@ namespace osu.Game.Screens.Select
         {
             // oily: only song select's own parts (ilo, 2026-11-26: no sprites, boxes, texts or player info).
             typeof(SongSelectPieceLayout),
+            typeof(SongSelectBackButtonStyle),
         };
 
         public static bool IsAllowed(Type type)

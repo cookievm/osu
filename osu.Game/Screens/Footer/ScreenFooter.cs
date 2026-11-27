@@ -31,6 +31,25 @@ namespace osu.Game.Screens.Footer
     {
         public ScreenBackButton BackButton { get; private set; } = null!;
 
+        private StableScreenBackButton stableBackButton = null!;
+        private bool stableBack;
+
+        /// <summary>
+        /// oily: shows osu!stable's back button instead of lazer's (set by song select).
+        /// </summary>
+        public bool StableBackButton
+        {
+            set
+            {
+                if (stableBack == value)
+                    return;
+
+                stableBack = value;
+                BackButton.Alpha = value ? 0 : 1;
+                stableBackButton.Alpha = value ? 1 : 0;
+            }
+        }
+
         /// <summary>
         /// Called when logo tracking begins, intended to bring the osu! logo to the frontmost visually.
         /// </summary>
@@ -199,6 +218,12 @@ namespace osu.Game.Screens.Footer
                     Origin = Anchor.BottomLeft,
                     Action = onBackPressed,
                 },
+                // oily: osu!stable's back button (song select's "Back button" skin component), in the screen's bottom left corner.
+                stableBackButton = new StableScreenBackButton
+                {
+                    Alpha = 0,
+                    Action = onBackPressed,
+                },
                 hiddenLeftButtonsContainer = new Container<ScreenFooterButton>
                 {
                     Name = "Hidden left footer buttons",
@@ -356,6 +381,9 @@ namespace osu.Game.Screens.Footer
 
             // oily: the back button and the toolbar buttons can be dragged too.
             BackButton.Position = new Vector2(Layout.BackOffsetX, Layout.BackOffsetY);
+
+            // oily: stable's back button keeps its own size whatever the bar's size is.
+            stableBackButton.Scale = new Vector2(1 / Layout.Size);
             toolbarButtonsFlow.Position = new Vector2(Layout.ToolbarButtonsOffsetX, Layout.ToolbarButtonsOffsetY);
         }
 

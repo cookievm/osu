@@ -8,12 +8,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
-using osu.Framework.Extensions.Color4Extensions;
-using osu.Framework.Extensions.ObjectExtensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
-using osu.Framework.Graphics.Shapes;
-using osu.Framework.Graphics.Sprites;
 using osu.Framework.Localisation;
 using osu.Game.Beatmaps;
 using osu.Game.Extensions;
@@ -21,17 +17,14 @@ using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
-using osu.Game.Skinning;
 using osu.Game.Utils;
-using osuTK;
-using osuTK.Graphics;
 
 namespace osu.Game.Screens.Select
 {
     /// <summary>
     /// oily: the selected beatmap's details drawn like osu!stable's top left text block:
     /// "Artist - Title [Difficulty]", "Mapped by ...", length / BPM / objects, object counts, then CS / AR / OD / HP / stars.
-    /// The skin's songselect-top picture goes behind it when the skin has one.
+    /// The skin's songselect-top picture is drawn behind it by <see cref="StableSongSelectTop"/>.
     /// </summary>
     public partial class StableBeatmapInfo : CompositeDrawable
     {
@@ -47,10 +40,6 @@ namespace osu.Game.Screens.Select
         [Resolved]
         private BeatmapDifficultyCache difficultyCache { get; set; } = null!;
 
-        [Resolved]
-        private ISkinSource skin { get; set; } = null!;
-
-        private readonly Container backgroundContainer;
         private readonly TruncatingSpriteText titleText;
         private readonly OsuSpriteText mapperText;
         private readonly OsuSpriteText lengthText;
@@ -68,11 +57,6 @@ namespace osu.Game.Screens.Select
 
             InternalChildren = new Drawable[]
             {
-                backgroundContainer = new Container
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Masking = true,
-                },
                 new FillFlowContainer
                 {
                     RelativeSizeAxes = Axes.X,
@@ -112,48 +96,12 @@ namespace osu.Game.Screens.Select
         {
             base.LoadComplete();
 
-            skin.SourceChanged += onSkinChanged;
-            onSkinChanged();
-
             // Like lazer's own display, wait a frame so the beatmap, ruleset and mods all agree before calculating.
             working.BindValueChanged(_ => Scheduler.AddOnce(updateDisplay));
             ruleset.BindValueChanged(_ => Scheduler.AddOnce(updateDisplay));
             mods.BindValueChanged(_ => Scheduler.AddOnce(updateDisplay));
 
             updateDisplay();
-        }
-
-        private void onSkinChanged()
-        {
-            var top = skin.GetTexture("songselect-top");
-
-            if (top != null)
-            {
-                // Drawn at its own size from the top left, like stable (lazer's UI uses stable's 1024x768 units).
-                // Stable repeats the picture's rightmost pixels to fill a wide screen; the last column is stretched here to do the same.
-                backgroundContainer.Children = new Drawable[]
-                {
-                    new Sprite
-                    {
-                        Texture = top.Crop(new osu.Framework.Graphics.Primitives.RectangleF(0.995f, 0, 0.005f, 1), Axes.Both),
-                        X = top.DisplayWidth - 1,
-                        Size = new Vector2(4000, top.DisplayHeight),
-                    },
-                    new Sprite
-                    {
-                        Texture = top,
-                        Size = new Vector2(top.DisplayWidth, top.DisplayHeight),
-                    },
-                };
-            }
-            else
-            {
-                backgroundContainer.Child = new Box
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    Colour = Color4.Black.Opacity(0.6f),
-                };
-            }
         }
 
         private void updateDisplay()
@@ -235,9 +183,6 @@ namespace osu.Game.Screens.Select
         protected override void Dispose(bool isDisposing)
         {
             cancellationSource?.Cancel();
-
-            if (skin.IsNotNull())
-                skin.SourceChanged -= onSkinChanged;
 
             base.Dispose(isDisposing);
         }
