@@ -31,6 +31,7 @@ using osu.Game.Screens.Select.Filter;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics;
 using osuTK;
+using osuTK.Graphics;
 using osuTK.Input;
 
 namespace osu.Game.Screens.Select
@@ -49,7 +50,7 @@ namespace osu.Game.Screens.Select
         private DifficultyRangeSlider difficultyRangeSlider = null!;
         private ShearedDropdown<SortMode> sortDropdown = null!;
         private ShearedDropdown<GroupModeDropdownItem> groupDropdown = null!;
-        private Drawable collectionDropdown = null!;
+        private CollectionDropdown collectionDropdown = null!;
 
         // oily: lazer's look and osu!stable's look (see SongSelectSearchBarLayout.Style).
         private Container lazerBackground = null!;
@@ -83,6 +84,8 @@ namespace osu.Game.Screens.Select
             lazerBackground.Alpha = stableLook ? 0 : 1;
             starRatingRow.Alpha = stableLook ? 0 : 1;
             stableSearchLabel.Alpha = stableLook ? 1 : 0;
+            StableControls.Alpha = stableLook ? 1 : 0;
+            lazerSortRow.Alpha = stableLook ? 0 : 1;
             searchTextBox.Colour = stableLook ? Colour4.Transparent : Colour4.White;
         }
 
@@ -188,28 +191,6 @@ namespace osu.Game.Screens.Select
                                             HoldFocus = true,
                                             ScopedBeatmapSet = { BindTarget = ScopedBeatmapSet },
                                         },
-                                        stableSearchLabel = new FillFlowContainer
-                                        {
-                                            Anchor = Anchor.CentreLeft,
-                                            Origin = Anchor.CentreLeft,
-                                            AutoSizeAxes = Axes.Both,
-                                            Direction = FillDirection.Horizontal,
-                                            Spacing = new Vector2(6, 0),
-                                            Padding = new MarginPadding { Left = 12 },
-                                            Alpha = 0,
-                                            Children = new Drawable[]
-                                            {
-                                                new OsuSpriteText
-                                                {
-                                                    Text = "Search:",
-                                                    Font = OsuFont.GetFont(size: 20, weight: FontWeight.Bold),
-                                                },
-                                                stableSearchText = new OsuSpriteText
-                                                {
-                                                    Font = OsuFont.GetFont(size: 20, weight: FontWeight.SemiBold),
-                                                },
-                                            },
-                                        },
                                     },
                                 },
                                 starRatingRow = new GridContainer
@@ -245,7 +226,7 @@ namespace osu.Game.Screens.Select
                                         },
                                     }
                                 },
-                                new GridContainer
+                                lazerSortRow = new GridContainer
                                 {
                                     RelativeSizeAxes = Axes.X,
                                     Height = 30,
@@ -292,9 +273,84 @@ namespace osu.Game.Screens.Select
                 },
             };
 
+            // oily (ilo, 2026-11-27): stable's search text and its group, sort and collection boxes, where osu!stable puts them
+            // (measured from stable at 768 high, from the screen's right edge). Song select shows them in front of the cards.
+            StableControls.Children = new Drawable[]
+            {
+                stableSearchLabel = new FillFlowContainer
+                {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopLeft,
+                    Position = new Vector2(-359, 120),
+                    AutoSizeAxes = Axes.Both,
+                    Direction = FillDirection.Horizontal,
+                    Spacing = new Vector2(6, 0),
+                    Children = new Drawable[]
+                    {
+                        new OsuSpriteText
+                        {
+                            Text = "Search:",
+                            Font = OsuFont.GetFont(size: 20, weight: FontWeight.Bold),
+                        },
+                        stableSearchText = new OsuSpriteText
+                        {
+                            Font = OsuFont.GetFont(size: 20, weight: FontWeight.SemiBold),
+                        },
+                    },
+                },
+                stableCollectionDropdown = new StableDropdown<CollectionFilterMenuItem>
+                {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopRight,
+                    Position = new Vector2(-512, 96),
+                    Width = 160,
+                    MirrorItemsOf = collectionDropdown,
+                    TextFor = c => c.CollectionName,
+                    AccentColour = new Color4(255, 102, 170, 255),
+                },
+                stableGroupDropdown = new StableDropdown<GroupModeDropdownItem>
+                {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopRight,
+                    Position = new Vector2(-274, 60),
+                    Width = 189,
+                    MirrorItemsOf = groupDropdown,
+                    TextFor = g => g.Value == GroupMode.None ? "No Grouping" : LocalisableString.Interpolate($"By {g.Text}"),
+                    AccentColour = new Color4(113, 200, 255, 255),
+                },
+                stableSortDropdown = new StableDropdown<SortMode>
+                {
+                    Anchor = Anchor.TopRight,
+                    Origin = Anchor.TopRight,
+                    Position = new Vector2(-14, 60),
+                    Width = 185,
+                    MirrorItemsOf = sortDropdown,
+                    TextFor = s => LocalisableString.Interpolate($"By {s.GetLocalisableDescription()}"),
+                    AccentColour = new Color4(169, 255, 113, 255),
+                },
+            };
+
+            stableGroupDropdown.Current.BindTo(groupDropdown.Current);
+            stableSortDropdown.Current.BindTo(sortDropdown.Current);
+            stableCollectionDropdown.Current.BindTo(collectionDropdown.Current);
+
             localUser = api.LocalUser.GetBoundCopy();
             localUserFavouriteBeatmapSets.BindTo(api.LocalUserState.FavouriteBeatmapSets);
         }
+
+        /// <summary>
+        /// oily: stable's search text and group, sort and collection boxes. Song select puts this in front of the cards; it shows while <see cref="StableLook"/> is on.
+        /// </summary>
+        public Container StableControls { get; } = new Container
+        {
+            RelativeSizeAxes = Axes.Both,
+            Alpha = 0,
+        };
+
+        private GridContainer lazerSortRow = null!;
+        private StableDropdown<GroupModeDropdownItem> stableGroupDropdown = null!;
+        private StableDropdown<SortMode> stableSortDropdown = null!;
+        private StableDropdown<CollectionFilterMenuItem> stableCollectionDropdown = null!;
 
         protected override void LoadComplete()
         {

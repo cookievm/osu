@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using DescriptionAttribute = System.ComponentModel.DescriptionAttribute;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Extensions;
@@ -62,6 +63,16 @@ namespace osu.Game.Screens.Select
                                 Margin = new MarginPadding { Top = 2f },
                                 IsSwitchable = true,
                             },
+                            // oily (ilo, 2026-11-27): osu!stable's "Global Ranking" box, shown instead of the tabs and buttons in the Stable "Menu UI".
+                            stableRanking = new StableDropdown<StableRanking>
+                            {
+                                Anchor = Anchor.CentreLeft,
+                                Origin = Anchor.CentreLeft,
+                                Width = 300,
+                                Alpha = 0,
+                                Items = Enum.GetValues<StableRanking>(),
+                                TextFor = r => r.GetDescription(),
+                            },
                             leaderboardControls = new FillFlowContainer
                             {
                                 Anchor = Anchor.CentreRight,
@@ -120,7 +131,7 @@ namespace osu.Game.Screens.Select
                 tabControl.Current.Value = configDetailTab.Value == BeatmapDetailTab.Details ? Selection.Details : Selection.Ranking;
                 tabControl.Current.BindValueChanged(v =>
                 {
-                    leaderboardControls.FadeTo(v.NewValue == Selection.Ranking ? 1 : 0, 300, Easing.OutQuint);
+                    leaderboardControls.FadeTo(v.NewValue == Selection.Ranking && !stableLook.Value ? 1 : 0, 300, Easing.OutQuint);
                     updateConfigDetailTab();
                 }, true);
 
@@ -140,9 +151,123 @@ namespace osu.Game.Screens.Select
                         sortDropdown.Current.Disabled = true;
                     }
                 }, true);
+
+                loadStableLook();
             }
 
             protected override bool OnMouseDown(MouseDownEvent e) => true;
+
+            #region oily: osu!stable's look
+
+            [Resolved(CanBeNull = true)]
+            private SongSelectPieceRegistry? pieceRegistry { get; set; }
+
+            private readonly BindableBool stableLook = new BindableBool();
+            private StableDropdown<StableRanking> stableRanking = null!;
+            private bool updatingStableRanking;
+
+            /// <summary>
+            /// osu!stable's leaderboard choices: one list for both the scope and the selected mods filter.
+            /// </summary>
+            public enum StableRanking
+            {
+                [Description("Local Ranking")]
+                Local,
+
+                [Description("Global Ranking")]
+                Global,
+
+                [Description("Selected Mods")]
+                SelectedMods,
+
+                [Description("Friend Ranking")]
+                Friends,
+
+                [Description("Country Ranking")]
+                Country,
+            }
+
+            private void loadStableLook()
+            {
+                if (pieceRegistry != null)
+                    stableLook.BindTo(pieceRegistry.StableLeaderboard);
+
+                scopeDropdown.Current.BindValueChanged(_ => updateStableRanking());
+                selectedModsToggle.Active.BindValueChanged(_ => updateStableRanking(), true);
+
+                stableRanking.Current.BindValueChanged(r =>
+                {
+                    if (updatingStableRanking)
+                        return;
+
+                    switch (r.NewValue)
+                    {
+                        case StableRanking.Local:
+                            scopeDropdown.Current.Value = BeatmapLeaderboardScope.Local;
+                            selectedModsToggle.Active.Value = false;
+                            break;
+
+                        case StableRanking.Global:
+                            scopeDropdown.Current.Value = BeatmapLeaderboardScope.Global;
+                            selectedModsToggle.Active.Value = false;
+                            break;
+
+                        case StableRanking.SelectedMods:
+                            scopeDropdown.Current.Value = BeatmapLeaderboardScope.Global;
+                            selectedModsToggle.Active.Value = true;
+                            break;
+
+                        case StableRanking.Friends:
+                            scopeDropdown.Current.Value = BeatmapLeaderboardScope.Friend;
+                            selectedModsToggle.Active.Value = false;
+                            break;
+
+                        case StableRanking.Country:
+                            scopeDropdown.Current.Value = BeatmapLeaderboardScope.Country;
+                            selectedModsToggle.Active.Value = false;
+                            break;
+                    }
+                });
+
+                stableLook.BindValueChanged(v =>
+                {
+                    // Stable only has the leaderboard here.
+                    if (v.NewValue)
+                        tabControl.Current.Value = Selection.Ranking;
+
+                    tabControl.Alpha = v.NewValue ? 0 : 1;
+                    stableRanking.Alpha = v.NewValue ? 1 : 0;
+                    leaderboardControls.FadeTo(!v.NewValue && tabControl.Current.Value == Selection.Ranking ? 1 : 0, 300, Easing.OutQuint);
+                }, true);
+            }
+
+            private void updateStableRanking()
+            {
+                updatingStableRanking = true;
+
+                switch (scopeDropdown.Current.Value)
+                {
+                    case BeatmapLeaderboardScope.Local:
+                        stableRanking.Current.Value = StableRanking.Local;
+                        break;
+
+                    case BeatmapLeaderboardScope.Friend:
+                        stableRanking.Current.Value = StableRanking.Friends;
+                        break;
+
+                    case BeatmapLeaderboardScope.Country:
+                        stableRanking.Current.Value = StableRanking.Country;
+                        break;
+
+                    default:
+                        stableRanking.Current.Value = selectedModsToggle.Active.Value ? StableRanking.SelectedMods : StableRanking.Global;
+                        break;
+                }
+
+                updatingStableRanking = false;
+            }
+
+            #endregion
 
             #region Reading / writing state from / to configuration
 

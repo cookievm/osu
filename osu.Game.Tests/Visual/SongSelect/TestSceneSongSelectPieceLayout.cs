@@ -337,10 +337,10 @@ namespace osu.Game.Tests.Visual.SongSelect
 
             AddStep("stable menu ui", () => Config.SetValue(OsuSetting.OilyMenuUi, OilyMenuUi.Stable));
             AddUntilStep("filter in stable look", () => SongSelect.ChildrenOfType<FilterControl>().Single().StableLook);
-            AddUntilStep("shows type to search", () => SongSelect.ChildrenOfType<FilterControl>().Single().ChildrenOfType<OsuSpriteText>()
+            AddUntilStep("shows type to search", () => SongSelect.ChildrenOfType<FilterControl>().Single().StableControls.ChildrenOfType<OsuSpriteText>()
                                                                  .Any(t => t.Text.ToString() == "type to search!"));
             AddStep("type a search", () => ((osu.Framework.Graphics.UserInterface.IHasCurrentValue<string>)SongSelect.ChildrenOfType<FilterControl>().Single().SearchBox).Current.Value = "hello");
-            AddUntilStep("shows the search", () => SongSelect.ChildrenOfType<FilterControl>().Single().ChildrenOfType<OsuSpriteText>()
+            AddUntilStep("shows the search", () => SongSelect.ChildrenOfType<FilterControl>().Single().StableControls.ChildrenOfType<OsuSpriteText>()
                                                               .Any(t => t.Text.ToString() == "hello"));
 
             AddStep("lazer menu ui", () => Config.SetValue(OsuSetting.OilyMenuUi, OilyMenuUi.Lazer));
@@ -367,6 +367,15 @@ namespace osu.Game.Tests.Visual.SongSelect
                                                       && skinLayer.Components.OfType<SongSelectBeatmapDetailsLayout>().First().Locked);
             AddUntilStep("search bar shown anyway", () => searchFrameAlpha == 1);
 
+            // (ilo, 2026-11-27) stable's group/sort/collection boxes and ranking box replace lazer's.
+            AddUntilStep("stable boxes shown", () => SongSelect.ChildrenOfType<FilterControl>().Single().StableControls.Alpha == 1);
+            AddUntilStep("stable group box lists groups", () => SongSelect.ChildrenOfType<StableDropdown<SortMode>>().Single().Items.Any());
+            AddStep("sort by artist with stable's box", () => SongSelect.ChildrenOfType<StableDropdown<SortMode>>().Single().Current.Value = SortMode.Artist);
+            AddAssert("sorted by artist", () => Config.Get<SortMode>(OsuSetting.SongSelectSortingMode), () => Is.EqualTo(SortMode.Artist));
+            AddUntilStep("stable ranking box shown", () => SongSelect.ChildrenOfType<StableDropdown<BeatmapDetailsArea.Header.StableRanking>>().Single().Alpha == 1);
+            AddStep("pick local ranking", () => SongSelect.ChildrenOfType<StableDropdown<BeatmapDetailsArea.Header.StableRanking>>().Single().Current.Value = BeatmapDetailsArea.Header.StableRanking.Local);
+            AddAssert("scope is local", () => SongSelect.ChildrenOfType<BeatmapDetailsArea.Header>().Single().Scope.Value, () => Is.EqualTo(osu.Game.Screens.Play.Leaderboards.BeatmapLeaderboardScope.Local));
+
             AddStep("try to move the search bar", () => search.Position += new Vector2(100));
             AddUntilStep("still in lazer's place", () => search.FollowLazer.Value);
             AddStep("try to move the beatmap list", () => layout.Position += new Vector2(100));
@@ -379,6 +388,7 @@ namespace osu.Game.Tests.Visual.SongSelect
 
             AddStep("lazer menu ui", () => Config.SetValue(OsuSetting.OilyMenuUi, OilyMenuUi.Lazer));
             AddUntilStep("stable top bar hidden", () => SongSelect.ChildrenOfType<StableSongSelectTop>().Single().Alpha == 0);
+            AddUntilStep("stable boxes hidden", () => SongSelect.ChildrenOfType<FilterControl>().Single().StableControls.Alpha == 0);
             AddUntilStep("search bar hidden again", () => searchFrameAlpha == 0);
             AddStep("show the search bar", () => search.Hidden.Value = false);
         }

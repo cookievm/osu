@@ -353,6 +353,9 @@ namespace osu.Game.Screens.Select
                 },
             });
 
+            // oily (ilo, 2026-11-27): stable's search text and group/sort/collection boxes sit in front of the cards, at stable's place.
+            ((PopoverContainer)((OsuContextMenuContainer)mainContent.Child).Child).Add(FilterControl.StableControls);
+
             skinnableContent.OnComponentsLoaded += _ =>
             {
                 addMissingPieceLayouts();
