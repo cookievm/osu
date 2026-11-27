@@ -23,8 +23,9 @@ namespace osu.Game.Screens.Footer
     /// </summary>
     public partial class StableScreenBackButton : OsuClickableContainer
     {
-        [Resolved]
-        private ISkinSource skin { get; set; } = null!;
+        // Not every screen with a footer has skins (some tests don't), and then this button is never shown.
+        [Resolved(CanBeNull = true)]
+        private ISkinSource? skin { get; set; }
 
         private readonly Container pictureContainer;
 
@@ -46,13 +47,15 @@ namespace osu.Game.Screens.Footer
         {
             base.LoadComplete();
 
-            skin.SourceChanged += onSkinChanged;
+            if (skin != null)
+                skin.SourceChanged += onSkinChanged;
+
             onSkinChanged();
         }
 
         private void onSkinChanged()
         {
-            var picture = skin.GetAnimation("menu-back", true, true, applyConfigFrameRate: true);
+            var picture = skin?.GetAnimation("menu-back", true, true, applyConfigFrameRate: true);
 
             if (picture != null)
             {
