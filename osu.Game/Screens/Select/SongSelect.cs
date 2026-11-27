@@ -181,6 +181,7 @@ namespace osu.Game.Screens.Select
 
         private Bindable<bool> configBackgroundBlur = null!;
         private Bindable<bool> showConvertedBeatmaps = null!;
+        private Bindable<OilyMenuUi> menuUi = null!;
 
         private IDisposable? modSelectOverlayRegistration;
 
@@ -396,6 +397,10 @@ namespace osu.Game.Screens.Select
             });
 
             showConvertedBeatmaps = config.GetBindable<bool>(OsuSetting.ShowConvertedBeatmaps);
+
+            // oily (ilo, 2026-11-27): lazer's or osu!stable's song select.
+            menuUi = config.GetBindable<OilyMenuUi>(OsuSetting.OilyMenuUi);
+            menuUi.BindValueChanged(v => pieceRegistry.StableMenuUi.Value = v.NewValue == OilyMenuUi.Stable, true);
         }
 
         // Colour scheme for mod overlay is left as default (green) to match mods button.
@@ -483,7 +488,11 @@ namespace osu.Game.Screens.Select
 
             // oily: the "Back button" skin component's style.
             if (Footer != null && this.IsCurrentScreen())
+            {
                 Footer.StableBackButton = pieceRegistry.StableBackButton.Value;
+                Footer.StableBackButtonScreenPosition = pieceRegistry.StableBackButtonPosition;
+                pieceRegistry.StableBackButtonScreenSize = Footer.StableBackButtonScreenSize;
+            }
 
             detailsArea.Height = wedgesContainer.ChildSize.Y - titleWedge.LayoutSize.Y - 4;
 
@@ -854,7 +863,10 @@ namespace osu.Game.Screens.Select
 
             // oily: other screens use lazer's back button.
             if (Footer != null)
+            {
                 Footer.StableBackButton = false;
+                Footer.StableBackButtonScreenPosition = null;
+            }
 
             Beatmap.ValueChanged -= updateVariousState;
 

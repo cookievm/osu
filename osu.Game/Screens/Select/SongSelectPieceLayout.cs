@@ -244,7 +244,7 @@ namespace osu.Game.Screens.Select
             if (piece == null)
                 return;
 
-            bool isDefault = !HasCustomColours;
+            bool isDefault = !HasCustomColours || Locked;
 
             if (isDefault && recolourIsDefault)
                 return;
@@ -252,7 +252,7 @@ namespace osu.Game.Screens.Select
             if (!isDefault && !recolourIsDefault && Time.Current - lastRecolour < 100)
                 return;
 
-            OilyRecolour.Apply(piece, RecolourZones(piece, false).ToList());
+            OilyRecolour.Apply(piece, RecolourZones(piece, isDefault).ToList());
             recolourIsDefault = isDefault;
             lastRecolour = Time.Current;
         }
@@ -370,9 +370,15 @@ namespace osu.Game.Screens.Select
         }
 
         /// <summary>
-        /// oily: whether the part is pinned to lazer's place (the skin editor can't move it).
+        /// oily (ilo, 2026-11-27): whether song select is drawn like osu!stable's (the "Menu UI" setting).
         /// </summary>
-        protected virtual bool Locked => false;
+        protected bool StableMenuUi => Registry.StableMenuUi.Value;
+
+        /// <summary>
+        /// oily: whether the part is pinned to lazer's place with lazer's look (the skin editor can't move, hide, crop or colour it).
+        /// In the Stable "Menu UI" every part is, so a skin can't break it.
+        /// </summary>
+        public virtual bool Locked => InControl && StableMenuUi;
 
         /// <summary>
         /// Applies settings that change how the piece itself looks. Called every frame while in control.
@@ -406,7 +412,7 @@ namespace osu.Game.Screens.Select
             Vector2 topLeft = Parent.ToLocalSpace(natural.TopLeft);
             Vector2 xAxis = Parent.ToLocalSpace(natural.TopRight) - topLeft;
             Vector2 yAxis = Parent.ToLocalSpace(natural.BottomLeft) - topLeft;
-            var crop = Crop;
+            var crop = Locked ? default : Crop;
 
             Anchor = Anchor.TopLeft;
             Origin = Anchor.TopLeft;
@@ -443,53 +449,19 @@ namespace osu.Game.Screens.Select
     }
 
     /// <summary>
-    /// oily (ilo, 2026-11-26): the beatmap info and the search bar share osu!stable's top bar (the skin's songselect-top picture),
-    /// so their styles are linked: switching one to Stable or back to Lazer switches the other too. In Stable they can't be moved.
+    /// oily: the beatmap info and the search bar share osu!stable's top bar (the skin's songselect-top picture).
+    /// (ilo, 2026-11-27) Both follow the "Menu UI" setting: in Stable they are drawn like osu!stable's.
     /// </summary>
     public abstract partial class SongSelectTopBarPieceLayout : SongSelectPieceLayout
     {
+        // Kept so skins saved with it still load; the "Menu UI" setting decides now.
         public abstract Bindable<SongSelectPieceStyle> Style { get; }
-
-        protected bool StableStyle => Style.Value == SongSelectPieceStyle.Stable;
-
-        protected override bool Locked => StableStyle;
-
-        protected override void LoadComplete()
-        {
-            base.LoadComplete();
-
-            if (!InControl)
-                return;
-
-            var others = linkedLayouts().ToArray();
-
-            if (others.Any(o => o.StableStyle))
-                Style.Value = SongSelectPieceStyle.Stable;
-            else if (StableStyle)
-            {
-                foreach (var other in others)
-                    other.Style.Value = SongSelectPieceStyle.Stable;
-            }
-
-            Style.BindValueChanged(v =>
-            {
-                foreach (var other in linkedLayouts())
-                    other.Style.Value = v.NewValue;
-            });
-        }
-
-        private IEnumerable<SongSelectTopBarPieceLayout> linkedLayouts()
-        {
-            if (Parent is not Container<Drawable> container)
-                return Enumerable.Empty<SongSelectTopBarPieceLayout>();
-
-            return container.Children.OfType<SongSelectTopBarPieceLayout>().Where(l => l != this && l.InControl);
-        }
 
         protected override void UpdatePieceStyle()
         {
-            Registry.StableTopBar.Value = StableStyle;
-            ApplyStyle(StableStyle);
+            bool stable = StableMenuUi;
+            Registry.StableTopBar.Value = stable;
+            ApplyStyle(stable);
         }
 
         protected override void ResetPieceStyle()
@@ -507,7 +479,7 @@ namespace osu.Game.Screens.Select
 
         public override string DisplayName => "Beatmap info";
 
-        [SettingSource("Style", "Lazer's card, or osu!stable's text block on the skin's songselect-top picture. Linked with the search bar's style; in Stable both stay in place.", -1)]
+        [SettingSource("Style", "Set by the \"Menu UI\" setting.", -1, HideControl = true)]
         public override Bindable<SongSelectPieceStyle> Style { get; } = new Bindable<SongSelectPieceStyle>();
 
         protected override void ApplyStyle(bool stable)
@@ -528,10 +500,10 @@ namespace osu.Game.Screens.Select
 
         public override string DisplayName => "Beatmap details";
 
-        [SettingSource("Style", "Lazer's leaderboard rows, or osu!stable's (grade, name, score and combo, mods and accuracy). Stable uses your skin's ranking-X-small pictures when it has them.", -1)]
+        [SettingSource("Style", "Set by the \"Menu UI\" setting.", -1, HideControl = true)]
         public Bindable<SongSelectPieceStyle> Style { get; } = new Bindable<SongSelectPieceStyle>();
 
-        protected override void UpdatePieceStyle() => Registry.StableLeaderboard.Value = Style.Value == SongSelectPieceStyle.Stable;
+        protected override void UpdatePieceStyle() => Registry.StableLeaderboard.Value = StableMenuUi;
 
         protected override void ResetPieceStyle() => Registry.StableLeaderboard.Value = false;
     }
@@ -622,7 +594,7 @@ namespace osu.Game.Screens.Select
 
         public override string DisplayName => "Search bar";
 
-        [SettingSource("Style", "Lazer's search bar, or osu!stable's (\"Search: ...\" text on the skin's songselect-top picture, no star rating bar). Linked with the beatmap info's style; in Stable both stay in place.", -1)]
+        [SettingSource("Style", "Set by the \"Menu UI\" setting.", -1, HideControl = true)]
         public override Bindable<SongSelectPieceStyle> Style { get; } = new Bindable<SongSelectPieceStyle>();
 
         protected override void ApplyStyle(bool stable)

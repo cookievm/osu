@@ -65,6 +65,21 @@ namespace osu.Game.Screens.Select
         public readonly BindableBool StableBackButton = new BindableBool();
 
         /// <summary>
+        /// oily (ilo, 2026-11-27): song select is drawn like osu!stable's and its parts are pinned in place (the "Menu UI" setting).
+        /// </summary>
+        public readonly BindableBool StableMenuUi = new BindableBool();
+
+        /// <summary>
+        /// oily: where the "Back button" skin component puts osu!stable's back button (its bottom left corner, in screen space). Null keeps it in the corner.
+        /// </summary>
+        public Vector2? StableBackButtonPosition;
+
+        /// <summary>
+        /// oily: the size of osu!stable's back button on screen, so the "Back button" skin component can be the same size.
+        /// </summary>
+        public Vector2 StableBackButtonScreenSize;
+
+        /// <summary>
         /// Wraps a piece of song select so skins can move and style it. Without a registry (outside song select) the piece is still wrapped, but nothing controls it.
         /// </summary>
         public static SongSelectPieceContainer Wrap(SongSelectPieceRegistry? registry, SongSelectPiece piece, Drawable content)
@@ -181,6 +196,14 @@ namespace osu.Game.Screens.Select
             if (layout == null || !layout.IsAlive || layout.Parent == null || !layout.IsLoaded)
             {
                 Layout = null;
+                resize = Vector2.One;
+                place(Vector2.Zero, Vector2.One, 0, null, default, 1, Color4.White);
+                return;
+            }
+
+            // oily (ilo, 2026-11-27): in the Stable "Menu UI" every part stays where it is, as it is.
+            if (layout.Locked)
+            {
                 resize = Vector2.One;
                 place(Vector2.Zero, Vector2.One, 0, null, default, 1, Color4.White);
                 return;

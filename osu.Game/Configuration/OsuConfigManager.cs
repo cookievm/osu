@@ -171,6 +171,7 @@ namespace osu.Game.Configuration
             SetDefault(OsuSetting.OilyPanelColours, string.Empty);
             SetDefault(OsuSetting.OilyPpWorkPaused, false);
             SetDefault(OsuSetting.OilyPpThreads, 1, 1, 256);
+            SetDefault(OsuSetting.OilyMenuUi, Screens.Select.OilyMenuUi.Lazer);
             SetDefault(OsuSetting.StarFountains, true);
 
             SetDefault(OsuSetting.HUDVisibilityMode, HUDVisibilityMode.Always);
@@ -522,5 +523,6 @@ namespace osu.Game.Configuration
         OilyPanelColours,
         OilyPpWorkPaused,
         OilyPpThreads,
+        OilyMenuUi,
     }
 }

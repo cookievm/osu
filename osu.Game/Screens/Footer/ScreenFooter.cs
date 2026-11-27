@@ -51,6 +51,16 @@ namespace osu.Game.Screens.Footer
         }
 
         /// <summary>
+        /// oily (ilo, 2026-11-27): where osu!stable's back button's bottom left corner goes, in screen space (song select's "Back button" skin component). Null keeps it in the corner.
+        /// </summary>
+        public Vector2? StableBackButtonScreenPosition { get; set; }
+
+        /// <summary>
+        /// oily: osu!stable's back button's size on screen.
+        /// </summary>
+        public Vector2 StableBackButtonScreenSize => stableBackButton.ScreenSpaceDrawQuad.AABBFloat.Size;
+
+        /// <summary>
         /// Called when logo tracking begins, intended to bring the osu! logo to the frontmost visually.
         /// </summary>
         public Action<bool>? RequestLogoInFront { private get; init; }
@@ -384,6 +394,17 @@ namespace osu.Game.Screens.Footer
 
             // oily: stable's back button keeps its own size whatever the bar's size is.
             stableBackButton.Scale = new Vector2(1 / Layout.Size);
+
+            if (StableBackButtonScreenPosition is Vector2 stablePosition)
+            {
+                stableBackButton.Anchor = Anchor.TopLeft;
+                stableBackButton.Position = ToLocalSpace(stablePosition);
+            }
+            else
+            {
+                stableBackButton.Anchor = Anchor.BottomLeft;
+                stableBackButton.Position = Vector2.Zero;
+            }
             toolbarButtonsFlow.Position = new Vector2(Layout.ToolbarButtonsOffsetX, Layout.ToolbarButtonsOffsetY);
         }
 

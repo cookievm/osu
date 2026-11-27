@@ -10,6 +10,7 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
+using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Drawables;
@@ -144,6 +145,7 @@ namespace osu.Game.Screens.Select
         }
 
         private double? stars;
+        private BeatmapInfo? beatmap;
 
         /// <summary>
         /// The star rating shown as a row of stars, or null for none.
@@ -163,8 +165,10 @@ namespace osu.Game.Screens.Select
         /// </summary>
         public BeatmapInfo? Beatmap
         {
+            get => beatmap;
             set
             {
+                beatmap = value;
                 performance.Beatmap = value;
                 thumbnail.Beatmap.Value = value;
             }
@@ -191,7 +195,7 @@ namespace osu.Game.Screens.Select
         private readonly OsuSpriteText subtitleText;
         private readonly FillFlowContainer difficultyLine;
         private readonly OsuSpriteText difficultyText;
-        private readonly Container starContainer;
+        private readonly StarRow starContainer;
         private readonly PanelPerformanceDisplay performance;
 
         [Resolved]
@@ -246,7 +250,7 @@ namespace osu.Game.Screens.Select
                                     },
                                 },
                             },
-                            starContainer = new Container(),
+                            starContainer = new StarRow { Card = this },
                         },
                     },
                 },
@@ -373,6 +377,7 @@ namespace osu.Game.Screens.Select
             difficultyText.Font = OsuFont.GetFont(size: h * 0.18f * font_scale, weight: FontWeight.Bold);
             difficultyLine.Position = new Vector2(textOffset, h * (0.075f + 0.22f + 0.075f + 0.14f * 0.85f + 0.075f) - h * 0.02f);
 
+            starContainer.Origin = Anchor.CentreLeft;
             starContainer.Position = new Vector2(textOffset, h * 0.85f);
 
             subtitleText.Alpha = kind == StablePanelKind.Group ? 0 : 1;
@@ -415,6 +420,7 @@ namespace osu.Game.Screens.Select
 
             float h = actualArea.Height;
             float starWidth = h * 0.2f;
+            starContainer.Size = new Vector2(max_stars * starWidth * 1.75f, starWidth);
             double clamped = Math.Clamp(stars.Value, 0, 25);
             int fullStars = (int)clamped;
             float partial = Math.Max(0.5f, (float)(clamped - fullStars));
@@ -450,7 +456,7 @@ namespace osu.Game.Screens.Select
 
             star.Anchor = Anchor.TopLeft;
             star.Origin = Anchor.Centre;
-            star.Position = new Vector2(starWidth / 2 + index * starWidth * 1.75f, 0);
+            star.Position = new Vector2(starWidth / 2 + index * starWidth * 1.75f, starWidth / 2);
             star.Scale = new Vector2(scale);
             star.Alpha = alpha;
 
@@ -463,6 +469,46 @@ namespace osu.Game.Screens.Select
                 skin.SourceChanged -= onSkinChanged;
 
             base.Dispose(isDisposing);
+        }
+        /// <summary>
+        /// oily (ilo, 2026-11-27): the row of stars. Like lazer's difficulty dots, clicking it shows only this card's beatmap set.
+        /// </summary>
+        private partial class StarRow : Container
+        {
+            public StablePanelContent Card = null!;
+
+            [Resolved]
+            private ISongSelect? songSelect { get; set; }
+
+            private bool canScope => songSelect != null && Card.kind == StablePanelKind.Difficulty && Card.Beatmap?.BeatmapSet != null
+                                     && !songSelect.ScopedBeatmapSet.Disabled && songSelect.ScopedBeatmapSet.Value == null && Children.Count > 0;
+
+            protected override bool OnHover(HoverEvent e)
+            {
+                if (!canScope)
+                    return false;
+
+                this.FadeColour(new Color4(1.3f, 1.3f, 1.3f, 1), 100, Easing.OutQuint);
+                return true;
+            }
+
+            protected override void OnHoverLost(HoverLostEvent e)
+            {
+                this.FadeColour(Color4.White, 200, Easing.OutQuint);
+                base.OnHoverLost(e);
+            }
+
+            protected override bool OnMouseDown(MouseDownEvent e) => canScope;
+
+            protected override bool OnClick(ClickEvent e)
+            {
+                if (!canScope)
+                    return false;
+
+                this.FadeColour(Color4.White, 200, Easing.OutQuint);
+                songSelect!.ScopeToBeatmapSet(Card.Beatmap!.BeatmapSet!);
+                return true;
+            }
         }
     }
 }

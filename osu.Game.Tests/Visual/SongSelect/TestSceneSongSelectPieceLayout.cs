@@ -15,6 +15,9 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Primitives;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Testing;
+using osu.Framework.Utils;
+using osu.Game.Configuration;
+using osu.Framework.Screens;
 using osu.Game.Screens.Select;
 using osu.Game.Skinning;
 using osuTK;
@@ -33,9 +36,14 @@ namespace osu.Game.Tests.Visual.SongSelect
 
         private SongSelectPieceContainer listPiece => SongSelect.ChildrenOfType<SongSelectPieceContainer>().Single(p => p.Piece == SongSelectPiece.BeatmapList);
 
+        // The piece container's frame, which carries its opacity.
+        private float searchFrameAlpha => SongSelect.ChildrenOfType<SongSelectPieceContainer>().Single(p => p.Piece == SongSelectPiece.SearchBar).Child.Alpha;
+
         public override void SetUpSteps()
         {
             base.SetUpSteps();
+
+            AddStep("lazer menu ui", () => Config.SetValue(OsuSetting.OilyMenuUi, OilyMenuUi.Lazer));
 
             ImportBeatmapForRuleset(0);
             LoadSongSelect();
@@ -283,6 +291,21 @@ namespace osu.Game.Tests.Visual.SongSelect
             AddUntilStep("selected difficulty is white", () => Carousel.ChildrenOfType<PanelBeatmap>().Where(p => p.Item != null && p.Selected.Value)
                                                                        .All(p => p.ChildrenOfType<StablePanelContent>().Single().Active));
 
+            // (ilo, 2026-11-27) clicking a difficulty's stars shows only its beatmap set, like lazer's difficulty dots.
+            Drawable starRow = null!;
+            AddUntilStep("find a difficulty's stars", () =>
+            {
+                starRow = Carousel.ChildrenOfType<PanelBeatmap>().Where(p => p.Item != null)
+                                  .SelectMany(p => p.ChildrenOfType<CompositeDrawable>()).FirstOrDefault(d => d.GetType().Name == "StarRow" && d.DrawWidth > 0)!;
+                return starRow != null;
+            });
+            AddStep("click the stars", () =>
+            {
+                InputManager.MoveMouseTo(starRow);
+                InputManager.Click(osuTK.Input.MouseButton.Left);
+            });
+            AddUntilStep("only that set shown", () => SongSelect.ScopedBeatmapSet.Value != null);
+
             AddStep("lazer style", () => layout.Style.Value = SongSelectPieceStyle.Lazer);
             AddUntilStep("lazer cards back", () => Carousel.ChildrenOfType<StablePanelContent>().All(c => c.Alpha == 0));
         }
@@ -295,12 +318,12 @@ namespace osu.Game.Tests.Visual.SongSelect
             AddUntilStep("default layouts added", () => skinLayer.Components.OfType<SongSelectBeatmapInfoLayout>().Any());
             AddStep("find beatmap info layout", () => info = skinLayer.Components.OfType<SongSelectBeatmapInfoLayout>().First());
 
-            AddStep("stable style", () => info.Style.Value = SongSelectPieceStyle.Stable);
+            AddStep("stable menu ui", () => Config.SetValue(OsuSetting.OilyMenuUi, OilyMenuUi.Stable));
             AddUntilStep("stable text block shown", () => SongSelect.ChildrenOfType<StableBeatmapInfo>().Single().Parent!.IsPresent);
             AddUntilStep("shows length and objects", () => SongSelect.ChildrenOfType<StableBeatmapInfo>().Single().ChildrenOfType<OsuSpriteText>()
                                                                       .Any(t => t.Text.ToString().StartsWith("Length:", System.StringComparison.Ordinal)));
 
-            AddStep("lazer style", () => info.Style.Value = SongSelectPieceStyle.Lazer);
+            AddStep("lazer menu ui", () => Config.SetValue(OsuSetting.OilyMenuUi, OilyMenuUi.Lazer));
             AddUntilStep("stable text block hidden", () => !SongSelect.ChildrenOfType<StableBeatmapInfo>().Single().Parent!.IsPresent);
         }
 
@@ -312,7 +335,7 @@ namespace osu.Game.Tests.Visual.SongSelect
             AddUntilStep("default layouts added", () => skinLayer.Components.OfType<SongSelectSearchBarLayout>().Any());
             AddStep("find search bar layout", () => search = skinLayer.Components.OfType<SongSelectSearchBarLayout>().First());
 
-            AddStep("stable style", () => search.Style.Value = SongSelectPieceStyle.Stable);
+            AddStep("stable menu ui", () => Config.SetValue(OsuSetting.OilyMenuUi, OilyMenuUi.Stable));
             AddUntilStep("filter in stable look", () => SongSelect.ChildrenOfType<FilterControl>().Single().StableLook);
             AddUntilStep("shows type to search", () => SongSelect.ChildrenOfType<FilterControl>().Single().ChildrenOfType<OsuSpriteText>()
                                                                  .Any(t => t.Text.ToString() == "type to search!"));
@@ -320,44 +343,75 @@ namespace osu.Game.Tests.Visual.SongSelect
             AddUntilStep("shows the search", () => SongSelect.ChildrenOfType<FilterControl>().Single().ChildrenOfType<OsuSpriteText>()
                                                               .Any(t => t.Text.ToString() == "hello"));
 
-            AddStep("lazer style", () => search.Style.Value = SongSelectPieceStyle.Lazer);
+            AddStep("lazer menu ui", () => Config.SetValue(OsuSetting.OilyMenuUi, OilyMenuUi.Lazer));
             AddUntilStep("filter in lazer look", () => !SongSelect.ChildrenOfType<FilterControl>().Single().StableLook);
         }
 
         [Test]
-        public void TestStableTopBarLinked()
+        public void TestStableMenuUi()
         {
             SongSelectSearchBarLayout search = null!;
-            SongSelectBeatmapInfoLayout info = null!;
 
-            AddUntilStep("default layouts added", () => skinLayer.Components.OfType<SongSelectSearchBarLayout>().Any() && skinLayer.Components.OfType<SongSelectBeatmapInfoLayout>().Any());
+            AddUntilStep("default layouts added", () => skinLayer.Components.OfType<SongSelectSearchBarLayout>().Any() && skinLayer.Components.OfType<SongSelectBeatmapListLayout>().Any());
             AddStep("find layouts", () =>
             {
                 search = skinLayer.Components.OfType<SongSelectSearchBarLayout>().First();
-                info = skinLayer.Components.OfType<SongSelectBeatmapInfoLayout>().First();
+                layout = skinLayer.Components.OfType<SongSelectBeatmapListLayout>().First();
             });
 
-            AddStep("search bar to stable", () => search.Style.Value = SongSelectPieceStyle.Stable);
-            AddAssert("info is stable too", () => info.Style.Value, () => Is.EqualTo(SongSelectPieceStyle.Stable));
+            AddStep("hide the search bar", () => search.Hidden.Value = true);
+            AddUntilStep("search bar hidden", () => searchFrameAlpha == 0);
+            AddStep("stable menu ui", () => Config.SetValue(OsuSetting.OilyMenuUi, OilyMenuUi.Stable));
             AddUntilStep("stable top bar shown", () => SongSelect.ChildrenOfType<StableSongSelectTop>().Single().Alpha > 0);
+            AddUntilStep("stable leaderboard", () => SongSelect.ChildrenOfType<SongSelectBeatmapDetailsLayout>().Any()
+                                                      && skinLayer.Components.OfType<SongSelectBeatmapDetailsLayout>().First().Locked);
+            AddUntilStep("search bar shown anyway", () => searchFrameAlpha == 1);
 
-            AddStep("try to move the search bar", () => search.Position += new osuTK.Vector2(100));
+            AddStep("try to move the search bar", () => search.Position += new Vector2(100));
             AddUntilStep("still in lazer's place", () => search.FollowLazer.Value);
+            AddStep("try to move the beatmap list", () => layout.Position += new Vector2(100));
+            AddUntilStep("list still in place", () => layout.FollowLazer.Value);
 
-            AddStep("info back to lazer", () => info.Style.Value = SongSelectPieceStyle.Lazer);
-            AddAssert("search bar is lazer too", () => search.Style.Value, () => Is.EqualTo(SongSelectPieceStyle.Lazer));
+            AddStep("cards still change: stable", () => layout.Style.Value = SongSelectPieceStyle.Stable);
+            AddUntilStep("stable cards shown", () => Carousel.ChildrenOfType<StablePanelContent>().Any(c => c.Alpha > 0));
+            AddStep("cards still change: lazer", () => layout.Style.Value = SongSelectPieceStyle.Lazer);
+            AddUntilStep("lazer cards back", () => Carousel.ChildrenOfType<StablePanelContent>().All(c => c.Alpha == 0));
+
+            AddStep("lazer menu ui", () => Config.SetValue(OsuSetting.OilyMenuUi, OilyMenuUi.Lazer));
             AddUntilStep("stable top bar hidden", () => SongSelect.ChildrenOfType<StableSongSelectTop>().Single().Alpha == 0);
+            AddUntilStep("search bar hidden again", () => searchFrameAlpha == 0);
+            AddStep("show the search bar", () => search.Hidden.Value = false);
         }
 
         [Test]
         public void TestStableBackButton()
         {
+            SongSelectBackButtonStyle back = null!;
+            Vector2 corner = Vector2.Zero;
+
             AddUntilStep("back button style added", () => skinLayer.Components.OfType<SongSelectBackButtonStyle>().Count() == 1);
-            AddStep("stable style", () => skinLayer.Components.OfType<SongSelectBackButtonStyle>().Single().Style.Value = SongSelectPieceStyle.Stable);
+            AddStep("find it", () => back = skinLayer.Components.OfType<SongSelectBackButtonStyle>().Single());
+            AddStep("try to move it in lazer style", () => back.Position = new Vector2(200, -200));
+            AddUntilStep("stays in the corner", () => back.Position == Vector2.Zero);
+
+            AddStep("stable style", () => back.Style.Value = SongSelectPieceStyle.Stable);
             AddUntilStep("stable back button shown", () => ScreenFooter.ChildrenOfType<osu.Game.Screens.Footer.StableScreenBackButton>().Single().Alpha == 1);
             AddAssert("lazer back button hidden", () => ScreenFooter.BackButton.Alpha == 0);
-            AddStep("lazer style", () => skinLayer.Components.OfType<SongSelectBackButtonStyle>().Single().Style.Value = SongSelectPieceStyle.Lazer);
-            AddUntilStep("lazer back button shown", () => ScreenFooter.BackButton.Alpha == 1);
+            AddUntilStep("handle is the button's size", () => Precision.AlmostEquals(back.ScreenSpaceDrawQuad.AABBFloat.Size,
+                ScreenFooter.ChildrenOfType<osu.Game.Screens.Footer.StableScreenBackButton>().Single().ScreenSpaceDrawQuad.AABBFloat.Size, 1));
+            AddStep("remember corner", () => corner = ScreenFooter.ChildrenOfType<osu.Game.Screens.Footer.StableScreenBackButton>().Single().ScreenSpaceDrawQuad.BottomLeft);
+
+            AddStep("move it", () => back.Position = new Vector2(200, -200));
+            AddUntilStep("button moved with it", () => Precision.AlmostEquals(ScreenFooter.ChildrenOfType<osu.Game.Screens.Footer.StableScreenBackButton>().Single().ScreenSpaceDrawQuad.BottomLeft,
+                back.ScreenSpaceDrawQuad.BottomLeft, 1));
+            AddAssert("not in the corner", () => !Precision.AlmostEquals(ScreenFooter.ChildrenOfType<osu.Game.Screens.Footer.StableScreenBackButton>().Single().ScreenSpaceDrawQuad.BottomLeft, corner, 1));
+
+            AddStep("click it", () =>
+            {
+                InputManager.MoveMouseTo(ScreenFooter.ChildrenOfType<osu.Game.Screens.Footer.StableScreenBackButton>().Single());
+                InputManager.Click(osuTK.Input.MouseButton.Left);
+            });
+            AddUntilStep("left song select", () => !SongSelect.IsCurrentScreen());
         }
 
         [Test]

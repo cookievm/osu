@@ -542,7 +542,7 @@ namespace osu.Game.Overlays.SkinEditor
         {
             // oily: a settings-only component is kept once per layer; picking it opens its settings.
             // (ilo, 2026-11-26) song select's parts too: each one moves a real piece, so a second copy would just be an empty box.
-            if ((typeof(ISettingsOnlySkinComponent).IsAssignableFrom(type) || type.IsSubclassOf(typeof(Screens.Select.SongSelectPieceLayout))) && getTarget(selectedTarget.Value)?.Components.FirstOrDefault(c => c.GetType() == type) is ISerialisableDrawable existing)
+            if ((typeof(ISettingsOnlySkinComponent).IsAssignableFrom(type) || type.IsSubclassOf(typeof(Screens.Select.SongSelectPieceLayout)) || type == typeof(Screens.Select.SongSelectBackButtonStyle)) && getTarget(selectedTarget.Value)?.Components.FirstOrDefault(c => c.GetType() == type) is ISerialisableDrawable existing)
             {
                 SelectedComponents.Clear();
                 SelectedComponents.Add(existing);
