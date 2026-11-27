@@ -66,6 +66,16 @@ namespace osu.Game.Screens.Select
         public readonly BindableBool StableSkinPanel = new BindableBool();
 
         /// <summary>
+        /// oily: osu!stable's "Global Ranking" box choice, shared by the leaderboard (which follows it) and stable's screen layer (which draws the box).
+        /// </summary>
+        public readonly Bindable<StableRanking> StableRanking = new Bindable<StableRanking>(Select.StableRanking.Global);
+
+        /// <summary>
+        /// oily: the leaderboard has nothing to show, so stable's "No records set!" box is drawn.
+        /// </summary>
+        public readonly BindableBool StableNoRecords = new BindableBool();
+
+        /// <summary>
         /// oily: the back button is osu!stable's (the skin's menu-back picture), set by the "Back button" skin component.
         /// </summary>
         public readonly BindableBool StableBackButton = new BindableBool();

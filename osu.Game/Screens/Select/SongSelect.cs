@@ -356,7 +356,10 @@ namespace osu.Game.Screens.Select
             });
 
             // oily (ilo, 2026-11-27): stable's search text and group/sort/collection boxes sit in front of the cards, at stable's place.
-            ((PopoverContainer)((OsuContextMenuContainer)mainContent.Child).Child).Add(FilterControl.StableControls);
+            var stablePopovers = (PopoverContainer)((OsuContextMenuContainer)mainContent.Child).Child;
+            stablePopovers.Add(FilterControl.StableControls);
+            // oily (ilo, 2026-11-27): stable's beatmap info, ranking box and "No records set!" box, at stable's places.
+            stablePopovers.Add(new StableSongSelectLayer());
 
             skinnableContent.OnComponentsLoaded += _ =>
             {

@@ -319,12 +319,12 @@ namespace osu.Game.Tests.Visual.SongSelect
             AddStep("find beatmap info layout", () => info = skinLayer.Components.OfType<SongSelectBeatmapInfoLayout>().First());
 
             AddStep("stable menu ui", () => Config.SetValue(OsuSetting.OilyMenuUi, OilyMenuUi.Stable));
-            AddUntilStep("stable text block shown", () => SongSelect.ChildrenOfType<StableBeatmapInfo>().Single().Parent!.IsPresent);
+            AddUntilStep("stable text block shown", () => SongSelect.ChildrenOfType<StableSongSelectLayer>().Single().IsPresent);
             AddUntilStep("shows length and objects", () => SongSelect.ChildrenOfType<StableBeatmapInfo>().Single().ChildrenOfType<OsuSpriteText>()
                                                                       .Any(t => t.Text.ToString().StartsWith("Length:", System.StringComparison.Ordinal)));
 
             AddStep("lazer menu ui", () => Config.SetValue(OsuSetting.OilyMenuUi, OilyMenuUi.Lazer));
-            AddUntilStep("stable text block hidden", () => !SongSelect.ChildrenOfType<StableBeatmapInfo>().Single().Parent!.IsPresent);
+            AddUntilStep("stable text block hidden", () => !SongSelect.ChildrenOfType<StableSongSelectLayer>().Single().IsPresent);
         }
 
         [Test]
@@ -338,7 +338,7 @@ namespace osu.Game.Tests.Visual.SongSelect
             AddStep("stable menu ui", () => Config.SetValue(OsuSetting.OilyMenuUi, OilyMenuUi.Stable));
             AddUntilStep("filter in stable look", () => SongSelect.ChildrenOfType<FilterControl>().Single().StableLook);
             AddUntilStep("shows type to search", () => SongSelect.ChildrenOfType<FilterControl>().Single().StableControls.ChildrenOfType<OsuSpriteText>()
-                                                                 .Any(t => t.Text.ToString() == "type to search!"));
+                                                                 .Any(t => t.Text.ToString() == "Type to search!"));
             AddStep("type a search", () => ((osu.Framework.Graphics.UserInterface.IHasCurrentValue<string>)SongSelect.ChildrenOfType<FilterControl>().Single().SearchBox).Current.Value = "hello");
             AddUntilStep("shows the search", () => SongSelect.ChildrenOfType<FilterControl>().Single().StableControls.ChildrenOfType<OsuSpriteText>()
                                                               .Any(t => t.Text.ToString() == "hello"));
@@ -375,9 +375,11 @@ namespace osu.Game.Tests.Visual.SongSelect
             AddUntilStep("stable group box lists groups", () => SongSelect.ChildrenOfType<StableDropdown<SortMode>>().Single().Items.Any());
             AddStep("sort by artist with stable's box", () => SongSelect.ChildrenOfType<StableDropdown<SortMode>>().Single().Current.Value = SortMode.Artist);
             AddAssert("sorted by artist", () => Config.Get<SortMode>(OsuSetting.SongSelectSortingMode), () => Is.EqualTo(SortMode.Artist));
-            AddUntilStep("stable ranking box shown", () => SongSelect.ChildrenOfType<StableDropdown<BeatmapDetailsArea.Header.StableRanking>>().Single().Alpha == 1);
-            AddStep("pick local ranking", () => SongSelect.ChildrenOfType<StableDropdown<BeatmapDetailsArea.Header.StableRanking>>().Single().Current.Value = BeatmapDetailsArea.Header.StableRanking.Local);
+            AddUntilStep("stable ranking box shown", () => SongSelect.ChildrenOfType<StableSongSelectLayer>().Single().Alpha == 1);
+            AddStep("pick local ranking", () => SongSelect.ChildrenOfType<StableSongSelectLayer>().Single().ChildrenOfType<StableDropdown<StableRanking>>().Single().Current.Value = StableRanking.Local);
             AddAssert("scope is local", () => SongSelect.ChildrenOfType<BeatmapDetailsArea.Header>().Single().Scope.Value, () => Is.EqualTo(osu.Game.Screens.Play.Leaderboards.BeatmapLeaderboardScope.Local));
+            AddUntilStep("stable \"No records set!\" box shown", () => SongSelect.ChildrenOfType<StableSongSelectLayer>().Single().ChildrenOfType<OsuSpriteText>()
+                                                                     .Any(t => t.Text.ToString() == "No records set!" && t.Parent!.Parent!.Alpha > 0));
 
             AddStep("try to move the search bar", () => search.Position += new Vector2(100));
             AddUntilStep("still in lazer's place", () => search.FollowLazer.Value);

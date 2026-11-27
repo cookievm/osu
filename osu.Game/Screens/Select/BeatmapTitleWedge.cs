@@ -148,7 +148,7 @@ namespace osu.Game.Screens.Select
                     Alpha = 0,
                     Shear = -OsuGame.SHEAR,
                     Padding = new MarginPadding { Top = TopPadding + SongSelect.WEDGE_CONTENT_MARGIN, Left = SongSelect.WEDGE_CONTENT_MARGIN },
-                    Child = new StableBeatmapInfo(),
+                    // oily (ilo, 2026-11-27): stable's beatmap info is drawn by StableSongSelectLayer, at stable's place on the screen.
                 },
                 lazerContent = new FillFlowContainer
                 {

@@ -10,19 +10,19 @@ using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Sprites;
 using osu.Framework.Localisation;
 using osu.Game.Beatmaps;
-using osu.Game.Extensions;
-using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Utils;
+using osuTK;
 
 namespace osu.Game.Screens.Select
 {
     /// <summary>
-    /// oily: the selected beatmap's details drawn like osu!stable's top left text block:
+    /// oily: the selected beatmap's details drawn like osu!stable's top left text block, in stable's font and at stable's places:
     /// "Artist - Title [Difficulty]", "Mapped by ...", length / BPM / objects, object counts, then CS / AR / OD / HP / stars.
     /// The skin's songselect-top picture is drawn behind it by <see cref="StableSongSelectTop"/>.
     /// </summary>
@@ -40,7 +40,7 @@ namespace osu.Game.Screens.Select
         [Resolved]
         private BeatmapDifficultyCache difficultyCache { get; set; } = null!;
 
-        private readonly TruncatingSpriteText titleText;
+        private readonly OsuSpriteText titleText;
         private readonly OsuSpriteText mapperText;
         private readonly OsuSpriteText lengthText;
         private readonly OsuSpriteText countsText;
@@ -52,45 +52,25 @@ namespace osu.Game.Screens.Select
 
         public StableBeatmapInfo()
         {
-            RelativeSizeAxes = Axes.X;
-            AutoSizeAxes = Axes.Y;
+            // Placed in stable's 768 high space by StableSongSelectLayer. Positions are each line's baseline, measured from stable.
+            RelativeSizeAxes = Axes.Both;
 
             InternalChildren = new Drawable[]
             {
-                new FillFlowContainer
-                {
-                    RelativeSizeAxes = Axes.X,
-                    AutoSizeAxes = Axes.Y,
-                    Direction = FillDirection.Vertical,
-                    Padding = new MarginPadding { Horizontal = 10, Vertical = 6 },
-                    Children = new Drawable[]
-                    {
-                        titleText = new TruncatingSpriteText
-                        {
-                            Font = OsuFont.GetFont(size: 24),
-                            RelativeSizeAxes = Axes.X,
-                        },
-                        mapperText = new OsuSpriteText
-                        {
-                            Font = OsuFont.GetFont(size: 15),
-                        },
-                        lengthText = new OsuSpriteText
-                        {
-                            Font = OsuFont.GetFont(size: 15, weight: FontWeight.Bold),
-                            Margin = new MarginPadding { Top = 2 },
-                        },
-                        countsText = new OsuSpriteText
-                        {
-                            Font = OsuFont.GetFont(size: 13),
-                        },
-                        difficultyText = new OsuSpriteText
-                        {
-                            Font = OsuFont.GetFont(size: 13, weight: FontWeight.SemiBold),
-                        },
-                    },
-                },
+                titleText = line(39.5f, StableFont.TITLE_BASELINE, StableFont.Get(StableFont.TITLE_SIZE)),
+                mapperText = line(41, StableFont.MAPPER_BASELINE, StableFont.Get(StableFont.MAPPER_SIZE)),
+                lengthText = line(5.3f, StableFont.LENGTH_BASELINE, StableFont.Get(StableFont.LENGTH_SIZE, bold: true)),
+                countsText = line(5.3f, StableFont.COUNTS_BASELINE, StableFont.Get(StableFont.COUNTS_SIZE)),
+                difficultyText = line(4.3f, StableFont.DIFFICULTY_BASELINE, StableFont.Get(StableFont.DIFFICULTY_SIZE)),
             };
         }
+
+        private static OsuSpriteText line(float x, float baseline, FontUsage font) => new OsuSpriteText
+        {
+            Position = new Vector2(x, baseline - StableFont.Ascent(font.Size)),
+            Font = font,
+            Shadow = false,
+        };
 
         protected override void LoadComplete()
         {
@@ -160,7 +140,9 @@ namespace osu.Game.Screens.Select
                 int bpmMin = FormatUtils.RoundBPM(playable.ControlPointInfo.BPMMinimum, rate);
                 double length = Math.Round(beatmap.BeatmapInfo.Length / rate);
 
-                string bpm = bpmMin == bpmMax ? $"{bpmMin}" : $"{bpmMin}-{bpmMax}";
+                // Stable: "165-191 (180)", the most common BPM in brackets.
+                int bpmCommon = FormatUtils.RoundBPM(60000 / playable.GetMostCommonBeatLength(), rate);
+                string bpm = bpmMin == bpmMax ? $"{bpmMin}" : $"{bpmMin}-{bpmMax} ({bpmCommon})";
                 var counts = playable.GetStatistics().ToList();
 
                 Schedule(() =>
@@ -168,7 +150,7 @@ namespace osu.Game.Screens.Select
                     if (token.IsCancellationRequested)
                         return;
 
-                    lengthText.Text = $"Length: {length.ToFormattedDuration()} BPM: {bpm} Objects: {playable.HitObjects.Count}";
+                    lengthText.Text = $"Length: {(int)(length / 60000):00}:{(int)(length / 1000) % 60:00} BPM: {bpm} Objects: {playable.HitObjects.Count}";
                     countsText.Text = string.Join(" ", counts.Select(c => $"{c.Name}: {c.Content}"));
                 });
             }, token);
@@ -177,7 +159,7 @@ namespace osu.Game.Screens.Select
         private void updateDifficultyText()
         {
             double stars = starDifficulty?.Value.Stars ?? 0;
-            difficultyText.Text = $"{attributes} Stars:{stars:0.##}".Trim();
+            difficultyText.Text = $"{attributes} Star Rating: {stars:0.##}\u2605".Trim();
         }
 
         protected override void Dispose(bool isDisposing)

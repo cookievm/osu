@@ -476,6 +476,12 @@ namespace osu.Game
         protected virtual void InitialiseFonts()
         {
             AddFont(Resources, @"Fonts/Torus/Torus-Regular");
+
+            // oily (ilo, 2026-11-27): osu!stable's font, for the Stable "Menu UI" (see Screens.Select.StableFont).
+            var oilyFonts = new NamespacedResourceStore<byte[]>(new DllResourceStore(typeof(OsuGameBase).Assembly), @"Resources/Oily");
+            AddFont(oilyFonts, @"Fonts/Aller/Aller-Regular");
+            AddFont(oilyFonts, @"Fonts/Aller/Aller-Bold");
+            AddFont(oilyFonts, @"Fonts/Aller/Aller-Light");
             AddFont(Resources, @"Fonts/Torus/Torus-Light");
             AddFont(Resources, @"Fonts/Torus/Torus-SemiBold");
             AddFont(Resources, @"Fonts/Torus/Torus-Bold");

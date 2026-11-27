@@ -468,6 +468,10 @@ namespace osu.Game.Screens.Select
 
             displayedState = state;
 
+            // oily: stable's "No records set!" box (drawn by stable's screen layer) instead of lazer's text.
+            if (pieceRegistry != null)
+                pieceRegistry.StableNoRecords.Value = stableLeaderboard.Value && state == LeaderboardState.NoScores;
+
             placeholder?.FadeOut(150, Easing.OutQuint).Expire();
             placeholder = getPlaceholderFor(state);
 
@@ -554,7 +558,8 @@ namespace osu.Game.Screens.Select
                     return new MessagePlaceholder(LeaderboardStrings.LeaderboardsAreNotAvailableForThisBeatmap);
 
                 case LeaderboardState.NoScores:
-                    return new MessagePlaceholder(LeaderboardStrings.NoRecordsYet);
+                    // oily: in stable's look the "No records set!" box is drawn by stable's screen layer instead.
+                    return stableLeaderboard.Value ? new EmptyPlaceholder() : new MessagePlaceholder(LeaderboardStrings.NoRecordsYet);
 
                 case LeaderboardState.NotLoggedIn:
                     return new LoginPlaceholder(LeaderboardStrings.PleaseSignInToViewOnlineLeaderboards);
@@ -574,6 +579,14 @@ namespace osu.Game.Screens.Select
                 default:
                     throw new ArgumentOutOfRangeException(nameof(state));
             }
+        }
+
+        /// <summary>
+        /// oily: a placeholder that shows nothing (stable draws its own).
+        /// </summary>
+        private partial class EmptyPlaceholder : Placeholder
+        {
+            public override bool Equals(Placeholder? other) => other is EmptyPlaceholder;
         }
     }
 }

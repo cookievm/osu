@@ -166,31 +166,14 @@ namespace osu.Game.Screens.Select
             private StableDropdown<StableRanking> stableRanking = null!;
             private bool updatingStableRanking;
 
-            /// <summary>
-            /// osu!stable's leaderboard choices: one list for both the scope and the selected mods filter.
-            /// </summary>
-            public enum StableRanking
-            {
-                [Description("Local Ranking")]
-                Local,
-
-                [Description("Global Ranking")]
-                Global,
-
-                [Description("Selected Mods")]
-                SelectedMods,
-
-                [Description("Friend Ranking")]
-                Friends,
-
-                [Description("Country Ranking")]
-                Country,
-            }
-
             private void loadStableLook()
             {
                 if (pieceRegistry != null)
+                {
                     stableLook.BindTo(pieceRegistry.StableLeaderboard);
+                    // Stable's screen layer draws the box; this one only follows it.
+                    stableRanking.Current.BindTo(pieceRegistry.StableRanking);
+                }
 
                 scopeDropdown.Current.BindValueChanged(_ => updateStableRanking());
                 selectedModsToggle.Active.BindValueChanged(_ => updateStableRanking(), true);
@@ -236,7 +219,6 @@ namespace osu.Game.Screens.Select
                         tabControl.Current.Value = Selection.Ranking;
 
                     tabControl.Alpha = v.NewValue ? 0 : 1;
-                    stableRanking.Alpha = v.NewValue ? 1 : 0;
                     leaderboardControls.FadeTo(!v.NewValue && tabControl.Current.Value == Selection.Ranking ? 1 : 0, 300, Easing.OutQuint);
                 }, true);
             }
@@ -358,5 +340,26 @@ namespace osu.Game.Screens.Select
                 protected override LocalisableString GenerateItemText(BeatmapLeaderboardScope item) => item.GetLocalisableDescription();
             }
         }
+    }
+
+    /// <summary>
+    /// oily: osu!stable's leaderboard choices: one list for both the scope and the selected mods filter.
+    /// </summary>
+    public enum StableRanking
+    {
+        [Description("Local Ranking")]
+        Local,
+
+        [Description("Global Ranking")]
+        Global,
+
+        [Description("Selected Mods")]
+        SelectedMods,
+
+        [Description("Friend Ranking")]
+        Friends,
+
+        [Description("Country Ranking")]
+        Country,
     }
 }

@@ -29,7 +29,6 @@ using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Screens.Select.Filter;
 using osu.Game.Graphics.Sprites;
-using osu.Game.Graphics;
 using osuTK;
 using osuTK.Graphics;
 using osuTK.Input;
@@ -91,8 +90,8 @@ namespace osu.Game.Screens.Select
 
         private void updateStableSearchText(string text)
         {
-            stableSearchText.Text = string.IsNullOrEmpty(text) ? "type to search!" : text;
-            stableSearchText.Colour = string.IsNullOrEmpty(text) ? Colour4.White.Opacity(0.5f) : new Colour4(255, 204, 34, 255);
+            stableSearchText.Text = string.IsNullOrEmpty(text) ? "Type to search!" : text;
+            stableSearchText.Colour = Colour4.White;
         }
 
         // oily: the parts a skin can colour one by one.
@@ -281,7 +280,7 @@ namespace osu.Game.Screens.Select
                 {
                     Anchor = Anchor.TopRight,
                     Origin = Anchor.TopLeft,
-                    Position = new Vector2(-359, 86),
+                    Position = new Vector2(-359, StableFont.SEARCH_BASELINE - StableFont.Ascent(StableFont.SEARCH_SIZE, bold: true)),
                     AutoSizeAxes = Axes.Both,
                     Direction = FillDirection.Horizontal,
                     Spacing = new Vector2(6, 0),
@@ -290,11 +289,13 @@ namespace osu.Game.Screens.Select
                         stableSearchWord = new OsuSpriteText
                         {
                             Text = "Search:",
-                            Font = OsuFont.GetFont(size: 20, weight: FontWeight.Bold),
+                            Font = StableFont.Get(StableFont.SEARCH_SIZE, bold: true),
+                            Shadow = false,
                         },
                         stableSearchText = new OsuSpriteText
                         {
-                            Font = OsuFont.GetFont(size: 20, weight: FontWeight.SemiBold),
+                            Font = StableFont.Get(StableFont.SEARCH_SIZE, bold: true),
+                            Shadow = false,
                         },
                     },
                 },
@@ -312,21 +313,21 @@ namespace osu.Game.Screens.Select
                 {
                     Anchor = Anchor.TopRight,
                     Origin = Anchor.TopRight,
-                    Position = new Vector2(-274, 30),
-                    Width = 189,
+                    Position = new Vector2(-285, 29.3f),
+                    Width = 191,
                     MirrorItemsOf = groupDropdown,
                     TextFor = g => g.Value == GroupMode.None ? "No Grouping" : LocalisableString.Interpolate($"By {g.Text}"),
-                    AccentColour = new Color4(113, 200, 255, 255),
+                    AccentColour = new Color4(121, 162, 191, 255),
                 },
                 stableSortDropdown = new StableDropdown<SortMode>
                 {
                     Anchor = Anchor.TopRight,
                     Origin = Anchor.TopRight,
-                    Position = new Vector2(-14, 30),
-                    Width = 185,
+                    Position = new Vector2(-15, 29.3f),
+                    Width = 191,
                     MirrorItemsOf = sortDropdown,
                     TextFor = s => LocalisableString.Interpolate($"By {s.GetLocalisableDescription()}"),
-                    AccentColour = new Color4(169, 255, 113, 255),
+                    AccentColour = new Color4(145, 175, 115, 255),
                 },
                 // Buttons that only exist in a skin's own top right picture (like WhiteCat's): see updateStableSkinPanel.
                 stableSkinButtons = new Container
@@ -384,7 +385,7 @@ namespace osu.Game.Screens.Select
         {
             stableCollectionDropdown.HeaderHidden = panel;
             stableSearchWord.Alpha = panel ? 0 : 1;
-            stableSearchLabel.X = panel ? -291 : -359;
+            stableSearchLabel.X = panel ? -277 : -359;
             stableSkinButtons.Alpha = panel ? 1 : 0;
         }
         private StableDropdown<GroupModeDropdownItem> stableGroupDropdown = null!;
