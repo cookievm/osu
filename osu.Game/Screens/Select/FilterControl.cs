@@ -281,13 +281,13 @@ namespace osu.Game.Screens.Select
                 {
                     Anchor = Anchor.TopRight,
                     Origin = Anchor.TopLeft,
-                    Position = new Vector2(-359, 120),
+                    Position = new Vector2(-359, 86),
                     AutoSizeAxes = Axes.Both,
                     Direction = FillDirection.Horizontal,
                     Spacing = new Vector2(6, 0),
                     Children = new Drawable[]
                     {
-                        new OsuSpriteText
+                        stableSearchWord = new OsuSpriteText
                         {
                             Text = "Search:",
                             Font = OsuFont.GetFont(size: 20, weight: FontWeight.Bold),
@@ -302,8 +302,8 @@ namespace osu.Game.Screens.Select
                 {
                     Anchor = Anchor.TopRight,
                     Origin = Anchor.TopRight,
-                    Position = new Vector2(-512, 96),
-                    Width = 160,
+                    Position = new Vector2(-508, 85),
+                    Width = 112,
                     MirrorItemsOf = collectionDropdown,
                     TextFor = c => c.CollectionName,
                     AccentColour = new Color4(255, 102, 170, 255),
@@ -312,7 +312,7 @@ namespace osu.Game.Screens.Select
                 {
                     Anchor = Anchor.TopRight,
                     Origin = Anchor.TopRight,
-                    Position = new Vector2(-274, 60),
+                    Position = new Vector2(-274, 30),
                     Width = 189,
                     MirrorItemsOf = groupDropdown,
                     TextFor = g => g.Value == GroupMode.None ? "No Grouping" : LocalisableString.Interpolate($"By {g.Text}"),
@@ -322,11 +322,23 @@ namespace osu.Game.Screens.Select
                 {
                     Anchor = Anchor.TopRight,
                     Origin = Anchor.TopRight,
-                    Position = new Vector2(-14, 60),
+                    Position = new Vector2(-14, 30),
                     Width = 185,
                     MirrorItemsOf = sortDropdown,
                     TextFor = s => LocalisableString.Interpolate($"By {s.GetLocalisableDescription()}"),
                     AccentColour = new Color4(169, 255, 113, 255),
+                },
+                // Buttons that only exist in a skin's own top right picture (like WhiteCat's): see updateStableSkinPanel.
+                stableSkinButtons = new Container
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Children = new Drawable[]
+                    {
+                        new StableSkinButton(-503, 85, 28, 24, () => setGroup(GroupMode.LastPlayed)),
+                        new StableSkinButton(-359, 62, 93, 20, () => setGroup(GroupMode.Artist)),
+                        new StableSkinButton(-266, 62, 91, 20, () => setGroup(GroupMode.Difficulty)),
+                        new StableSkinButton(-98, 62, 98, 22, () => setGroup(GroupMode.None)),
+                    },
                 },
             };
 
@@ -348,6 +360,33 @@ namespace osu.Game.Screens.Select
         };
 
         private GridContainer lazerSortRow = null!;
+        private Drawable stableSearchWord = null!;
+        private Container stableSkinButtons = null!;
+
+        [Resolved(CanBeNull = true)]
+        private SongSelectPieceRegistry? pieceRegistry { get; set; }
+
+        private readonly IBindable<bool> stableSkinPanel = new BindableBool();
+
+        private void setGroup(GroupMode mode)
+        {
+            var item = groupDropdown.Items.FirstOrDefault(i => i.Value == mode);
+
+            if (item != null)
+                groupDropdown.Current.Value = item;
+        }
+
+        /// <summary>
+        /// oily (ilo, 2026-11-27): when the skin paints its own top right (collections, search, group buttons, like WhiteCat), its pictures are the buttons:
+        /// the collection box draws nothing over them, the "Search:" word is left to the picture, and the painted group buttons work.
+        /// </summary>
+        private void updateStableSkinPanel(bool panel)
+        {
+            stableCollectionDropdown.HeaderHidden = panel;
+            stableSearchWord.Alpha = panel ? 0 : 1;
+            stableSearchLabel.X = panel ? -291 : -359;
+            stableSkinButtons.Alpha = panel ? 1 : 0;
+        }
         private StableDropdown<GroupModeDropdownItem> stableGroupDropdown = null!;
         private StableDropdown<SortMode> stableSortDropdown = null!;
         private StableDropdown<CollectionFilterMenuItem> stableCollectionDropdown = null!;
@@ -355,6 +394,11 @@ namespace osu.Game.Screens.Select
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            // oily: a skin's own top right picture.
+            if (pieceRegistry != null)
+                stableSkinPanel.BindTo(pieceRegistry.StableSkinPanel);
+            stableSkinPanel.BindValueChanged(p => updateStableSkinPanel(p.NewValue), true);
 
             // oily: stable's search text follows what's typed.
             searchTextBox.Current.BindValueChanged(t => updateStableSearchText(t.NewValue), true);
@@ -647,5 +691,20 @@ namespace osu.Game.Screens.Select
         }
 
         private record GroupModeDropdownItem(GroupMode Value, LocalisableString Text);
+
+        /// <summary>
+        /// oily: a see-through button over a button painted in the skin's picture (stable's space, from the screen's right edge).
+        /// </summary>
+        private partial class StableSkinButton : OsuClickableContainer
+        {
+            public StableSkinButton(float x, float y, float width, float height, Action action)
+            {
+                Anchor = Anchor.TopRight;
+                Origin = Anchor.TopLeft;
+                Position = new Vector2(x, y);
+                Size = new Vector2(width, height);
+                Action = action;
+            }
+        }
     }
 }

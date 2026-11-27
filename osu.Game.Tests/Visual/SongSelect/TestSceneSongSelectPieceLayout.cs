@@ -364,6 +364,8 @@ namespace osu.Game.Tests.Visual.SongSelect
             AddStep("stable menu ui", () => Config.SetValue(OsuSetting.OilyMenuUi, OilyMenuUi.Stable));
             AddUntilStep("stable top bar shown", () => SongSelect.ChildrenOfType<StableSongSelectTop>().All(t => t.Alpha > 0));
             AddUntilStep("bar also drawn over the cards", () => SongSelect.ChildrenOfType<StableTopBarCover>().Single().DrawHeight > 0);
+            AddUntilStep("bar over the cards starts at the top of the screen", () =>
+                Precision.AlmostEquals(SongSelect.ChildrenOfType<StableTopBarCover>().Single().ScreenSpaceDrawQuad.TopLeft.Y, SongSelect.ScreenSpaceDrawQuad.TopLeft.Y, 1));
             AddUntilStep("stable leaderboard", () => SongSelect.ChildrenOfType<SongSelectBeatmapDetailsLayout>().Any()
                                                       && skinLayer.Components.OfType<SongSelectBeatmapDetailsLayout>().First().Locked);
             AddUntilStep("search bar shown anyway", () => searchFrameAlpha == 1);

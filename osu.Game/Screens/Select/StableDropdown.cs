@@ -34,6 +34,11 @@ namespace osu.Game.Screens.Select
         /// </summary>
         public Dropdown<T>? MirrorItemsOf { get; init; }
 
+        /// <summary>
+        /// Draw no box, only keep it clickable (when the skin's picture already shows the button).
+        /// </summary>
+        public bool HeaderHidden { get; set; }
+
         protected override LocalisableString GenerateItemText(T item) => TextFor?.Invoke(item) ?? base.GenerateItemText(item);
 
         protected override DropdownHeader CreateHeader() => new StableHeader(this);
@@ -77,8 +82,10 @@ namespace osu.Game.Screens.Select
                 base.Update();
 
                 // Stable's boxes stay dark; hovering only darkens them a little more.
-                Background.Colour = new Color4(0, 0, 0, IsHovered ? 0.8f : 0.55f);
+                Background.Colour = new Color4(0, 0, 0, owner.HeaderHidden ? 0 : IsHovered ? 0.8f : 0.55f);
                 Chevron.Colour = Color4.White;
+                Foreground.Alpha = owner.HeaderHidden ? 0 : 1;
+                BorderThickness = owner.HeaderHidden ? 0 : 2;
             }
         }
     }

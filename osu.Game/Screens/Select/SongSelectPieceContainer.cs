@@ -60,6 +60,12 @@ namespace osu.Game.Screens.Select
         public readonly BindableBool StableTopBar = new BindableBool();
 
         /// <summary>
+        /// oily: the skin draws its own top right panel (the top of its selection-mode picture reaches the top of the screen, like WhiteCat's),
+        /// so stable's collection button and search word are already in the picture.
+        /// </summary>
+        public readonly BindableBool StableSkinPanel = new BindableBool();
+
+        /// <summary>
         /// oily: the back button is osu!stable's (the skin's menu-back picture), set by the "Back button" skin component.
         /// </summary>
         public readonly BindableBool StableBackButton = new BindableBool();
