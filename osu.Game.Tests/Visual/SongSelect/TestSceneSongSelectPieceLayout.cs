@@ -362,7 +362,8 @@ namespace osu.Game.Tests.Visual.SongSelect
             AddStep("hide the search bar", () => search.Hidden.Value = true);
             AddUntilStep("search bar hidden", () => searchFrameAlpha == 0);
             AddStep("stable menu ui", () => Config.SetValue(OsuSetting.OilyMenuUi, OilyMenuUi.Stable));
-            AddUntilStep("stable top bar shown", () => SongSelect.ChildrenOfType<StableSongSelectTop>().Single().Alpha > 0);
+            AddUntilStep("stable top bar shown", () => SongSelect.ChildrenOfType<StableSongSelectTop>().All(t => t.Alpha > 0));
+            AddUntilStep("bar also drawn over the cards", () => SongSelect.ChildrenOfType<StableTopBarCover>().Single().DrawHeight > 0);
             AddUntilStep("stable leaderboard", () => SongSelect.ChildrenOfType<SongSelectBeatmapDetailsLayout>().Any()
                                                       && skinLayer.Components.OfType<SongSelectBeatmapDetailsLayout>().First().Locked);
             AddUntilStep("search bar shown anyway", () => searchFrameAlpha == 1);
@@ -387,7 +388,7 @@ namespace osu.Game.Tests.Visual.SongSelect
             AddUntilStep("lazer cards back", () => Carousel.ChildrenOfType<StablePanelContent>().All(c => c.Alpha == 0));
 
             AddStep("lazer menu ui", () => Config.SetValue(OsuSetting.OilyMenuUi, OilyMenuUi.Lazer));
-            AddUntilStep("stable top bar hidden", () => SongSelect.ChildrenOfType<StableSongSelectTop>().Single().Alpha == 0);
+            AddUntilStep("stable top bar hidden", () => SongSelect.ChildrenOfType<StableSongSelectTop>().All(t => t.Alpha == 0));
             AddUntilStep("stable boxes hidden", () => SongSelect.ChildrenOfType<FilterControl>().Single().StableControls.Alpha == 0);
             AddUntilStep("search bar hidden again", () => searchFrameAlpha == 0);
             AddStep("show the search bar", () => search.Hidden.Value = false);

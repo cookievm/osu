@@ -313,6 +313,8 @@ namespace osu.Game.Screens.Select
                                                                 RequestRecommendedSelection = requestRecommendedSelection,
                                                                 NewItemsPresented = newItemsPresented,
                                                             },
+                                                            // oily: osu!stable's top bar is drawn over the cards.
+                                                            new StableTopBarCover(this),
                                                             noResultsPlaceholder = new NoResultsPlaceholder
                                                             {
                                                                 RequestClearFilterText = () => FilterControl.Search(string.Empty)
