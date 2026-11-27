@@ -392,7 +392,9 @@ namespace osu.Game.Screens.Select
                 _ => active ? ACTIVE_COLOUR : SET_COLOUR,
             };
 
-            Color4 text = active ? activeText : inactiveText;
+            // Matches stable with skins that set these colours (checked against WhiteCat in osu!stable, 2026-11-27): the selected card uses
+            // SongSelectActiveText, difficulties inside an opened set use SongSelectInactiveText, and set cards and group headers stay white.
+            Color4 text = active ? activeText : kind == StablePanelKind.Difficulty && insideSet ? inactiveText : Color4.White;
             double duration = animated ? 200 : 0;
 
             backgroundContainer.FadeColour(cardColour, duration, Easing.OutQuint);
